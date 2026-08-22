@@ -1,0 +1,65 @@
+name: sekala_app
+description: "SEKALA - Sejarah & Edukasi Kesehatan Alur Lintas Abad"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State management
+  flutter_riverpod: ^2.5.1
+
+  # Routing
+  go_router: ^14.2.0
+
+  # Networking
+  dio: ^5.4.3+1
+  pretty_dio_logger: ^1.3.1
+
+  # Auth & storage
+  flutter_secure_storage: ^9.2.2
+  google_sign_in: ^6.2.1
+
+  # Media (video YouTube, webview untuk kuis Upresenter & PDF Drive embed)
+  youtube_player_flutter: ^9.0.1
+  webview_flutter: ^4.8.0
+  url_launcher: ^6.3.0
+
+  # Image (foto tokoh & gambar section dari Google Drive link)
+  cached_network_image: ^3.3.1
+
+  # UI utilities
+  google_fonts: ^6.2.1
+  flutter_svg: ^2.0.10+1
+  shimmer: ^3.0.0
+
+  # Scroll detection (auto-detect "selesai baca")
+  visibility_detector: ^0.4.0+2
+
+  # Utilities
+  intl: ^0.19.0
+  equatable: ^2.0.5
+  freezed_annotation: ^2.4.4
+  json_annotation: ^4.9.0
+
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+  # Codegen
+  build_runner: ^2.4.11
+  freezed: ^2.5.7
+  json_serializable: ^6.8.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/icons/
