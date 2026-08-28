@@ -1,33 +1,44 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'core/network/dio_client.dart';
+import 'core/router/app_router.dart';
+import 'core/router/auth_state.dart';
 import 'core/theme/app_theme.dart';
 
 void main() {
-  runApp(const SekalaApp());
+  runApp(const ProviderScope(child: SekalaApp()));
 }
 
-class SekalaApp extends StatelessWidget {
+class SekalaApp extends ConsumerStatefulWidget {
   const SekalaApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'SEKALA',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.light,
-      home: const _ThemePreview(),
-    );
-  }
+  ConsumerState<SekalaApp> createState() => _SekalaAppState();
 }
 
-// Widget sementara buat ngecek tema — nanti diganti router (core/router)
-class _ThemePreview extends StatelessWidget {
-  const _ThemePreview();
+class _SekalaAppState extends ConsumerState<SekalaApp> {
+  @override
+  void initState() {
+    super.initState();
+    // Hubungkan DioClient: setiap kali ada response 401 (token invalid/
+    // expired), auto logout & redirect guard di app_router.dart yang
+    // otomatis mindahin ke /auth. Token sudah dibersihkan dari secure
+    // storage di dalam _onError DioClient, di sini cukup update AuthState.
+    DioClient.instance.onUnauthenticated = () {
+      ref.read(authNotifierProvider.notifier).logout();
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('SEKALA Theme Preview')),
-      body: const Center(child: Text('Tema berhasil dimuat')),
+    final router = ref.watch(routerProvider);
+
+    return MaterialApp.router(
+      title: 'SEKALA',
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.light,
+      routerConfig: router,
     );
   }
 }
