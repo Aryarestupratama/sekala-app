@@ -3,14 +3,17 @@ import '../../../shared/models/user.dart';
 import '../domain/auth_repository.dart';
 import 'auth_api.dart';
 
-/// ASUMSI shape response untuk register/login/google — dugaan konvensi
-/// Laravel: `{ "user": {...UserResource}, "token": "..." }`. Kalau backend
+/// ASUMSI shape response untuk login/google — dugaan konvensi Laravel:
+/// `{ "user": {...UserResource}, "token": "..." }`. Kalau backend
 /// ternyata membungkusnya beda (mis. `{ "data": { "user": ..., "token": ... } }`),
 /// cukup sesuaikan `_parseAuthPayload` di bawah — tidak usah ubah tempat lain.
 class AuthRepositoryImpl implements AuthRepository {
   AuthRepositoryImpl(this._api);
   final AuthApi _api;
 
+  /// Dipakai untuk login/google — response-nya SELALU ada `token`
+  /// (AuthController::login()/googleCallback()), jadi aman langsung
+  /// simpan ke storage & anggap user sudah authenticated.
   Future<User> _parseAuthPayload(Map<String, dynamic> json) async {
     final user = User.fromJson(json['user'] as Map<String, dynamic>);
     final token = json['token'] as String;
@@ -32,7 +35,14 @@ class AuthRepositoryImpl implements AuthRepository {
       password: password,
       passwordConfirmation: passwordConfirmation,
     );
-    return _parseAuthPayload(json);
+    // PENTING: dikonfirmasi lewat AuthController::register() (Laravel) —
+    // response register CUMA berisi { message, user }, TIDAK ada "token".
+    // Ini disengaja: user baru belum email_verified (R-AUTH-02/03), jadi
+    // belum boleh dianggap "login". Jangan pakai _parseAuthPayload() di
+    // sini (dulu inilah akar bug loading macet — json['token'] as String
+    // dilempar ke null lalu TypeError nggak ketangkep di AuthController
+    // provider, state nyangkut di AsyncLoading() selamanya).
+    return User.fromJson(json['user'] as Map<String, dynamic>);
   }
 
   @override

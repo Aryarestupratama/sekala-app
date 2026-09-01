@@ -53,13 +53,19 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
     required String passwordConfirmation,
   }) {
     return _run(() async {
-      final user = await _repository.register(
+      // Sengaja TIDAK panggil setAuthenticated() di sini — register
+      // (AuthController::register() Laravel) tidak mengembalikan token
+      // sama sekali, karena user baru belum email_verified (R-AUTH-02/03),
+      // jadi belum boleh dianggap login. AuthRepositoryImpl.register()
+      // juga sudah tidak mencoba baca token lagi (lihat catatan di sana).
+      // Screen (auth_screen.dart) yang menampilkan pesan "cek email"
+      // & mengarahkan balik ke mode Login setelah ini sukses.
+      await _repository.register(
         name: name,
         email: email,
         password: password,
         passwordConfirmation: passwordConfirmation,
       );
-      _ref.read(authNotifierProvider.notifier).setAuthenticated(user.role);
     });
   }
 
@@ -105,6 +111,12 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
       state = AsyncError(e, st);
       return false;
     }
+    // CATATAN: sengaja TIDAK ada catch-all generik di sini. Kalau ada
+    // exception lain (bukan ApiException) yang lolos dari sini, itu bug
+    // riil yang harus kelihatan (mis. lewat Flutter error overlay/crash
+    // log), bukan ditelan diam-diam jadi "loading macet tanpa error" —
+    // itu persis yang terjadi sebelum register.register() diperbaiki agar
+    // tidak lagi maksa cast json['token'] as String yang null.
   }
 }
 
