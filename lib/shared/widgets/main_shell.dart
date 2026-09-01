@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-/// Bottom nav 4 tab: Home / Informasi Sejarah / Collectible Card / Profil
-/// (Design.md §2). Dipakai sama untuk user login & guest — kalau guest
-/// tap "Collectible Card" atau "Profil", redirect guard di app_router.dart
+/// Bottom nav 4 tab: Home / Informasi / Koleksi / Profil (Design.md §2,
+/// mockup Home terbaru). Dipakai sama untuk user login & guest — kalau
+/// guest tap "Koleksi" atau "Profil", redirect guard di app_router.dart
 /// yang otomatis mengarahkan ke /auth (R-GUEST-03), bukan disembunyikan
 /// di sini, supaya guest tetap tahu fitur itu ada (mendorong registrasi,
 /// sesuai prinsip "ramah untuk guest" di Design.md §1).
@@ -34,12 +34,12 @@ class MainShell extends StatelessWidget {
           NavigationDestination(
             icon: Icon(Icons.menu_book_outlined),
             selectedIcon: Icon(Icons.menu_book),
-            label: 'Sejarah',
+            label: 'Informasi',
           ),
           NavigationDestination(
             icon: Icon(Icons.style_outlined),
             selectedIcon: Icon(Icons.style),
-            label: 'Card',
+            label: 'Koleksi',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline),
