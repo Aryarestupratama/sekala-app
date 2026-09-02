@@ -10,8 +10,8 @@ import '../../features/home/presentation/screens/home_screen.dart';
 import '../../features/history/presentation/screens/era_list_screen.dart';
 import '../../features/history/presentation/screens/era_roadmap_screen.dart';
 import '../../features/history/presentation/screens/section_detail_screen.dart';
-import '../../features/card/presentation/screens/card_list_screen.dart';
-import '../../features/card/presentation/screens/card_detail_screen.dart';
+import '../../features/card/presentation/screens/vaccine_list_screen.dart';
+import '../../features/card/presentation/screens/vaccine_detail_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../shared/widgets/main_shell.dart';
 
@@ -27,8 +27,9 @@ class _AuthRefreshListenable extends ChangeNotifier {
 
 /// Path yang wajib login (bukan guest) — R-GUEST-03: guest yang mencoba
 /// akses kuis/progress/card diarahkan ke halaman login/registrasi.
-/// (Kuis tidak punya route sendiri karena dibuka via WebView dari section,
-/// bukan route terpisah — lihat Architecture.md §4.2.)
+/// (Kuis sekarang native in-app, bukan lagi WebView Upresenter — lihat
+/// Architecture.md §4.2. Belum punya route sendiri di file ini karena
+/// screen kuis Flutter belum dibuat sama sekali, lihat progress.md.)
 const _protectedPathPrefixes = ['/cards', '/profile'];
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -125,12 +126,12 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/cards',
-                builder: (context, state) => const CardListScreen(),
+                builder: (context, state) => const VaccineListScreen(),
                 routes: [
                   GoRoute(
-                    path: ':figureId',
-                    builder: (context, state) => CardDetailScreen(
-                      figureId: state.pathParameters['figureId']!,
+                    path: ':vaccineId',
+                    builder: (context, state) => VaccineDetailScreen(
+                      vaccineId: state.pathParameters['vaccineId']!,
                     ),
                   ),
                 ],

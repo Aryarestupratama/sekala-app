@@ -12,9 +12,12 @@ class CardApi {
     });
   }
 
-  Future<dynamic> getFigureDetail(int figureId) {
+  /// GET /api/cards/{vaccine} — CARD-02. Nama method disesuaikan ke
+  /// Vaccine (dulu getFigureDetail); endpoint & path param backend tidak
+  /// berubah, cuma penamaan sisi Flutter mengikuti migrasi Figure→Vaccine.
+  Future<dynamic> getVaccineDetail(int vaccineId) {
     return unwrapApiCall(() async {
-      final response = await _dio.get('/cards/$figureId');
+      final response = await _dio.get('/cards/$vaccineId');
       return response.data;
     });
   }

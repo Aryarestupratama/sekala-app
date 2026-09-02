@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 import '../../../../core/router/auth_state.dart';
@@ -10,12 +9,22 @@ import '../providers/history_providers.dart';
 import '../widgets/content_block_view.dart';
 
 /// GET /api/public/sections/{section} — INFO-02, plus deteksi
-/// scroll-to-bottom (INFO-03, R-PROG-02) & tombol "Mulai Kuis"
-/// (INFO-04, R-QUIZ-01).
+/// scroll-to-bottom (INFO-03, R-PROG-02).
 ///
-/// CATATAN: backend nggak expose status "sudah completed" balik ke
-/// client (lihat Section model) — jadi status itu dilacak lokal per sesi
-/// lewat sectionJustCompletedProvider, bukan dari field API.
+/// CATATAN PENTING (revisi kuis & vaksin level-year, Architecture.md §4.2 &
+/// §4.8): screen ini SENGAJA tidak lagi punya tombol "Mulai Kuis" ataupun
+/// referensi ke card/vaksin terkait section — keduanya sudah naik level ke
+/// `year`, bukan lagi per `section`:
+/// - Kuis baru muncul setelah SELURUH section dalam satu year completed,
+///   di halaman "Rangkuman Wabah" (Design.md §3.3 poin 4-5) — halaman itu
+///   sendiri belum dibuat di Flutter (lihat progress.md), jadi entry point
+///   kuis yang benar bukan di sini.
+/// - Vaksin ter-unlock berdasarkan status "year completed" (R-VAC-01), jadi
+///   selesai satu section TIDAK otomatis berarti ada vaksin baru terbuka.
+///
+/// Backend juga nggak expose status "sudah completed" balik ke client
+/// (lihat Section model) — jadi status itu dilacak lokal per sesi lewat
+/// sectionJustCompletedProvider, bukan dari field API.
 class SectionDetailScreen extends ConsumerStatefulWidget {
   const SectionDetailScreen({super.key, required this.sectionId});
 
@@ -50,7 +59,6 @@ class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
   }
 
   Future<void> _triggerCompletion() async {
-    final section = ref.read(sectionDetailProvider(_id)).valueOrNull;
     final success = await ref
         .read(sectionCompletionControllerProvider.notifier)
         .complete(_id);
@@ -63,13 +71,14 @@ class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
       return;
     }
 
-    // Design.md §3.3 poin 4: notifikasi ringan "Card baru terbuka!" kalau
-    // section ini punya tokoh terkait. Disederhanakan jadi SnackBar
-    // (bukan animasi/popup) sesuai opsi yang disebut di dokumen itu sendiri.
-    final message = (section != null && section.figures.isNotEmpty)
-        ? 'Selesai dibaca! Card tokoh baru terbuka 🎉'
-        : 'Selesai dibaca!';
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    // TODO: kalau ini section TERAKHIR (order tertinggi) di year tsb dan
+    // seluruh section lain sudah completed, idealnya diarahkan ke halaman
+    // Rangkuman Wabah (belum dibuat) alih-alih cuma SnackBar biasa —
+    // backend tidak mengirim sinyal itu balik di response completion saat
+    // ini, jadi belum bisa dideteksi otomatis dari sini.
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Selesai dibaca!')),
+    );
   }
 
   Widget _buildContent(BuildContext context, Section section) {
@@ -89,10 +98,7 @@ class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
         for (final block in blocks) ContentBlockView(block: block),
         const SizedBox(height: 24),
         // Marker tak-kelihatan di paling bawah konten — dipakai buat
-        // deteksi "user sudah scroll sampai akhir" (INFO-03). Diletakkan
-        // SETELAH semua block (termasuk summary yang R-CMS-03 pastikan
-        // selalu di urutan terakhir), jadi baru trigger kalau summary-nya
-        // juga udah kebaca.
+        // deteksi "user sudah scroll sampai akhir" (INFO-03).
         VisibilityDetector(
           key: ValueKey('section-bottom-marker-$_id'),
           onVisibilityChanged: _handleBottomVisible,
@@ -103,32 +109,9 @@ class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
     );
   }
 
-  Widget? _buildQuizButton(Section section, bool justCompleted) {
-    // R-QUIZ-01: tombol aktif hanya kalau section sudah completed (di
-    // sesi ini) DAN quiz_link terisi (R-CMS-07).
-    final quizLink = section.quizLink;
-    if (quizLink == null || quizLink.isEmpty) return null;
-    if (!justCompleted) return null;
-
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: FilledButton.icon(
-          onPressed: () => launchUrl(
-            Uri.parse(quizLink),
-            mode: LaunchMode.externalApplication,
-          ),
-          icon: const Icon(Icons.quiz_outlined),
-          label: const Text('Mulai Kuis'),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final sectionAsync = ref.watch(sectionDetailProvider(_id));
-    final justCompleted = ref.watch(sectionJustCompletedProvider(_id));
 
     return Scaffold(
       appBar: AppBar(title: Text(sectionAsync.valueOrNull?.title ?? 'Memuat...')),
@@ -138,10 +121,6 @@ class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
         // 404 (section draft/belum publish, R-CMS-01) juga bakal muncul
         // di sini sebagai pesan error generik lewat ApiException.message.
         error: (error, _) => Center(child: Text('Gagal memuat section: $error')),
-      ),
-      bottomNavigationBar: sectionAsync.maybeWhen(
-        data: (section) => _buildQuizButton(section, justCompleted),
-        orElse: () => null,
       ),
     );
   }
