@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../shared/models/era.dart';
+import '../../../../shared/models/era_roadmap.dart';
 import '../../../../shared/models/section.dart';
-import '../../../../shared/models/year.dart';
 import '../../../home/presentation/providers/home_providers.dart';
 import '../../data/history_api.dart';
 import '../../data/history_repository_impl.dart';
@@ -24,10 +24,12 @@ final erasProvider = FutureProvider.autoDispose<List<Era>>((ref) {
   return ref.watch(historyRepositoryProvider).fetchEras();
 });
 
-/// Roadmap tahun per era (INFO-01). `.family` karena butuh parameter
-/// eraSlug — tiap era punya cache list tahun sendiri-sendiri.
+/// Roadmap tahun per era (INFO-01) — sekarang bertipe `EraRoadmap`
+/// (bukan `List<Year>` lagi), karena response juga bawa `meta` progress
+/// era ("X dari Y tahun dibaca", Architecture.md §4.7). `.family` karena
+/// butuh parameter eraSlug — tiap era punya cache roadmap sendiri-sendiri.
 final yearsProvider =
-    FutureProvider.family.autoDispose<List<Year>, String>((ref, eraSlug) {
+    FutureProvider.family.autoDispose<EraRoadmap, String>((ref, eraSlug) {
   return ref.watch(historyRepositoryProvider).fetchYears(eraSlug);
 });
 
@@ -38,10 +40,10 @@ final sectionDetailProvider =
 });
 
 /// Status "selesai baca" khusus buat keperluan UI (nampilin tombol kuis)
-/// dalam sesi berjalan — BUKAN dari field API (backend nggak expose
-/// status completion balik ke client, lihat catatan di Section model).
-/// autoDispose: reset ke false lagi kalau user keluar dari screen section
-/// ini & balik lagi nanti — konsisten sama makna "per sesi baca".
+/// dalam sesi berjalan — dipakai bareng data resmi dari `SectionSummary`
+/// (`completed`, sekarang datang dari backend) buat feedback instan
+/// sebelum roadmap sempat di-refetch. autoDispose: reset ke false lagi
+/// kalau user keluar dari screen section ini & balik lagi nanti.
 final sectionJustCompletedProvider =
     StateProvider.family.autoDispose<bool, int>((ref, sectionId) => false);
 
@@ -64,10 +66,10 @@ class SectionCompletionController extends StateNotifier<AsyncValue<void>> {
       // sama sekali cuma gara-gara completion, jadi refetch bakal sia-sia.
       _ref.read(sectionJustCompletedProvider(sectionId).notifier).state = true;
 
-      // Refresh progress Home (HOME-01/02). Kalau data section-nya masih
-      // ke-cache, sekalian invalidate roadmap era yang relevan (walau
-      // checkmark-nya sendiri masih gap backend terpisah, lihat diskusi
-      // sebelumnya — ini future-proofing begitu itu ditambahin).
+      // Refresh progress Home (HOME-01/02) & roadmap era terkait — sekarang
+      // checkmark/lock di roadmap BENERAN bergantung ke sini (bukan lagi
+      // gap backend), jadi invalidate ini penting supaya status
+      // locked/completed/current ter-update begitu balik ke roadmap.
       final cachedSection = _ref.read(sectionDetailProvider(sectionId)).valueOrNull;
       if (cachedSection != null) {
         _ref.invalidate(yearsProvider(cachedSection.year.era.slug));

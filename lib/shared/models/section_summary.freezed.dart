@@ -17,6 +17,9 @@ T _$identity<T>(T value) => value;
 mixin _$SectionSummary {
   int get id;
   String get title;
+  int get order;
+  bool get locked;
+  bool get completed;
 
   /// Create a copy of SectionSummary
   /// with the given fields replaced by the non-null parameter values.
@@ -35,16 +38,21 @@ mixin _$SectionSummary {
         (other.runtimeType == runtimeType &&
             other is SectionSummary &&
             (identical(other.id, id) || other.id == id) &&
-            (identical(other.title, title) || other.title == title));
+            (identical(other.title, title) || other.title == title) &&
+            (identical(other.order, order) || other.order == order) &&
+            (identical(other.locked, locked) || other.locked == locked) &&
+            (identical(other.completed, completed) ||
+                other.completed == completed));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, id, title);
+  int get hashCode =>
+      Object.hash(runtimeType, id, title, order, locked, completed);
 
   @override
   String toString() {
-    return 'SectionSummary(id: $id, title: $title)';
+    return 'SectionSummary(id: $id, title: $title, order: $order, locked: $locked, completed: $completed)';
   }
 }
 
@@ -54,7 +62,7 @@ abstract mixin class $SectionSummaryCopyWith<$Res> {
           SectionSummary value, $Res Function(SectionSummary) _then) =
       _$SectionSummaryCopyWithImpl;
   @useResult
-  $Res call({int id, String title});
+  $Res call({int id, String title, int order, bool locked, bool completed});
 }
 
 /// @nodoc
@@ -72,6 +80,9 @@ class _$SectionSummaryCopyWithImpl<$Res>
   $Res call({
     Object? id = null,
     Object? title = null,
+    Object? order = null,
+    Object? locked = null,
+    Object? completed = null,
   }) {
     return _then(SectionSummary(
       id: null == id
@@ -82,6 +93,18 @@ class _$SectionSummaryCopyWithImpl<$Res>
           ? _self.title
           : title // ignore: cast_nullable_to_non_nullable
               as String,
+      order: null == order
+          ? _self.order
+          : order // ignore: cast_nullable_to_non_nullable
+              as int,
+      locked: null == locked
+          ? _self.locked
+          : locked // ignore: cast_nullable_to_non_nullable
+              as bool,
+      completed: null == completed
+          ? _self.completed
+          : completed // ignore: cast_nullable_to_non_nullable
+              as bool,
     ));
   }
 }
@@ -179,13 +202,16 @@ extension SectionSummaryPatterns on SectionSummary {
 
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>(
-    TResult Function(int id, String title)? $default, {
+    TResult Function(
+            int id, String title, int order, bool locked, bool completed)?
+        $default, {
     required TResult orElse(),
   }) {
     final _that = this;
     switch (_that) {
       case _SectionSummary() when $default != null:
-        return $default(_that.id, _that.title);
+        return $default(
+            _that.id, _that.title, _that.order, _that.locked, _that.completed);
       case _:
         return orElse();
     }
@@ -206,12 +232,15 @@ extension SectionSummaryPatterns on SectionSummary {
 
   @optionalTypeArgs
   TResult when<TResult extends Object?>(
-    TResult Function(int id, String title) $default,
+    TResult Function(
+            int id, String title, int order, bool locked, bool completed)
+        $default,
   ) {
     final _that = this;
     switch (_that) {
       case _SectionSummary():
-        return $default(_that.id, _that.title);
+        return $default(
+            _that.id, _that.title, _that.order, _that.locked, _that.completed);
       case _:
         throw StateError('Unexpected subclass');
     }
@@ -231,12 +260,15 @@ extension SectionSummaryPatterns on SectionSummary {
 
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>(
-    TResult? Function(int id, String title)? $default,
+    TResult? Function(
+            int id, String title, int order, bool locked, bool completed)?
+        $default,
   ) {
     final _that = this;
     switch (_that) {
       case _SectionSummary() when $default != null:
-        return $default(_that.id, _that.title);
+        return $default(
+            _that.id, _that.title, _that.order, _that.locked, _that.completed);
       case _:
         return null;
     }
@@ -246,7 +278,12 @@ extension SectionSummaryPatterns on SectionSummary {
 /// @nodoc
 @JsonSerializable()
 class _SectionSummary implements SectionSummary {
-  const _SectionSummary({required this.id, required this.title});
+  const _SectionSummary(
+      {required this.id,
+      required this.title,
+      this.order = 0,
+      this.locked = true,
+      this.completed = false});
   factory _SectionSummary.fromJson(Map<String, dynamic> json) =>
       _$SectionSummaryFromJson(json);
 
@@ -254,6 +291,15 @@ class _SectionSummary implements SectionSummary {
   final int id;
   @override
   final String title;
+  @override
+  @JsonKey()
+  final int order;
+  @override
+  @JsonKey()
+  final bool locked;
+  @override
+  @JsonKey()
+  final bool completed;
 
   /// Create a copy of SectionSummary
   /// with the given fields replaced by the non-null parameter values.
@@ -276,16 +322,21 @@ class _SectionSummary implements SectionSummary {
         (other.runtimeType == runtimeType &&
             other is _SectionSummary &&
             (identical(other.id, id) || other.id == id) &&
-            (identical(other.title, title) || other.title == title));
+            (identical(other.title, title) || other.title == title) &&
+            (identical(other.order, order) || other.order == order) &&
+            (identical(other.locked, locked) || other.locked == locked) &&
+            (identical(other.completed, completed) ||
+                other.completed == completed));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, id, title);
+  int get hashCode =>
+      Object.hash(runtimeType, id, title, order, locked, completed);
 
   @override
   String toString() {
-    return 'SectionSummary(id: $id, title: $title)';
+    return 'SectionSummary(id: $id, title: $title, order: $order, locked: $locked, completed: $completed)';
   }
 }
 
@@ -297,7 +348,7 @@ abstract mixin class _$SectionSummaryCopyWith<$Res>
       __$SectionSummaryCopyWithImpl;
   @override
   @useResult
-  $Res call({int id, String title});
+  $Res call({int id, String title, int order, bool locked, bool completed});
 }
 
 /// @nodoc
@@ -315,6 +366,9 @@ class __$SectionSummaryCopyWithImpl<$Res>
   $Res call({
     Object? id = null,
     Object? title = null,
+    Object? order = null,
+    Object? locked = null,
+    Object? completed = null,
   }) {
     return _then(_SectionSummary(
       id: null == id
@@ -325,6 +379,18 @@ class __$SectionSummaryCopyWithImpl<$Res>
           ? _self.title
           : title // ignore: cast_nullable_to_non_nullable
               as String,
+      order: null == order
+          ? _self.order
+          : order // ignore: cast_nullable_to_non_nullable
+              as int,
+      locked: null == locked
+          ? _self.locked
+          : locked // ignore: cast_nullable_to_non_nullable
+              as bool,
+      completed: null == completed
+          ? _self.completed
+          : completed // ignore: cast_nullable_to_non_nullable
+              as bool,
     ));
   }
 }

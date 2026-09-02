@@ -18,8 +18,12 @@ mixin _$Year {
   int get id;
   int get year;
   String get title;
+  String? get summary;
   @JsonKey(name: 'published_sections_count')
   int? get publishedSectionsCount;
+  bool get locked;
+  @JsonKey(name: 'is_completed')
+  bool get isCompleted;
   @JsonKey(name: 'sections', defaultValue: <SectionSummary>[])
   List<SectionSummary> get sections;
 
@@ -41,19 +45,31 @@ mixin _$Year {
             (identical(other.id, id) || other.id == id) &&
             (identical(other.year, year) || other.year == year) &&
             (identical(other.title, title) || other.title == title) &&
+            (identical(other.summary, summary) || other.summary == summary) &&
             (identical(other.publishedSectionsCount, publishedSectionsCount) ||
                 other.publishedSectionsCount == publishedSectionsCount) &&
+            (identical(other.locked, locked) || other.locked == locked) &&
+            (identical(other.isCompleted, isCompleted) ||
+                other.isCompleted == isCompleted) &&
             const DeepCollectionEquality().equals(other.sections, sections));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, id, year, title,
-      publishedSectionsCount, const DeepCollectionEquality().hash(sections));
+  int get hashCode => Object.hash(
+      runtimeType,
+      id,
+      year,
+      title,
+      summary,
+      publishedSectionsCount,
+      locked,
+      isCompleted,
+      const DeepCollectionEquality().hash(sections));
 
   @override
   String toString() {
-    return 'Year(id: $id, year: $year, title: $title, publishedSectionsCount: $publishedSectionsCount, sections: $sections)';
+    return 'Year(id: $id, year: $year, title: $title, summary: $summary, publishedSectionsCount: $publishedSectionsCount, locked: $locked, isCompleted: $isCompleted, sections: $sections)';
   }
 }
 
@@ -66,7 +82,10 @@ abstract mixin class $YearCopyWith<$Res> {
       {int id,
       int year,
       String title,
+      String? summary,
       @JsonKey(name: 'published_sections_count') int? publishedSectionsCount,
+      bool locked,
+      @JsonKey(name: 'is_completed') bool isCompleted,
       @JsonKey(name: 'sections', defaultValue: <SectionSummary>[])
       List<SectionSummary> sections});
 }
@@ -86,7 +105,10 @@ class _$YearCopyWithImpl<$Res> implements $YearCopyWith<$Res> {
     Object? id = null,
     Object? year = null,
     Object? title = null,
+    Object? summary = freezed,
     Object? publishedSectionsCount = freezed,
+    Object? locked = null,
+    Object? isCompleted = null,
     Object? sections = null,
   }) {
     return _then(Year(
@@ -102,10 +124,22 @@ class _$YearCopyWithImpl<$Res> implements $YearCopyWith<$Res> {
           ? _self.title
           : title // ignore: cast_nullable_to_non_nullable
               as String,
+      summary: freezed == summary
+          ? _self.summary
+          : summary // ignore: cast_nullable_to_non_nullable
+              as String?,
       publishedSectionsCount: freezed == publishedSectionsCount
           ? _self.publishedSectionsCount
           : publishedSectionsCount // ignore: cast_nullable_to_non_nullable
               as int?,
+      locked: null == locked
+          ? _self.locked
+          : locked // ignore: cast_nullable_to_non_nullable
+              as bool,
+      isCompleted: null == isCompleted
+          ? _self.isCompleted
+          : isCompleted // ignore: cast_nullable_to_non_nullable
+              as bool,
       sections: null == sections
           ? _self.sections
           : sections // ignore: cast_nullable_to_non_nullable
@@ -211,8 +245,11 @@ extension YearPatterns on Year {
             int id,
             int year,
             String title,
+            String? summary,
             @JsonKey(name: 'published_sections_count')
             int? publishedSectionsCount,
+            bool locked,
+            @JsonKey(name: 'is_completed') bool isCompleted,
             @JsonKey(name: 'sections', defaultValue: <SectionSummary>[])
             List<SectionSummary> sections)?
         $default, {
@@ -221,8 +258,15 @@ extension YearPatterns on Year {
     final _that = this;
     switch (_that) {
       case _Year() when $default != null:
-        return $default(_that.id, _that.year, _that.title,
-            _that.publishedSectionsCount, _that.sections);
+        return $default(
+            _that.id,
+            _that.year,
+            _that.title,
+            _that.summary,
+            _that.publishedSectionsCount,
+            _that.locked,
+            _that.isCompleted,
+            _that.sections);
       case _:
         return orElse();
     }
@@ -247,8 +291,11 @@ extension YearPatterns on Year {
             int id,
             int year,
             String title,
+            String? summary,
             @JsonKey(name: 'published_sections_count')
             int? publishedSectionsCount,
+            bool locked,
+            @JsonKey(name: 'is_completed') bool isCompleted,
             @JsonKey(name: 'sections', defaultValue: <SectionSummary>[])
             List<SectionSummary> sections)
         $default,
@@ -256,8 +303,15 @@ extension YearPatterns on Year {
     final _that = this;
     switch (_that) {
       case _Year():
-        return $default(_that.id, _that.year, _that.title,
-            _that.publishedSectionsCount, _that.sections);
+        return $default(
+            _that.id,
+            _that.year,
+            _that.title,
+            _that.summary,
+            _that.publishedSectionsCount,
+            _that.locked,
+            _that.isCompleted,
+            _that.sections);
       case _:
         throw StateError('Unexpected subclass');
     }
@@ -281,8 +335,11 @@ extension YearPatterns on Year {
             int id,
             int year,
             String title,
+            String? summary,
             @JsonKey(name: 'published_sections_count')
             int? publishedSectionsCount,
+            bool locked,
+            @JsonKey(name: 'is_completed') bool isCompleted,
             @JsonKey(name: 'sections', defaultValue: <SectionSummary>[])
             List<SectionSummary> sections)?
         $default,
@@ -290,8 +347,15 @@ extension YearPatterns on Year {
     final _that = this;
     switch (_that) {
       case _Year() when $default != null:
-        return $default(_that.id, _that.year, _that.title,
-            _that.publishedSectionsCount, _that.sections);
+        return $default(
+            _that.id,
+            _that.year,
+            _that.title,
+            _that.summary,
+            _that.publishedSectionsCount,
+            _that.locked,
+            _that.isCompleted,
+            _that.sections);
       case _:
         return null;
     }
@@ -305,7 +369,10 @@ class _Year implements Year {
       {required this.id,
       required this.year,
       required this.title,
+      this.summary,
       @JsonKey(name: 'published_sections_count') this.publishedSectionsCount,
+      this.locked = true,
+      @JsonKey(name: 'is_completed') this.isCompleted = false,
       @JsonKey(name: 'sections', defaultValue: <SectionSummary>[])
       required List<SectionSummary> sections})
       : _sections = sections;
@@ -318,8 +385,16 @@ class _Year implements Year {
   @override
   final String title;
   @override
+  final String? summary;
+  @override
   @JsonKey(name: 'published_sections_count')
   final int? publishedSectionsCount;
+  @override
+  @JsonKey()
+  final bool locked;
+  @override
+  @JsonKey(name: 'is_completed')
+  final bool isCompleted;
   final List<SectionSummary> _sections;
   @override
   @JsonKey(name: 'sections', defaultValue: <SectionSummary>[])
@@ -352,19 +427,31 @@ class _Year implements Year {
             (identical(other.id, id) || other.id == id) &&
             (identical(other.year, year) || other.year == year) &&
             (identical(other.title, title) || other.title == title) &&
+            (identical(other.summary, summary) || other.summary == summary) &&
             (identical(other.publishedSectionsCount, publishedSectionsCount) ||
                 other.publishedSectionsCount == publishedSectionsCount) &&
+            (identical(other.locked, locked) || other.locked == locked) &&
+            (identical(other.isCompleted, isCompleted) ||
+                other.isCompleted == isCompleted) &&
             const DeepCollectionEquality().equals(other._sections, _sections));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, id, year, title,
-      publishedSectionsCount, const DeepCollectionEquality().hash(_sections));
+  int get hashCode => Object.hash(
+      runtimeType,
+      id,
+      year,
+      title,
+      summary,
+      publishedSectionsCount,
+      locked,
+      isCompleted,
+      const DeepCollectionEquality().hash(_sections));
 
   @override
   String toString() {
-    return 'Year(id: $id, year: $year, title: $title, publishedSectionsCount: $publishedSectionsCount, sections: $sections)';
+    return 'Year(id: $id, year: $year, title: $title, summary: $summary, publishedSectionsCount: $publishedSectionsCount, locked: $locked, isCompleted: $isCompleted, sections: $sections)';
   }
 }
 
@@ -378,7 +465,10 @@ abstract mixin class _$YearCopyWith<$Res> implements $YearCopyWith<$Res> {
       {int id,
       int year,
       String title,
+      String? summary,
       @JsonKey(name: 'published_sections_count') int? publishedSectionsCount,
+      bool locked,
+      @JsonKey(name: 'is_completed') bool isCompleted,
       @JsonKey(name: 'sections', defaultValue: <SectionSummary>[])
       List<SectionSummary> sections});
 }
@@ -398,7 +488,10 @@ class __$YearCopyWithImpl<$Res> implements _$YearCopyWith<$Res> {
     Object? id = null,
     Object? year = null,
     Object? title = null,
+    Object? summary = freezed,
     Object? publishedSectionsCount = freezed,
+    Object? locked = null,
+    Object? isCompleted = null,
     Object? sections = null,
   }) {
     return _then(_Year(
@@ -414,10 +507,22 @@ class __$YearCopyWithImpl<$Res> implements _$YearCopyWith<$Res> {
           ? _self.title
           : title // ignore: cast_nullable_to_non_nullable
               as String,
+      summary: freezed == summary
+          ? _self.summary
+          : summary // ignore: cast_nullable_to_non_nullable
+              as String?,
       publishedSectionsCount: freezed == publishedSectionsCount
           ? _self.publishedSectionsCount
           : publishedSectionsCount // ignore: cast_nullable_to_non_nullable
               as int?,
+      locked: null == locked
+          ? _self.locked
+          : locked // ignore: cast_nullable_to_non_nullable
+              as bool,
+      isCompleted: null == isCompleted
+          ? _self.isCompleted
+          : isCompleted // ignore: cast_nullable_to_non_nullable
+              as bool,
       sections: null == sections
           ? _self._sections
           : sections // ignore: cast_nullable_to_non_nullable
