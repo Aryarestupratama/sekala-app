@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 import '../../../../core/router/auth_state.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/models/section.dart';
+import '../../../../shared/models/section_summary.dart';
+import '../../../../shared/models/year.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../providers/history_providers.dart';
 import '../widgets/content_block_view.dart';
@@ -11,20 +15,16 @@ import '../widgets/content_block_view.dart';
 /// GET /api/public/sections/{section} — INFO-02, plus deteksi
 /// scroll-to-bottom (INFO-03, R-PROG-02).
 ///
-/// CATATAN PENTING (revisi kuis & vaksin level-year, Architecture.md §4.2 &
-/// §4.8): screen ini SENGAJA tidak lagi punya tombol "Mulai Kuis" ataupun
-/// referensi ke card/vaksin terkait section — keduanya sudah naik level ke
-/// `year`, bukan lagi per `section`:
-/// - Kuis baru muncul setelah SELURUH section dalam satu year completed,
-///   di halaman "Rangkuman Wabah" (Design.md §3.3 poin 4-5) — halaman itu
-///   sendiri belum dibuat di Flutter (lihat progress.md), jadi entry point
-///   kuis yang benar bukan di sini.
-/// - Vaksin ter-unlock berdasarkan status "year completed" (R-VAC-01), jadi
-///   selesai satu section TIDAK otomatis berarti ada vaksin baru terbuka.
-///
-/// Backend juga nggak expose status "sudah completed" balik ke client
-/// (lihat Section model) — jadi status itu dilacak lokal per sesi lewat
-/// sectionJustCompletedProvider, bukan dari field API.
+/// REDESIGN (flow linear tanpa sheet, menggantikan versi sebelumnya):
+/// setelah section ini completed, CTA di bawah berubah otomatis jadi
+/// "Baca Materi Berikutnya" (kalau masih ada section lain di year yang
+/// sama) atau "Lihat Rangkuman" (kalau ini section terakhir) — dihitung
+/// dari `Year.sections` (cache `yearInEraProvider`, lihat
+/// history_providers.dart), BUKAN dari sheet/menu terpisah. Rangkuman &
+/// kuis SENGAJA tidak lagi nyempil di layar ini (sudah naik level ke
+/// `year`, Architecture.md §4.2/§4.8) — begitu juga banner
+/// vaksin/tokoh, yang cuma relevan setelah status "year completed"
+/// tercapai (R-VAC-01), bukan per-section.
 class SectionDetailScreen extends ConsumerStatefulWidget {
   const SectionDetailScreen({super.key, required this.sectionId});
 
@@ -70,15 +70,27 @@ class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
       setState(() => _completionTriggered = false);
       return;
     }
+    // CTA di bawah otomatis berubah sendiri (watch yearInEraProvider yang
+    // ter-invalidate dari controller) — tidak perlu snackbar manual lagi.
+  }
 
-    // TODO: kalau ini section TERAKHIR (order tertinggi) di year tsb dan
-    // seluruh section lain sudah completed, idealnya diarahkan ke halaman
-    // Rangkuman Wabah (belum dibuat) alih-alih cuma SnackBar biasa —
-    // backend tidak mengirim sinyal itu balik di response completion saat
-    // ini, jadi belum bisa dideteksi otomatis dari sini.
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Selesai dibaca!')),
-    );
+  /// Urutkan `sections` berdasarkan `order` — jangan asumsikan array dari
+  /// API sudah terurut.
+  List<SectionSummary> _orderedSections(Year year) {
+    final sections = [...year.sections];
+    sections.sort((a, b) => a.order.compareTo(b.order));
+    return sections;
+  }
+
+  bool _isThisSectionCompleted(Year? year) {
+    // Sumber utama: state lokal sesi ini (feedback instan begitu
+    // completion sukses, sebelum roadmap sempat ke-refetch).
+    if (ref.watch(sectionJustCompletedProvider(_id))) return true;
+    if (year == null) return false;
+    for (final s in year.sections) {
+      if (s.id == _id) return s.completed;
+    }
+    return false;
   }
 
   Widget _buildContent(BuildContext context, Section section) {
@@ -86,14 +98,38 @@ class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
       ..sort((a, b) => a.order.compareTo(b.order));
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
       children: [
-        Text(section.title, style: Theme.of(context).textTheme.headlineSmall),
-        const SizedBox(height: 4),
-        Text(
-          '${section.year.year} — ${section.year.era.name}',
-          style: Theme.of(context).textTheme.bodySmall,
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: EraAccents.ofSlug(section.year.era.slug).withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                section.year.era.name.toUpperCase(),
+                style: TextStyle(
+                  color: EraAccents.ofSlug(section.year.era.slug),
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '${section.year.year}',
+              style: TextStyle(
+                color: EraAccents.ofSlug(section.year.era.slug),
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
+              ),
+            ),
+          ],
         ),
+        const SizedBox(height: 8),
+        Text(section.title, style: Theme.of(context).textTheme.headlineSmall),
         const SizedBox(height: 16),
         for (final block in blocks) ContentBlockView(block: block),
         const SizedBox(height: 24),
@@ -104,8 +140,51 @@ class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
           onVisibilityChanged: _handleBottomVisible,
           child: const SizedBox(height: 1),
         ),
-        const SizedBox(height: 24),
       ],
+    );
+  }
+
+  /// CTA bawah — satu-satunya tempat navigasi "lanjut" dari section ini.
+  /// Sengaja return `SizedBox.shrink()` (tidak render apa-apa) kalau
+  /// section belum completed atau data year belum siap, supaya user tidak
+  /// diberi tombol yang mengarah ke tempat yang belum semestinya.
+  Widget _buildBottomCta(BuildContext context, Section section) {
+    final yearAsync = ref.watch(
+      yearInEraProvider((eraSlug: section.year.era.slug, yearId: section.year.id)),
+    );
+
+    return yearAsync.when(
+      data: (year) {
+        final completed = _isThisSectionCompleted(year);
+        if (!completed || year == null) return const SizedBox.shrink();
+
+        final ordered = _orderedSections(year);
+        final currentIndex = ordered.indexWhere((s) => s.id == _id);
+        final isLastSection =
+            currentIndex == -1 || currentIndex == ordered.length - 1;
+
+        final eraSlug = section.year.era.slug;
+        final yearId = section.year.id;
+
+        if (isLastSection) {
+          return _CtaButton(
+            label: 'Lihat Rangkuman',
+            icon: Icons.menu_book_outlined,
+            onTap: () => context.go('/year/$yearId/summary?era=$eraSlug'),
+          );
+        }
+
+        final next = ordered[currentIndex + 1];
+        return _CtaButton(
+          label: 'Baca Materi Berikutnya',
+          icon: Icons.arrow_forward,
+          onTap: () => context.go('/section/${next.id}'),
+        );
+      },
+      // Belum siap / gagal muat data year — jangan blok baca section,
+      // cukup sembunyikan CTA (bisa dicoba lagi begitu provider retry).
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
     );
   }
 
@@ -116,11 +195,58 @@ class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(sectionAsync.valueOrNull?.title ?? 'Memuat...')),
       body: sectionAsync.when(
-        data: (section) => _buildContent(context, section),
+        data: (section) => Stack(
+          children: [
+            _buildContent(context, section),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: _buildBottomCta(context, section),
+                ),
+              ),
+            ),
+          ],
+        ),
         loading: () => const Center(child: CircularProgressIndicator()),
         // 404 (section draft/belum publish, R-CMS-01) juga bakal muncul
         // di sini sebagai pesan error generik lewat ApiException.message.
         error: (error, _) => Center(child: Text('Gagal memuat section: $error')),
+      ),
+    );
+  }
+}
+
+class _CtaButton extends StatelessWidget {
+  const _CtaButton({required this.label, required this.icon, required this.onTap});
+
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: FilledButton(
+        style: FilledButton.styleFrom(
+          backgroundColor: AppColors.ink,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        ),
+        onPressed: onTap,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+            const SizedBox(width: 8),
+            Icon(icon, size: 18),
+          ],
+        ),
       ),
     );
   }

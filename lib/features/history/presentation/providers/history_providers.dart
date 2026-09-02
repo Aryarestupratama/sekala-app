@@ -3,6 +3,7 @@ import '../../../../core/network/dio_client.dart';
 import '../../../../shared/models/era.dart';
 import '../../../../shared/models/era_roadmap.dart';
 import '../../../../shared/models/section.dart';
+import '../../../../shared/models/year.dart';
 import '../../../home/presentation/providers/home_providers.dart';
 import '../../data/history_api.dart';
 import '../../data/history_repository_impl.dart';
@@ -31,6 +32,25 @@ final erasProvider = FutureProvider.autoDispose<List<Era>>((ref) {
 final yearsProvider =
     FutureProvider.family.autoDispose<EraRoadmap, String>((ref, eraSlug) {
   return ref.watch(historyRepositoryProvider).fetchYears(eraSlug);
+});
+
+/// BARU — cari satu `Year` spesifik dari cache roadmap era yang sama
+/// (`yearsProvider`), dipakai SectionDetailScreen (nentuin CTA "Baca
+/// Materi Berikutnya"/"Lihat Rangkuman" dari `year.sections`) & baru
+/// YearSummaryScreen (`year.summary`, `year.vaccines`) — sengaja TIDAK
+/// bikin endpoint/model baru karena `Year` sudah bawa semua field yang
+/// dibutuhkan (summary, sections lengkap dgn order/locked/completed,
+/// vaccines). Numpang cache `yearsProvider` yang sudah ada supaya kalau
+/// user datang dari roadmap, ini gratis (tidak fetch ulang); kalau
+/// `yearsProvider` belum pernah di-watch sama sekali di sesi ini (mis.
+/// deep link langsung ke section), FutureProvider akan fetch sendiri.
+final yearInEraProvider = FutureProvider.family
+    .autoDispose<Year?, ({String eraSlug, int yearId})>((ref, params) async {
+  final roadmap = await ref.watch(yearsProvider(params.eraSlug).future);
+  for (final year in roadmap.years) {
+    if (year.id == params.yearId) return year;
+  }
+  return null;
 });
 
 /// Detail section (INFO-02). `.family` karena butuh parameter sectionId.
@@ -70,6 +90,9 @@ class SectionCompletionController extends StateNotifier<AsyncValue<void>> {
       // checkmark/lock di roadmap BENERAN bergantung ke sini (bukan lagi
       // gap backend), jadi invalidate ini penting supaya status
       // locked/completed/current ter-update begitu balik ke roadmap.
+      // Ini juga otomatis bikin `yearInEraProvider` ter-refresh (dia
+      // numpang cache yearsProvider), jadi CTA "Baca Materi Berikutnya" /
+      // "Lihat Rangkuman" di section detail langsung ikut update.
       final cachedSection = _ref.read(sectionDetailProvider(sectionId)).valueOrNull;
       if (cachedSection != null) {
         _ref.invalidate(yearsProvider(cachedSection.year.era.slug));

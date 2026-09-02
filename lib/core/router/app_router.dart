@@ -10,6 +10,8 @@ import '../../features/home/presentation/screens/home_screen.dart';
 import '../../features/history/presentation/screens/era_list_screen.dart';
 import '../../features/history/presentation/screens/era_roadmap_screen.dart';
 import '../../features/history/presentation/screens/section_detail_screen.dart';
+import '../../features/history/presentation/screens/year_summary_screen.dart';
+import '../../features/quiz/presentation/screens/quiz_screen.dart';
 import '../../features/card/presentation/screens/vaccine_list_screen.dart';
 import '../../features/card/presentation/screens/vaccine_detail_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
@@ -25,12 +27,20 @@ class _AuthRefreshListenable extends ChangeNotifier {
   }
 }
 
-/// Path yang wajib login (bukan guest) — R-GUEST-03: guest yang mencoba
-/// akses kuis/progress/card diarahkan ke halaman login/registrasi.
-/// (Kuis sekarang native in-app, bukan lagi WebView Upresenter — lihat
-/// Architecture.md §4.2. Belum punya route sendiri di file ini karena
-/// screen kuis Flutter belum dibuat sama sekali, lihat progress.md.)
+/// Path (prefix) yang wajib login (bukan guest) — R-GUEST-03: guest yang
+/// mencoba akses kuis/progress/card diarahkan ke halaman login/registrasi.
 const _protectedPathPrefixes = ['/cards', '/profile'];
+
+/// Halaman Rangkuman Wabah (`/year/:yearId/summary`) SENGAJA TIDAK masuk
+/// daftar protected di atas — secara alami cuma terjangkau lewat CTA
+/// "Lihat Rangkuman" yang cuma muncul kalau section sudah completed, dan
+/// `completed` selalu false untuk guest (R-PROG-06, tidak ada
+/// user_progress tersimpan) — jadi guest praktis tidak akan pernah
+/// sampai ke sini lewat flow normal. Kuis (`/year/:yearId/quiz`) beda:
+/// R-QUIZ-09 melarang guest akses kuis SAMA SEKALI, jadi tetap dijaga
+/// eksplisit di `redirect` di bawah (bukan cuma implisit dari flow UI),
+/// buat jaga-jaga kalau ada deep link langsung ke path ini.
+bool _isQuizPath(String location) => location.contains('/quiz');
 
 final routerProvider = Provider<GoRouter>((ref) {
   final refreshListenable = _AuthRefreshListenable(ref);
@@ -62,8 +72,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           // yang mau upgrade jadi user login.
           if (isAuth) return null;
           final isProtected = _protectedPathPrefixes
-              .any((prefix) => location.startsWith(prefix));
-          // R-GUEST-03
+                  .any((prefix) => location.startsWith(prefix)) ||
+              _isQuizPath(location); // R-QUIZ-09
           return isProtected ? '/auth' : null;
 
         case AuthStatus.authenticated:
@@ -83,7 +93,8 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       // Bottom-nav shell: Home / Informasi Sejarah / Collectible Card / Profil
       // (Design.md §2). Guest tetap lihat 4 tab yang sama; kalau nekat masuk
-      // /cards atau /profile, redirect guard di atas yang menendang ke /auth.
+      // /cards, /profile, atau kuis, redirect guard di atas yang menendang
+      // ke /auth.
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
           return MainShell(navigationShell: navigationShell);
@@ -118,6 +129,29 @@ final routerProvider = Provider<GoRouter>((ref) {
                 path: '/section/:sectionId',
                 builder: (context, state) => SectionDetailScreen(
                   sectionId: state.pathParameters['sectionId']!,
+                ),
+              ),
+              // BARU — Rangkuman Wabah & Kuis (INFO-04/05, Design.md §3.3
+              // poin 4-5). Juga top-level (bukan nested di bawah
+              // /history/:eraSlug) dengan alasan sama seperti /section di
+              // atas: bisa di-deep-link tanpa lewat roadmap dulu. `eraSlug`
+              // dioper lewat query param `?era=` oleh pemanggil
+              // (SectionDetailScreen / YearSummaryScreen) karena dibutuhkan
+              // buat styling aksen era & invalidate cache roadmap yang
+              // tepat setelah submit kuis (lihat quiz_providers.dart).
+              GoRoute(
+                path: '/year/:yearId/summary',
+                builder: (context, state) => YearSummaryScreen(
+                  yearId: int.parse(state.pathParameters['yearId']!),
+                  eraSlug: state.uri.queryParameters['era'] ?? '',
+                ),
+              ),
+              GoRoute(
+                path: '/year/:yearId/quiz',
+                builder: (context, state) => QuizScreen(
+                  yearId: int.parse(state.pathParameters['yearId']!),
+                  eraSlug: state.uri.queryParameters['era'] ?? '',
+                  yearTitle: state.uri.queryParameters['title'],
                 ),
               ),
             ],
