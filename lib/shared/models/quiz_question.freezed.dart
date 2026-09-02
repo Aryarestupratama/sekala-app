@@ -3,7 +3,7 @@
 // ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
-part of 'figure_card.dart';
+part of 'quiz_question.dart';
 
 // **************************************************************************
 // FreezedGenerator
@@ -14,100 +14,96 @@ part of 'figure_card.dart';
 T _$identity<T>(T value) => value;
 
 /// @nodoc
-mixin _$FigureCard {
+mixin _$QuizQuestion {
   int get id;
-  String get name;
-  @JsonKey(name: 'photo_url')
-  String? get photoUrl;
-  @JsonKey(name: 'unlocked', defaultValue: false)
-  bool get unlocked;
+  int get order;
+  String get question;
+  List<QuizQuestionOption> get options;
 
-  /// Create a copy of FigureCard
+  /// Create a copy of QuizQuestion
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
   @pragma('vm:prefer-inline')
-  $FigureCardCopyWith<FigureCard> get copyWith =>
-      _$FigureCardCopyWithImpl<FigureCard>(this as FigureCard, _$identity);
+  $QuizQuestionCopyWith<QuizQuestion> get copyWith =>
+      _$QuizQuestionCopyWithImpl<QuizQuestion>(
+          this as QuizQuestion, _$identity);
 
-  /// Serializes this FigureCard to a JSON map.
+  /// Serializes this QuizQuestion to a JSON map.
   Map<String, dynamic> toJson();
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is FigureCard &&
+            other is QuizQuestion &&
             (identical(other.id, id) || other.id == id) &&
-            (identical(other.name, name) || other.name == name) &&
-            (identical(other.photoUrl, photoUrl) ||
-                other.photoUrl == photoUrl) &&
-            (identical(other.unlocked, unlocked) ||
-                other.unlocked == unlocked));
+            (identical(other.order, order) || other.order == order) &&
+            (identical(other.question, question) ||
+                other.question == question) &&
+            const DeepCollectionEquality().equals(other.options, options));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, id, name, photoUrl, unlocked);
+  int get hashCode => Object.hash(runtimeType, id, order, question,
+      const DeepCollectionEquality().hash(options));
 
   @override
   String toString() {
-    return 'FigureCard(id: $id, name: $name, photoUrl: $photoUrl, unlocked: $unlocked)';
+    return 'QuizQuestion(id: $id, order: $order, question: $question, options: $options)';
   }
 }
 
 /// @nodoc
-abstract mixin class $FigureCardCopyWith<$Res> {
-  factory $FigureCardCopyWith(
-          FigureCard value, $Res Function(FigureCard) _then) =
-      _$FigureCardCopyWithImpl;
+abstract mixin class $QuizQuestionCopyWith<$Res> {
+  factory $QuizQuestionCopyWith(
+          QuizQuestion value, $Res Function(QuizQuestion) _then) =
+      _$QuizQuestionCopyWithImpl;
   @useResult
   $Res call(
-      {int id,
-      String name,
-      @JsonKey(name: 'photo_url') String? photoUrl,
-      @JsonKey(name: 'unlocked', defaultValue: false) bool unlocked});
+      {int id, int order, String question, List<QuizQuestionOption> options});
 }
 
 /// @nodoc
-class _$FigureCardCopyWithImpl<$Res> implements $FigureCardCopyWith<$Res> {
-  _$FigureCardCopyWithImpl(this._self, this._then);
+class _$QuizQuestionCopyWithImpl<$Res> implements $QuizQuestionCopyWith<$Res> {
+  _$QuizQuestionCopyWithImpl(this._self, this._then);
 
-  final FigureCard _self;
-  final $Res Function(FigureCard) _then;
+  final QuizQuestion _self;
+  final $Res Function(QuizQuestion) _then;
 
-  /// Create a copy of FigureCard
+  /// Create a copy of QuizQuestion
   /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
   $Res call({
     Object? id = null,
-    Object? name = null,
-    Object? photoUrl = freezed,
-    Object? unlocked = null,
+    Object? order = null,
+    Object? question = null,
+    Object? options = null,
   }) {
-    return _then(FigureCard(
+    return _then(QuizQuestion(
       id: null == id
           ? _self.id
           : id // ignore: cast_nullable_to_non_nullable
               as int,
-      name: null == name
-          ? _self.name
-          : name // ignore: cast_nullable_to_non_nullable
+      order: null == order
+          ? _self.order
+          : order // ignore: cast_nullable_to_non_nullable
+              as int,
+      question: null == question
+          ? _self.question
+          : question // ignore: cast_nullable_to_non_nullable
               as String,
-      photoUrl: freezed == photoUrl
-          ? _self.photoUrl
-          : photoUrl // ignore: cast_nullable_to_non_nullable
-              as String?,
-      unlocked: null == unlocked
-          ? _self.unlocked
-          : unlocked // ignore: cast_nullable_to_non_nullable
-              as bool,
+      options: null == options
+          ? _self.options
+          : options // ignore: cast_nullable_to_non_nullable
+              as List<QuizQuestionOption>,
     ));
   }
 }
 
-/// Adds pattern-matching-related methods to [FigureCard].
-extension FigureCardPatterns on FigureCard {
+/// Adds pattern-matching-related methods to [QuizQuestion].
+extension QuizQuestionPatterns on QuizQuestion {
   /// A variant of `map` that fallback to returning `orElse`.
   ///
   /// It is equivalent to doing:
@@ -122,12 +118,12 @@ extension FigureCardPatterns on FigureCard {
 
   @optionalTypeArgs
   TResult maybeMap<TResult extends Object?>(
-    TResult Function(_FigureCard value)? $default, {
+    TResult Function(_QuizQuestion value)? $default, {
     required TResult orElse(),
   }) {
     final _that = this;
     switch (_that) {
-      case _FigureCard() when $default != null:
+      case _QuizQuestion() when $default != null:
         return $default(_that);
       case _:
         return orElse();
@@ -149,11 +145,11 @@ extension FigureCardPatterns on FigureCard {
 
   @optionalTypeArgs
   TResult map<TResult extends Object?>(
-    TResult Function(_FigureCard value) $default,
+    TResult Function(_QuizQuestion value) $default,
   ) {
     final _that = this;
     switch (_that) {
-      case _FigureCard():
+      case _QuizQuestion():
         return $default(_that);
       case _:
         throw StateError('Unexpected subclass');
@@ -174,11 +170,11 @@ extension FigureCardPatterns on FigureCard {
 
   @optionalTypeArgs
   TResult? mapOrNull<TResult extends Object?>(
-    TResult? Function(_FigureCard value)? $default,
+    TResult? Function(_QuizQuestion value)? $default,
   ) {
     final _that = this;
     switch (_that) {
-      case _FigureCard() when $default != null:
+      case _QuizQuestion() when $default != null:
         return $default(_that);
       case _:
         return null;
@@ -199,18 +195,15 @@ extension FigureCardPatterns on FigureCard {
 
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>(
-    TResult Function(
-            int id,
-            String name,
-            @JsonKey(name: 'photo_url') String? photoUrl,
-            @JsonKey(name: 'unlocked', defaultValue: false) bool unlocked)?
+    TResult Function(int id, int order, String question,
+            List<QuizQuestionOption> options)?
         $default, {
     required TResult orElse(),
   }) {
     final _that = this;
     switch (_that) {
-      case _FigureCard() when $default != null:
-        return $default(_that.id, _that.name, _that.photoUrl, _that.unlocked);
+      case _QuizQuestion() when $default != null:
+        return $default(_that.id, _that.order, _that.question, _that.options);
       case _:
         return orElse();
     }
@@ -231,17 +224,14 @@ extension FigureCardPatterns on FigureCard {
 
   @optionalTypeArgs
   TResult when<TResult extends Object?>(
-    TResult Function(
-            int id,
-            String name,
-            @JsonKey(name: 'photo_url') String? photoUrl,
-            @JsonKey(name: 'unlocked', defaultValue: false) bool unlocked)
+    TResult Function(int id, int order, String question,
+            List<QuizQuestionOption> options)
         $default,
   ) {
     final _that = this;
     switch (_that) {
-      case _FigureCard():
-        return $default(_that.id, _that.name, _that.photoUrl, _that.unlocked);
+      case _QuizQuestion():
+        return $default(_that.id, _that.order, _that.question, _that.options);
       case _:
         throw StateError('Unexpected subclass');
     }
@@ -261,17 +251,14 @@ extension FigureCardPatterns on FigureCard {
 
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>(
-    TResult? Function(
-            int id,
-            String name,
-            @JsonKey(name: 'photo_url') String? photoUrl,
-            @JsonKey(name: 'unlocked', defaultValue: false) bool unlocked)?
+    TResult? Function(int id, int order, String question,
+            List<QuizQuestionOption> options)?
         $default,
   ) {
     final _that = this;
     switch (_that) {
-      case _FigureCard() when $default != null:
-        return $default(_that.id, _that.name, _that.photoUrl, _that.unlocked);
+      case _QuizQuestion() when $default != null:
+        return $default(_that.id, _that.order, _that.question, _that.options);
       case _:
         return null;
     }
@@ -280,37 +267,42 @@ extension FigureCardPatterns on FigureCard {
 
 /// @nodoc
 @JsonSerializable()
-class _FigureCard implements FigureCard {
-  const _FigureCard(
+class _QuizQuestion implements QuizQuestion {
+  const _QuizQuestion(
       {required this.id,
-      required this.name,
-      @JsonKey(name: 'photo_url') this.photoUrl,
-      @JsonKey(name: 'unlocked', defaultValue: false) required this.unlocked});
-  factory _FigureCard.fromJson(Map<String, dynamic> json) =>
-      _$FigureCardFromJson(json);
+      required this.order,
+      required this.question,
+      List<QuizQuestionOption> options = const <QuizQuestionOption>[]})
+      : _options = options;
+  factory _QuizQuestion.fromJson(Map<String, dynamic> json) =>
+      _$QuizQuestionFromJson(json);
 
   @override
   final int id;
   @override
-  final String name;
+  final int order;
   @override
-  @JsonKey(name: 'photo_url')
-  final String? photoUrl;
+  final String question;
+  final List<QuizQuestionOption> _options;
   @override
-  @JsonKey(name: 'unlocked', defaultValue: false)
-  final bool unlocked;
+  @JsonKey()
+  List<QuizQuestionOption> get options {
+    if (_options is EqualUnmodifiableListView) return _options;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_options);
+  }
 
-  /// Create a copy of FigureCard
+  /// Create a copy of QuizQuestion
   /// with the given fields replaced by the non-null parameter values.
   @override
   @JsonKey(includeFromJson: false, includeToJson: false)
   @pragma('vm:prefer-inline')
-  _$FigureCardCopyWith<_FigureCard> get copyWith =>
-      __$FigureCardCopyWithImpl<_FigureCard>(this, _$identity);
+  _$QuizQuestionCopyWith<_QuizQuestion> get copyWith =>
+      __$QuizQuestionCopyWithImpl<_QuizQuestion>(this, _$identity);
 
   @override
   Map<String, dynamic> toJson() {
-    return _$FigureCardToJson(
+    return _$QuizQuestionToJson(
       this,
     );
   }
@@ -319,74 +311,72 @@ class _FigureCard implements FigureCard {
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _FigureCard &&
+            other is _QuizQuestion &&
             (identical(other.id, id) || other.id == id) &&
-            (identical(other.name, name) || other.name == name) &&
-            (identical(other.photoUrl, photoUrl) ||
-                other.photoUrl == photoUrl) &&
-            (identical(other.unlocked, unlocked) ||
-                other.unlocked == unlocked));
+            (identical(other.order, order) || other.order == order) &&
+            (identical(other.question, question) ||
+                other.question == question) &&
+            const DeepCollectionEquality().equals(other._options, _options));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, id, name, photoUrl, unlocked);
+  int get hashCode => Object.hash(runtimeType, id, order, question,
+      const DeepCollectionEquality().hash(_options));
 
   @override
   String toString() {
-    return 'FigureCard(id: $id, name: $name, photoUrl: $photoUrl, unlocked: $unlocked)';
+    return 'QuizQuestion(id: $id, order: $order, question: $question, options: $options)';
   }
 }
 
 /// @nodoc
-abstract mixin class _$FigureCardCopyWith<$Res>
-    implements $FigureCardCopyWith<$Res> {
-  factory _$FigureCardCopyWith(
-          _FigureCard value, $Res Function(_FigureCard) _then) =
-      __$FigureCardCopyWithImpl;
+abstract mixin class _$QuizQuestionCopyWith<$Res>
+    implements $QuizQuestionCopyWith<$Res> {
+  factory _$QuizQuestionCopyWith(
+          _QuizQuestion value, $Res Function(_QuizQuestion) _then) =
+      __$QuizQuestionCopyWithImpl;
   @override
   @useResult
   $Res call(
-      {int id,
-      String name,
-      @JsonKey(name: 'photo_url') String? photoUrl,
-      @JsonKey(name: 'unlocked', defaultValue: false) bool unlocked});
+      {int id, int order, String question, List<QuizQuestionOption> options});
 }
 
 /// @nodoc
-class __$FigureCardCopyWithImpl<$Res> implements _$FigureCardCopyWith<$Res> {
-  __$FigureCardCopyWithImpl(this._self, this._then);
+class __$QuizQuestionCopyWithImpl<$Res>
+    implements _$QuizQuestionCopyWith<$Res> {
+  __$QuizQuestionCopyWithImpl(this._self, this._then);
 
-  final _FigureCard _self;
-  final $Res Function(_FigureCard) _then;
+  final _QuizQuestion _self;
+  final $Res Function(_QuizQuestion) _then;
 
-  /// Create a copy of FigureCard
+  /// Create a copy of QuizQuestion
   /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
   $Res call({
     Object? id = null,
-    Object? name = null,
-    Object? photoUrl = freezed,
-    Object? unlocked = null,
+    Object? order = null,
+    Object? question = null,
+    Object? options = null,
   }) {
-    return _then(_FigureCard(
+    return _then(_QuizQuestion(
       id: null == id
           ? _self.id
           : id // ignore: cast_nullable_to_non_nullable
               as int,
-      name: null == name
-          ? _self.name
-          : name // ignore: cast_nullable_to_non_nullable
+      order: null == order
+          ? _self.order
+          : order // ignore: cast_nullable_to_non_nullable
+              as int,
+      question: null == question
+          ? _self.question
+          : question // ignore: cast_nullable_to_non_nullable
               as String,
-      photoUrl: freezed == photoUrl
-          ? _self.photoUrl
-          : photoUrl // ignore: cast_nullable_to_non_nullable
-              as String?,
-      unlocked: null == unlocked
-          ? _self.unlocked
-          : unlocked // ignore: cast_nullable_to_non_nullable
-              as bool,
+      options: null == options
+          ? _self._options
+          : options // ignore: cast_nullable_to_non_nullable
+              as List<QuizQuestionOption>,
     ));
   }
 }

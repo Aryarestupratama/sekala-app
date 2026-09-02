@@ -3,7 +3,7 @@
 // ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
-part of 'figure_detail.dart';
+part of 'vaccine_card.dart';
 
 // **************************************************************************
 // FreezedGenerator
@@ -14,83 +14,74 @@ part of 'figure_detail.dart';
 T _$identity<T>(T value) => value;
 
 /// @nodoc
-mixin _$FigureDetail {
+mixin _$VaccineCard {
   int get id;
   String get name;
   @JsonKey(name: 'photo_url')
   String? get photoUrl;
-  @JsonKey(name: 'birth_date')
-  String? get birthDate;
-  @JsonKey(name: 'death_date')
-  String? get deathDate;
-  String? get family;
-  @JsonKey(name: 'role_description')
-  String get roleDescription;
+  @JsonKey(name: 'photo_locked_url')
+  String? get photoLockedUrl;
+  @JsonKey(name: 'unlocked', defaultValue: false)
+  bool get unlocked;
 
-  /// Create a copy of FigureDetail
+  /// Create a copy of VaccineCard
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
   @pragma('vm:prefer-inline')
-  $FigureDetailCopyWith<FigureDetail> get copyWith =>
-      _$FigureDetailCopyWithImpl<FigureDetail>(
-          this as FigureDetail, _$identity);
+  $VaccineCardCopyWith<VaccineCard> get copyWith =>
+      _$VaccineCardCopyWithImpl<VaccineCard>(this as VaccineCard, _$identity);
 
-  /// Serializes this FigureDetail to a JSON map.
+  /// Serializes this VaccineCard to a JSON map.
   Map<String, dynamic> toJson();
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is FigureDetail &&
+            other is VaccineCard &&
             (identical(other.id, id) || other.id == id) &&
             (identical(other.name, name) || other.name == name) &&
             (identical(other.photoUrl, photoUrl) ||
                 other.photoUrl == photoUrl) &&
-            (identical(other.birthDate, birthDate) ||
-                other.birthDate == birthDate) &&
-            (identical(other.deathDate, deathDate) ||
-                other.deathDate == deathDate) &&
-            (identical(other.family, family) || other.family == family) &&
-            (identical(other.roleDescription, roleDescription) ||
-                other.roleDescription == roleDescription));
+            (identical(other.photoLockedUrl, photoLockedUrl) ||
+                other.photoLockedUrl == photoLockedUrl) &&
+            (identical(other.unlocked, unlocked) ||
+                other.unlocked == unlocked));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, id, name, photoUrl, birthDate,
-      deathDate, family, roleDescription);
+  int get hashCode =>
+      Object.hash(runtimeType, id, name, photoUrl, photoLockedUrl, unlocked);
 
   @override
   String toString() {
-    return 'FigureDetail(id: $id, name: $name, photoUrl: $photoUrl, birthDate: $birthDate, deathDate: $deathDate, family: $family, roleDescription: $roleDescription)';
+    return 'VaccineCard(id: $id, name: $name, photoUrl: $photoUrl, photoLockedUrl: $photoLockedUrl, unlocked: $unlocked)';
   }
 }
 
 /// @nodoc
-abstract mixin class $FigureDetailCopyWith<$Res> {
-  factory $FigureDetailCopyWith(
-          FigureDetail value, $Res Function(FigureDetail) _then) =
-      _$FigureDetailCopyWithImpl;
+abstract mixin class $VaccineCardCopyWith<$Res> {
+  factory $VaccineCardCopyWith(
+          VaccineCard value, $Res Function(VaccineCard) _then) =
+      _$VaccineCardCopyWithImpl;
   @useResult
   $Res call(
       {int id,
       String name,
       @JsonKey(name: 'photo_url') String? photoUrl,
-      @JsonKey(name: 'birth_date') String? birthDate,
-      @JsonKey(name: 'death_date') String? deathDate,
-      String? family,
-      @JsonKey(name: 'role_description') String roleDescription});
+      @JsonKey(name: 'photo_locked_url') String? photoLockedUrl,
+      @JsonKey(name: 'unlocked', defaultValue: false) bool unlocked});
 }
 
 /// @nodoc
-class _$FigureDetailCopyWithImpl<$Res> implements $FigureDetailCopyWith<$Res> {
-  _$FigureDetailCopyWithImpl(this._self, this._then);
+class _$VaccineCardCopyWithImpl<$Res> implements $VaccineCardCopyWith<$Res> {
+  _$VaccineCardCopyWithImpl(this._self, this._then);
 
-  final FigureDetail _self;
-  final $Res Function(FigureDetail) _then;
+  final VaccineCard _self;
+  final $Res Function(VaccineCard) _then;
 
-  /// Create a copy of FigureDetail
+  /// Create a copy of VaccineCard
   /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
@@ -98,12 +89,10 @@ class _$FigureDetailCopyWithImpl<$Res> implements $FigureDetailCopyWith<$Res> {
     Object? id = null,
     Object? name = null,
     Object? photoUrl = freezed,
-    Object? birthDate = freezed,
-    Object? deathDate = freezed,
-    Object? family = freezed,
-    Object? roleDescription = null,
+    Object? photoLockedUrl = freezed,
+    Object? unlocked = null,
   }) {
-    return _then(FigureDetail(
+    return _then(VaccineCard(
       id: null == id
           ? _self.id
           : id // ignore: cast_nullable_to_non_nullable
@@ -116,28 +105,20 @@ class _$FigureDetailCopyWithImpl<$Res> implements $FigureDetailCopyWith<$Res> {
           ? _self.photoUrl
           : photoUrl // ignore: cast_nullable_to_non_nullable
               as String?,
-      birthDate: freezed == birthDate
-          ? _self.birthDate
-          : birthDate // ignore: cast_nullable_to_non_nullable
+      photoLockedUrl: freezed == photoLockedUrl
+          ? _self.photoLockedUrl
+          : photoLockedUrl // ignore: cast_nullable_to_non_nullable
               as String?,
-      deathDate: freezed == deathDate
-          ? _self.deathDate
-          : deathDate // ignore: cast_nullable_to_non_nullable
-              as String?,
-      family: freezed == family
-          ? _self.family
-          : family // ignore: cast_nullable_to_non_nullable
-              as String?,
-      roleDescription: null == roleDescription
-          ? _self.roleDescription
-          : roleDescription // ignore: cast_nullable_to_non_nullable
-              as String,
+      unlocked: null == unlocked
+          ? _self.unlocked
+          : unlocked // ignore: cast_nullable_to_non_nullable
+              as bool,
     ));
   }
 }
 
-/// Adds pattern-matching-related methods to [FigureDetail].
-extension FigureDetailPatterns on FigureDetail {
+/// Adds pattern-matching-related methods to [VaccineCard].
+extension VaccineCardPatterns on VaccineCard {
   /// A variant of `map` that fallback to returning `orElse`.
   ///
   /// It is equivalent to doing:
@@ -152,12 +133,12 @@ extension FigureDetailPatterns on FigureDetail {
 
   @optionalTypeArgs
   TResult maybeMap<TResult extends Object?>(
-    TResult Function(_FigureDetail value)? $default, {
+    TResult Function(_VaccineCard value)? $default, {
     required TResult orElse(),
   }) {
     final _that = this;
     switch (_that) {
-      case _FigureDetail() when $default != null:
+      case _VaccineCard() when $default != null:
         return $default(_that);
       case _:
         return orElse();
@@ -179,11 +160,11 @@ extension FigureDetailPatterns on FigureDetail {
 
   @optionalTypeArgs
   TResult map<TResult extends Object?>(
-    TResult Function(_FigureDetail value) $default,
+    TResult Function(_VaccineCard value) $default,
   ) {
     final _that = this;
     switch (_that) {
-      case _FigureDetail():
+      case _VaccineCard():
         return $default(_that);
       case _:
         throw StateError('Unexpected subclass');
@@ -204,11 +185,11 @@ extension FigureDetailPatterns on FigureDetail {
 
   @optionalTypeArgs
   TResult? mapOrNull<TResult extends Object?>(
-    TResult? Function(_FigureDetail value)? $default,
+    TResult? Function(_VaccineCard value)? $default,
   ) {
     final _that = this;
     switch (_that) {
-      case _FigureDetail() when $default != null:
+      case _VaccineCard() when $default != null:
         return $default(_that);
       case _:
         return null;
@@ -233,18 +214,16 @@ extension FigureDetailPatterns on FigureDetail {
             int id,
             String name,
             @JsonKey(name: 'photo_url') String? photoUrl,
-            @JsonKey(name: 'birth_date') String? birthDate,
-            @JsonKey(name: 'death_date') String? deathDate,
-            String? family,
-            @JsonKey(name: 'role_description') String roleDescription)?
+            @JsonKey(name: 'photo_locked_url') String? photoLockedUrl,
+            @JsonKey(name: 'unlocked', defaultValue: false) bool unlocked)?
         $default, {
     required TResult orElse(),
   }) {
     final _that = this;
     switch (_that) {
-      case _FigureDetail() when $default != null:
-        return $default(_that.id, _that.name, _that.photoUrl, _that.birthDate,
-            _that.deathDate, _that.family, _that.roleDescription);
+      case _VaccineCard() when $default != null:
+        return $default(_that.id, _that.name, _that.photoUrl,
+            _that.photoLockedUrl, _that.unlocked);
       case _:
         return orElse();
     }
@@ -269,17 +248,15 @@ extension FigureDetailPatterns on FigureDetail {
             int id,
             String name,
             @JsonKey(name: 'photo_url') String? photoUrl,
-            @JsonKey(name: 'birth_date') String? birthDate,
-            @JsonKey(name: 'death_date') String? deathDate,
-            String? family,
-            @JsonKey(name: 'role_description') String roleDescription)
+            @JsonKey(name: 'photo_locked_url') String? photoLockedUrl,
+            @JsonKey(name: 'unlocked', defaultValue: false) bool unlocked)
         $default,
   ) {
     final _that = this;
     switch (_that) {
-      case _FigureDetail():
-        return $default(_that.id, _that.name, _that.photoUrl, _that.birthDate,
-            _that.deathDate, _that.family, _that.roleDescription);
+      case _VaccineCard():
+        return $default(_that.id, _that.name, _that.photoUrl,
+            _that.photoLockedUrl, _that.unlocked);
       case _:
         throw StateError('Unexpected subclass');
     }
@@ -303,17 +280,15 @@ extension FigureDetailPatterns on FigureDetail {
             int id,
             String name,
             @JsonKey(name: 'photo_url') String? photoUrl,
-            @JsonKey(name: 'birth_date') String? birthDate,
-            @JsonKey(name: 'death_date') String? deathDate,
-            String? family,
-            @JsonKey(name: 'role_description') String roleDescription)?
+            @JsonKey(name: 'photo_locked_url') String? photoLockedUrl,
+            @JsonKey(name: 'unlocked', defaultValue: false) bool unlocked)?
         $default,
   ) {
     final _that = this;
     switch (_that) {
-      case _FigureDetail() when $default != null:
-        return $default(_that.id, _that.name, _that.photoUrl, _that.birthDate,
-            _that.deathDate, _that.family, _that.roleDescription);
+      case _VaccineCard() when $default != null:
+        return $default(_that.id, _that.name, _that.photoUrl,
+            _that.photoLockedUrl, _that.unlocked);
       case _:
         return null;
     }
@@ -322,17 +297,15 @@ extension FigureDetailPatterns on FigureDetail {
 
 /// @nodoc
 @JsonSerializable()
-class _FigureDetail implements FigureDetail {
-  const _FigureDetail(
+class _VaccineCard implements VaccineCard {
+  const _VaccineCard(
       {required this.id,
       required this.name,
       @JsonKey(name: 'photo_url') this.photoUrl,
-      @JsonKey(name: 'birth_date') this.birthDate,
-      @JsonKey(name: 'death_date') this.deathDate,
-      this.family,
-      @JsonKey(name: 'role_description') required this.roleDescription});
-  factory _FigureDetail.fromJson(Map<String, dynamic> json) =>
-      _$FigureDetailFromJson(json);
+      @JsonKey(name: 'photo_locked_url') this.photoLockedUrl,
+      @JsonKey(name: 'unlocked', defaultValue: false) required this.unlocked});
+  factory _VaccineCard.fromJson(Map<String, dynamic> json) =>
+      _$VaccineCardFromJson(json);
 
   @override
   final int id;
@@ -342,28 +315,23 @@ class _FigureDetail implements FigureDetail {
   @JsonKey(name: 'photo_url')
   final String? photoUrl;
   @override
-  @JsonKey(name: 'birth_date')
-  final String? birthDate;
+  @JsonKey(name: 'photo_locked_url')
+  final String? photoLockedUrl;
   @override
-  @JsonKey(name: 'death_date')
-  final String? deathDate;
-  @override
-  final String? family;
-  @override
-  @JsonKey(name: 'role_description')
-  final String roleDescription;
+  @JsonKey(name: 'unlocked', defaultValue: false)
+  final bool unlocked;
 
-  /// Create a copy of FigureDetail
+  /// Create a copy of VaccineCard
   /// with the given fields replaced by the non-null parameter values.
   @override
   @JsonKey(includeFromJson: false, includeToJson: false)
   @pragma('vm:prefer-inline')
-  _$FigureDetailCopyWith<_FigureDetail> get copyWith =>
-      __$FigureDetailCopyWithImpl<_FigureDetail>(this, _$identity);
+  _$VaccineCardCopyWith<_VaccineCard> get copyWith =>
+      __$VaccineCardCopyWithImpl<_VaccineCard>(this, _$identity);
 
   @override
   Map<String, dynamic> toJson() {
-    return _$FigureDetailToJson(
+    return _$VaccineCardToJson(
       this,
     );
   }
@@ -372,58 +340,52 @@ class _FigureDetail implements FigureDetail {
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _FigureDetail &&
+            other is _VaccineCard &&
             (identical(other.id, id) || other.id == id) &&
             (identical(other.name, name) || other.name == name) &&
             (identical(other.photoUrl, photoUrl) ||
                 other.photoUrl == photoUrl) &&
-            (identical(other.birthDate, birthDate) ||
-                other.birthDate == birthDate) &&
-            (identical(other.deathDate, deathDate) ||
-                other.deathDate == deathDate) &&
-            (identical(other.family, family) || other.family == family) &&
-            (identical(other.roleDescription, roleDescription) ||
-                other.roleDescription == roleDescription));
+            (identical(other.photoLockedUrl, photoLockedUrl) ||
+                other.photoLockedUrl == photoLockedUrl) &&
+            (identical(other.unlocked, unlocked) ||
+                other.unlocked == unlocked));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, id, name, photoUrl, birthDate,
-      deathDate, family, roleDescription);
+  int get hashCode =>
+      Object.hash(runtimeType, id, name, photoUrl, photoLockedUrl, unlocked);
 
   @override
   String toString() {
-    return 'FigureDetail(id: $id, name: $name, photoUrl: $photoUrl, birthDate: $birthDate, deathDate: $deathDate, family: $family, roleDescription: $roleDescription)';
+    return 'VaccineCard(id: $id, name: $name, photoUrl: $photoUrl, photoLockedUrl: $photoLockedUrl, unlocked: $unlocked)';
   }
 }
 
 /// @nodoc
-abstract mixin class _$FigureDetailCopyWith<$Res>
-    implements $FigureDetailCopyWith<$Res> {
-  factory _$FigureDetailCopyWith(
-          _FigureDetail value, $Res Function(_FigureDetail) _then) =
-      __$FigureDetailCopyWithImpl;
+abstract mixin class _$VaccineCardCopyWith<$Res>
+    implements $VaccineCardCopyWith<$Res> {
+  factory _$VaccineCardCopyWith(
+          _VaccineCard value, $Res Function(_VaccineCard) _then) =
+      __$VaccineCardCopyWithImpl;
   @override
   @useResult
   $Res call(
       {int id,
       String name,
       @JsonKey(name: 'photo_url') String? photoUrl,
-      @JsonKey(name: 'birth_date') String? birthDate,
-      @JsonKey(name: 'death_date') String? deathDate,
-      String? family,
-      @JsonKey(name: 'role_description') String roleDescription});
+      @JsonKey(name: 'photo_locked_url') String? photoLockedUrl,
+      @JsonKey(name: 'unlocked', defaultValue: false) bool unlocked});
 }
 
 /// @nodoc
-class __$FigureDetailCopyWithImpl<$Res>
-    implements _$FigureDetailCopyWith<$Res> {
-  __$FigureDetailCopyWithImpl(this._self, this._then);
+class __$VaccineCardCopyWithImpl<$Res> implements _$VaccineCardCopyWith<$Res> {
+  __$VaccineCardCopyWithImpl(this._self, this._then);
 
-  final _FigureDetail _self;
-  final $Res Function(_FigureDetail) _then;
+  final _VaccineCard _self;
+  final $Res Function(_VaccineCard) _then;
 
-  /// Create a copy of FigureDetail
+  /// Create a copy of VaccineCard
   /// with the given fields replaced by the non-null parameter values.
   @override
   @pragma('vm:prefer-inline')
@@ -431,12 +393,10 @@ class __$FigureDetailCopyWithImpl<$Res>
     Object? id = null,
     Object? name = null,
     Object? photoUrl = freezed,
-    Object? birthDate = freezed,
-    Object? deathDate = freezed,
-    Object? family = freezed,
-    Object? roleDescription = null,
+    Object? photoLockedUrl = freezed,
+    Object? unlocked = null,
   }) {
-    return _then(_FigureDetail(
+    return _then(_VaccineCard(
       id: null == id
           ? _self.id
           : id // ignore: cast_nullable_to_non_nullable
@@ -449,22 +409,14 @@ class __$FigureDetailCopyWithImpl<$Res>
           ? _self.photoUrl
           : photoUrl // ignore: cast_nullable_to_non_nullable
               as String?,
-      birthDate: freezed == birthDate
-          ? _self.birthDate
-          : birthDate // ignore: cast_nullable_to_non_nullable
+      photoLockedUrl: freezed == photoLockedUrl
+          ? _self.photoLockedUrl
+          : photoLockedUrl // ignore: cast_nullable_to_non_nullable
               as String?,
-      deathDate: freezed == deathDate
-          ? _self.deathDate
-          : deathDate // ignore: cast_nullable_to_non_nullable
-              as String?,
-      family: freezed == family
-          ? _self.family
-          : family // ignore: cast_nullable_to_non_nullable
-              as String?,
-      roleDescription: null == roleDescription
-          ? _self.roleDescription
-          : roleDescription // ignore: cast_nullable_to_non_nullable
-              as String,
+      unlocked: null == unlocked
+          ? _self.unlocked
+          : unlocked // ignore: cast_nullable_to_non_nullable
+              as bool,
     ));
   }
 }

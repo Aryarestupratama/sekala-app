@@ -18,11 +18,8 @@ mixin _$Section {
   int get id;
   String get title;
   SectionYear get year;
-  @JsonKey(name: 'quiz_link')
-  String? get quizLink;
   @JsonKey(name: 'content_blocks')
   List<ContentBlock> get contentBlocks;
-  List<FigureCard> get figures;
 
   /// Create a copy of Section
   /// with the given fields replaced by the non-null parameter values.
@@ -42,27 +39,18 @@ mixin _$Section {
             (identical(other.id, id) || other.id == id) &&
             (identical(other.title, title) || other.title == title) &&
             (identical(other.year, year) || other.year == year) &&
-            (identical(other.quizLink, quizLink) ||
-                other.quizLink == quizLink) &&
             const DeepCollectionEquality()
-                .equals(other.contentBlocks, contentBlocks) &&
-            const DeepCollectionEquality().equals(other.figures, figures));
+                .equals(other.contentBlocks, contentBlocks));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(
-      runtimeType,
-      id,
-      title,
-      year,
-      quizLink,
-      const DeepCollectionEquality().hash(contentBlocks),
-      const DeepCollectionEquality().hash(figures));
+  int get hashCode => Object.hash(runtimeType, id, title, year,
+      const DeepCollectionEquality().hash(contentBlocks));
 
   @override
   String toString() {
-    return 'Section(id: $id, title: $title, year: $year, quizLink: $quizLink, contentBlocks: $contentBlocks, figures: $figures)';
+    return 'Section(id: $id, title: $title, year: $year, contentBlocks: $contentBlocks)';
   }
 }
 
@@ -75,9 +63,7 @@ abstract mixin class $SectionCopyWith<$Res> {
       {int id,
       String title,
       SectionYear year,
-      @JsonKey(name: 'quiz_link') String? quizLink,
-      @JsonKey(name: 'content_blocks') List<ContentBlock> contentBlocks,
-      List<FigureCard> figures});
+      @JsonKey(name: 'content_blocks') List<ContentBlock> contentBlocks});
 
   $SectionYearCopyWith<$Res> get year;
 }
@@ -97,9 +83,7 @@ class _$SectionCopyWithImpl<$Res> implements $SectionCopyWith<$Res> {
     Object? id = null,
     Object? title = null,
     Object? year = null,
-    Object? quizLink = freezed,
     Object? contentBlocks = null,
-    Object? figures = null,
   }) {
     return _then(Section(
       id: null == id
@@ -114,18 +98,10 @@ class _$SectionCopyWithImpl<$Res> implements $SectionCopyWith<$Res> {
           ? _self.year
           : year // ignore: cast_nullable_to_non_nullable
               as SectionYear,
-      quizLink: freezed == quizLink
-          ? _self.quizLink
-          : quizLink // ignore: cast_nullable_to_non_nullable
-              as String?,
       contentBlocks: null == contentBlocks
           ? _self.contentBlocks
           : contentBlocks // ignore: cast_nullable_to_non_nullable
               as List<ContentBlock>,
-      figures: null == figures
-          ? _self.figures
-          : figures // ignore: cast_nullable_to_non_nullable
-              as List<FigureCard>,
     ));
   }
 
@@ -233,21 +209,15 @@ extension SectionPatterns on Section {
 
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>(
-    TResult Function(
-            int id,
-            String title,
-            SectionYear year,
-            @JsonKey(name: 'quiz_link') String? quizLink,
-            @JsonKey(name: 'content_blocks') List<ContentBlock> contentBlocks,
-            List<FigureCard> figures)?
+    TResult Function(int id, String title, SectionYear year,
+            @JsonKey(name: 'content_blocks') List<ContentBlock> contentBlocks)?
         $default, {
     required TResult orElse(),
   }) {
     final _that = this;
     switch (_that) {
       case _Section() when $default != null:
-        return $default(_that.id, _that.title, _that.year, _that.quizLink,
-            _that.contentBlocks, _that.figures);
+        return $default(_that.id, _that.title, _that.year, _that.contentBlocks);
       case _:
         return orElse();
     }
@@ -268,20 +238,14 @@ extension SectionPatterns on Section {
 
   @optionalTypeArgs
   TResult when<TResult extends Object?>(
-    TResult Function(
-            int id,
-            String title,
-            SectionYear year,
-            @JsonKey(name: 'quiz_link') String? quizLink,
-            @JsonKey(name: 'content_blocks') List<ContentBlock> contentBlocks,
-            List<FigureCard> figures)
+    TResult Function(int id, String title, SectionYear year,
+            @JsonKey(name: 'content_blocks') List<ContentBlock> contentBlocks)
         $default,
   ) {
     final _that = this;
     switch (_that) {
       case _Section():
-        return $default(_that.id, _that.title, _that.year, _that.quizLink,
-            _that.contentBlocks, _that.figures);
+        return $default(_that.id, _that.title, _that.year, _that.contentBlocks);
       case _:
         throw StateError('Unexpected subclass');
     }
@@ -301,20 +265,14 @@ extension SectionPatterns on Section {
 
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>(
-    TResult? Function(
-            int id,
-            String title,
-            SectionYear year,
-            @JsonKey(name: 'quiz_link') String? quizLink,
-            @JsonKey(name: 'content_blocks') List<ContentBlock> contentBlocks,
-            List<FigureCard> figures)?
+    TResult? Function(int id, String title, SectionYear year,
+            @JsonKey(name: 'content_blocks') List<ContentBlock> contentBlocks)?
         $default,
   ) {
     final _that = this;
     switch (_that) {
       case _Section() when $default != null:
-        return $default(_that.id, _that.title, _that.year, _that.quizLink,
-            _that.contentBlocks, _that.figures);
+        return $default(_that.id, _that.title, _that.year, _that.contentBlocks);
       case _:
         return null;
     }
@@ -328,12 +286,9 @@ class _Section implements Section {
       {required this.id,
       required this.title,
       required this.year,
-      @JsonKey(name: 'quiz_link') this.quizLink,
       @JsonKey(name: 'content_blocks')
-      List<ContentBlock> contentBlocks = const <ContentBlock>[],
-      List<FigureCard> figures = const <FigureCard>[]})
-      : _contentBlocks = contentBlocks,
-        _figures = figures;
+      List<ContentBlock> contentBlocks = const <ContentBlock>[]})
+      : _contentBlocks = contentBlocks;
   factory _Section.fromJson(Map<String, dynamic> json) =>
       _$SectionFromJson(json);
 
@@ -343,9 +298,6 @@ class _Section implements Section {
   final String title;
   @override
   final SectionYear year;
-  @override
-  @JsonKey(name: 'quiz_link')
-  final String? quizLink;
   final List<ContentBlock> _contentBlocks;
   @override
   @JsonKey(name: 'content_blocks')
@@ -353,15 +305,6 @@ class _Section implements Section {
     if (_contentBlocks is EqualUnmodifiableListView) return _contentBlocks;
     // ignore: implicit_dynamic_type
     return EqualUnmodifiableListView(_contentBlocks);
-  }
-
-  final List<FigureCard> _figures;
-  @override
-  @JsonKey()
-  List<FigureCard> get figures {
-    if (_figures is EqualUnmodifiableListView) return _figures;
-    // ignore: implicit_dynamic_type
-    return EqualUnmodifiableListView(_figures);
   }
 
   /// Create a copy of Section
@@ -387,27 +330,18 @@ class _Section implements Section {
             (identical(other.id, id) || other.id == id) &&
             (identical(other.title, title) || other.title == title) &&
             (identical(other.year, year) || other.year == year) &&
-            (identical(other.quizLink, quizLink) ||
-                other.quizLink == quizLink) &&
             const DeepCollectionEquality()
-                .equals(other._contentBlocks, _contentBlocks) &&
-            const DeepCollectionEquality().equals(other._figures, _figures));
+                .equals(other._contentBlocks, _contentBlocks));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(
-      runtimeType,
-      id,
-      title,
-      year,
-      quizLink,
-      const DeepCollectionEquality().hash(_contentBlocks),
-      const DeepCollectionEquality().hash(_figures));
+  int get hashCode => Object.hash(runtimeType, id, title, year,
+      const DeepCollectionEquality().hash(_contentBlocks));
 
   @override
   String toString() {
-    return 'Section(id: $id, title: $title, year: $year, quizLink: $quizLink, contentBlocks: $contentBlocks, figures: $figures)';
+    return 'Section(id: $id, title: $title, year: $year, contentBlocks: $contentBlocks)';
   }
 }
 
@@ -421,9 +355,7 @@ abstract mixin class _$SectionCopyWith<$Res> implements $SectionCopyWith<$Res> {
       {int id,
       String title,
       SectionYear year,
-      @JsonKey(name: 'quiz_link') String? quizLink,
-      @JsonKey(name: 'content_blocks') List<ContentBlock> contentBlocks,
-      List<FigureCard> figures});
+      @JsonKey(name: 'content_blocks') List<ContentBlock> contentBlocks});
 
   @override
   $SectionYearCopyWith<$Res> get year;
@@ -444,9 +376,7 @@ class __$SectionCopyWithImpl<$Res> implements _$SectionCopyWith<$Res> {
     Object? id = null,
     Object? title = null,
     Object? year = null,
-    Object? quizLink = freezed,
     Object? contentBlocks = null,
-    Object? figures = null,
   }) {
     return _then(_Section(
       id: null == id
@@ -461,18 +391,10 @@ class __$SectionCopyWithImpl<$Res> implements _$SectionCopyWith<$Res> {
           ? _self.year
           : year // ignore: cast_nullable_to_non_nullable
               as SectionYear,
-      quizLink: freezed == quizLink
-          ? _self.quizLink
-          : quizLink // ignore: cast_nullable_to_non_nullable
-              as String?,
       contentBlocks: null == contentBlocks
           ? _self._contentBlocks
           : contentBlocks // ignore: cast_nullable_to_non_nullable
               as List<ContentBlock>,
-      figures: null == figures
-          ? _self._figures
-          : figures // ignore: cast_nullable_to_non_nullable
-              as List<FigureCard>,
     ));
   }
 

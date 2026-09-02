@@ -19,6 +19,10 @@ _Year _$YearFromJson(Map<String, dynamic> json) => _Year(
               ?.map((e) => SectionSummary.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
+      vaccines: (json['vaccines'] as List<dynamic>?)
+              ?.map((e) => VaccineCard.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
     );
 
 Map<String, dynamic> _$YearToJson(_Year instance) => <String, dynamic>{
@@ -30,4 +34,5 @@ Map<String, dynamic> _$YearToJson(_Year instance) => <String, dynamic>{
       'locked': instance.locked,
       'is_completed': instance.isCompleted,
       'sections': instance.sections,
+      'vaccines': instance.vaccines,
     };

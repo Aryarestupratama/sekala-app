@@ -1,5 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'figure_card.dart';
+import 'vaccine_card.dart';
 
 part 'card_list_response.freezed.dart';
 part 'card_list_response.g.dart';
@@ -7,6 +7,10 @@ part 'card_list_response.g.dart';
 /// Mengacu CardController::index() aktual — response dibungkus manual
 /// (bukan JsonResource::collection biasa), jadi punya `meta` di luar
 /// pola wrapper standar Laravel.
+///
+/// (Revisi: Figure -> Vaccine, VAC-01/R-VAC-04. Nama class `CardListResponse`
+/// sengaja tidak diganti jadi `VaccineListResponse` karena sudah generik dan
+/// endpoint-nya juga masih `/api/cards`, cukup tipe di dalamnya yang berubah.)
 @freezed
 abstract class CardListMeta with _$CardListMeta {
   const factory CardListMeta({
@@ -21,7 +25,7 @@ abstract class CardListMeta with _$CardListMeta {
 @freezed
 abstract class CardListResponse with _$CardListResponse {
   const factory CardListResponse({
-    @Default(<FigureCard>[]) List<FigureCard> data,
+    @Default(<VaccineCard>[]) List<VaccineCard> data,
     required CardListMeta meta,
   }) = _CardListResponse;
 

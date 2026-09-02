@@ -1,14 +1,23 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'content_block.dart';
-import 'figure_card.dart';
 import 'section_year.dart';
 
 part 'section.freezed.dart';
 part 'section.g.dart';
 
-/// Mengacu SectionDetailResource.php aktual (dicek 28 Agt 2026).
+/// Mengacu SectionDetailResource.php aktual.
 ///
-/// PERUBAHAN dari versi sebelumnya (yang masih tebakan):
+/// PERUBAHAN (revisi Sequential Year Unlock + Kuis/Vaksin naik level ke
+/// year):
+/// - `quizLink` DIHAPUS TOTAL — `sections.quiz_link` sudah dihapus dari
+///   Schema.md (kuis kini custom internal, melekat ke `year`, bukan lagi
+///   embed Upresenter per section — R-QUIZ-01, Architecture.md §4.2).
+///   Tombol "Mulai Kuis" sekarang ditentukan dari status year (semua
+///   section completed + ada quiz published), bukan dari field di sini.
+/// - `figures` DIHAPUS TOTAL, bukan cuma diganti tipe ke `VaccineCard` —
+///   relasi vaksin sudah naik level dari section ke year (CMS-05:
+///   "relasi many-to-many year <-> vaccine, naik level dari section <->
+///   figure"). Lihat `Year.vaccines` untuk penggantinya.
 /// - `year_id` (flat int) -> `year` (nested SectionYear, termasuk era di
 ///   dalamnya) — dipakai buat invalidate roadmap era yang tepat setelah
 ///   completion (lihat SectionCompletionController).
@@ -26,17 +35,9 @@ abstract class Section with _$Section {
     required String title,
     required SectionYear year,
 
-    // R-CMS-07: null/kosong berarti tombol "Mulai Kuis" gak ditampilkan.
-    @JsonKey(name: 'quiz_link') String? quizLink,
-
     @JsonKey(name: 'content_blocks')
     @Default(<ContentBlock>[])
     List<ContentBlock> contentBlocks,
-
-    // Cuma {id, name} per figure di context ini (SectionDetailResource) —
-    // field lain di FigureCard (photoUrl, unlocked) otomatis null/false
-    // lewat default masing-masing, aman dipakai ulang modelnya.
-    @Default(<FigureCard>[]) List<FigureCard> figures,
   }) = _Section;
 
   factory Section.fromJson(Map<String, dynamic> json) =>

@@ -1,5 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'section_summary.dart';
+import 'vaccine_card.dart';
 
 part 'year.freezed.dart';
 part 'year.g.dart';
@@ -31,6 +32,20 @@ abstract class Year with _$Year {
     // dibuka duluan (section pertama yang belum locked & belum completed).
     @JsonKey(name: 'sections', defaultValue: <SectionSummary>[])
     required List<SectionSummary> sections,
+
+    // BARU (naik level dari Section.figures lama, CMS-05/Architecture.md
+    // §4.8): vaksin terkait wabah/tahun ini via pivot `year_vaccine`.
+    // Dipakai VAC-03 (1 year bisa punya banyak vaksin) & trigger animasi
+    // "Vaksin baru terbuka!" (INFO-06) begitu status year "completed"
+    // tercapai — bukan lagi diambil dari dalam section.
+    //
+    // ASUMSI (belum dicek langsung ke YearResource.php terbaru): nama key
+    // JSON `vaccines`, dan tiap entry berbentuk sama seperti response
+    // GET /api/cards (VaccineCard: id, name, photo_url, photo_locked_url,
+    // unlocked) — tolong verifikasi ke source backend sebelum dipakai.
+    @JsonKey(name: 'vaccines', defaultValue: <VaccineCard>[])
+    @Default(<VaccineCard>[])
+    List<VaccineCard> vaccines,
   }) = _Year;
 
   factory Year.fromJson(Map<String, dynamic> json) => _$YearFromJson(json);

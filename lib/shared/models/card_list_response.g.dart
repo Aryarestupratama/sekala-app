@@ -21,9 +21,9 @@ Map<String, dynamic> _$CardListMetaToJson(_CardListMeta instance) =>
 _CardListResponse _$CardListResponseFromJson(Map<String, dynamic> json) =>
     _CardListResponse(
       data: (json['data'] as List<dynamic>?)
-              ?.map((e) => FigureCard.fromJson(e as Map<String, dynamic>))
+              ?.map((e) => VaccineCard.fromJson(e as Map<String, dynamic>))
               .toList() ??
-          const <FigureCard>[],
+          const <VaccineCard>[],
       meta: CardListMeta.fromJson(json['meta'] as Map<String, dynamic>),
     );
 

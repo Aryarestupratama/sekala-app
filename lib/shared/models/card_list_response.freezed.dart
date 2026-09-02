@@ -332,7 +332,7 @@ class __$CardListMetaCopyWithImpl<$Res>
 
 /// @nodoc
 mixin _$CardListResponse {
-  List<FigureCard> get data;
+  List<VaccineCard> get data;
   CardListMeta get meta;
 
   /// Create a copy of CardListResponse
@@ -372,7 +372,7 @@ abstract mixin class $CardListResponseCopyWith<$Res> {
           CardListResponse value, $Res Function(CardListResponse) _then) =
       _$CardListResponseCopyWithImpl;
   @useResult
-  $Res call({List<FigureCard> data, CardListMeta meta});
+  $Res call({List<VaccineCard> data, CardListMeta meta});
 
   $CardListMetaCopyWith<$Res> get meta;
 }
@@ -397,7 +397,7 @@ class _$CardListResponseCopyWithImpl<$Res>
       data: null == data
           ? _self.data
           : data // ignore: cast_nullable_to_non_nullable
-              as List<FigureCard>,
+              as List<VaccineCard>,
       meta: null == meta
           ? _self.meta
           : meta // ignore: cast_nullable_to_non_nullable
@@ -509,7 +509,7 @@ extension CardListResponsePatterns on CardListResponse {
 
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>(
-    TResult Function(List<FigureCard> data, CardListMeta meta)? $default, {
+    TResult Function(List<VaccineCard> data, CardListMeta meta)? $default, {
     required TResult orElse(),
   }) {
     final _that = this;
@@ -536,7 +536,7 @@ extension CardListResponsePatterns on CardListResponse {
 
   @optionalTypeArgs
   TResult when<TResult extends Object?>(
-    TResult Function(List<FigureCard> data, CardListMeta meta) $default,
+    TResult Function(List<VaccineCard> data, CardListMeta meta) $default,
   ) {
     final _that = this;
     switch (_that) {
@@ -561,7 +561,7 @@ extension CardListResponsePatterns on CardListResponse {
 
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>(
-    TResult? Function(List<FigureCard> data, CardListMeta meta)? $default,
+    TResult? Function(List<VaccineCard> data, CardListMeta meta)? $default,
   ) {
     final _that = this;
     switch (_that) {
@@ -577,15 +577,15 @@ extension CardListResponsePatterns on CardListResponse {
 @JsonSerializable()
 class _CardListResponse implements CardListResponse {
   const _CardListResponse(
-      {List<FigureCard> data = const <FigureCard>[], required this.meta})
+      {List<VaccineCard> data = const <VaccineCard>[], required this.meta})
       : _data = data;
   factory _CardListResponse.fromJson(Map<String, dynamic> json) =>
       _$CardListResponseFromJson(json);
 
-  final List<FigureCard> _data;
+  final List<VaccineCard> _data;
   @override
   @JsonKey()
-  List<FigureCard> get data {
+  List<VaccineCard> get data {
     if (_data is EqualUnmodifiableListView) return _data;
     // ignore: implicit_dynamic_type
     return EqualUnmodifiableListView(_data);
@@ -637,7 +637,7 @@ abstract mixin class _$CardListResponseCopyWith<$Res>
       __$CardListResponseCopyWithImpl;
   @override
   @useResult
-  $Res call({List<FigureCard> data, CardListMeta meta});
+  $Res call({List<VaccineCard> data, CardListMeta meta});
 
   @override
   $CardListMetaCopyWith<$Res> get meta;
@@ -663,7 +663,7 @@ class __$CardListResponseCopyWithImpl<$Res>
       data: null == data
           ? _self._data
           : data // ignore: cast_nullable_to_non_nullable
-              as List<FigureCard>,
+              as List<VaccineCard>,
       meta: null == meta
           ? _self.meta
           : meta // ignore: cast_nullable_to_non_nullable

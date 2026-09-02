@@ -26,6 +26,8 @@ mixin _$Year {
   bool get isCompleted;
   @JsonKey(name: 'sections', defaultValue: <SectionSummary>[])
   List<SectionSummary> get sections;
+  @JsonKey(name: 'vaccines', defaultValue: <VaccineCard>[])
+  List<VaccineCard> get vaccines;
 
   /// Create a copy of Year
   /// with the given fields replaced by the non-null parameter values.
@@ -51,7 +53,8 @@ mixin _$Year {
             (identical(other.locked, locked) || other.locked == locked) &&
             (identical(other.isCompleted, isCompleted) ||
                 other.isCompleted == isCompleted) &&
-            const DeepCollectionEquality().equals(other.sections, sections));
+            const DeepCollectionEquality().equals(other.sections, sections) &&
+            const DeepCollectionEquality().equals(other.vaccines, vaccines));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -65,11 +68,12 @@ mixin _$Year {
       publishedSectionsCount,
       locked,
       isCompleted,
-      const DeepCollectionEquality().hash(sections));
+      const DeepCollectionEquality().hash(sections),
+      const DeepCollectionEquality().hash(vaccines));
 
   @override
   String toString() {
-    return 'Year(id: $id, year: $year, title: $title, summary: $summary, publishedSectionsCount: $publishedSectionsCount, locked: $locked, isCompleted: $isCompleted, sections: $sections)';
+    return 'Year(id: $id, year: $year, title: $title, summary: $summary, publishedSectionsCount: $publishedSectionsCount, locked: $locked, isCompleted: $isCompleted, sections: $sections, vaccines: $vaccines)';
   }
 }
 
@@ -87,7 +91,9 @@ abstract mixin class $YearCopyWith<$Res> {
       bool locked,
       @JsonKey(name: 'is_completed') bool isCompleted,
       @JsonKey(name: 'sections', defaultValue: <SectionSummary>[])
-      List<SectionSummary> sections});
+      List<SectionSummary> sections,
+      @JsonKey(name: 'vaccines', defaultValue: <VaccineCard>[])
+      List<VaccineCard> vaccines});
 }
 
 /// @nodoc
@@ -110,6 +116,7 @@ class _$YearCopyWithImpl<$Res> implements $YearCopyWith<$Res> {
     Object? locked = null,
     Object? isCompleted = null,
     Object? sections = null,
+    Object? vaccines = null,
   }) {
     return _then(Year(
       id: null == id
@@ -144,6 +151,10 @@ class _$YearCopyWithImpl<$Res> implements $YearCopyWith<$Res> {
           ? _self.sections
           : sections // ignore: cast_nullable_to_non_nullable
               as List<SectionSummary>,
+      vaccines: null == vaccines
+          ? _self.vaccines
+          : vaccines // ignore: cast_nullable_to_non_nullable
+              as List<VaccineCard>,
     ));
   }
 }
@@ -251,7 +262,9 @@ extension YearPatterns on Year {
             bool locked,
             @JsonKey(name: 'is_completed') bool isCompleted,
             @JsonKey(name: 'sections', defaultValue: <SectionSummary>[])
-            List<SectionSummary> sections)?
+            List<SectionSummary> sections,
+            @JsonKey(name: 'vaccines', defaultValue: <VaccineCard>[])
+            List<VaccineCard> vaccines)?
         $default, {
     required TResult orElse(),
   }) {
@@ -266,7 +279,8 @@ extension YearPatterns on Year {
             _that.publishedSectionsCount,
             _that.locked,
             _that.isCompleted,
-            _that.sections);
+            _that.sections,
+            _that.vaccines);
       case _:
         return orElse();
     }
@@ -297,7 +311,9 @@ extension YearPatterns on Year {
             bool locked,
             @JsonKey(name: 'is_completed') bool isCompleted,
             @JsonKey(name: 'sections', defaultValue: <SectionSummary>[])
-            List<SectionSummary> sections)
+            List<SectionSummary> sections,
+            @JsonKey(name: 'vaccines', defaultValue: <VaccineCard>[])
+            List<VaccineCard> vaccines)
         $default,
   ) {
     final _that = this;
@@ -311,7 +327,8 @@ extension YearPatterns on Year {
             _that.publishedSectionsCount,
             _that.locked,
             _that.isCompleted,
-            _that.sections);
+            _that.sections,
+            _that.vaccines);
       case _:
         throw StateError('Unexpected subclass');
     }
@@ -341,7 +358,9 @@ extension YearPatterns on Year {
             bool locked,
             @JsonKey(name: 'is_completed') bool isCompleted,
             @JsonKey(name: 'sections', defaultValue: <SectionSummary>[])
-            List<SectionSummary> sections)?
+            List<SectionSummary> sections,
+            @JsonKey(name: 'vaccines', defaultValue: <VaccineCard>[])
+            List<VaccineCard> vaccines)?
         $default,
   ) {
     final _that = this;
@@ -355,7 +374,8 @@ extension YearPatterns on Year {
             _that.publishedSectionsCount,
             _that.locked,
             _that.isCompleted,
-            _that.sections);
+            _that.sections,
+            _that.vaccines);
       case _:
         return null;
     }
@@ -374,8 +394,11 @@ class _Year implements Year {
       this.locked = true,
       @JsonKey(name: 'is_completed') this.isCompleted = false,
       @JsonKey(name: 'sections', defaultValue: <SectionSummary>[])
-      required List<SectionSummary> sections})
-      : _sections = sections;
+      required List<SectionSummary> sections,
+      @JsonKey(name: 'vaccines', defaultValue: <VaccineCard>[])
+      List<VaccineCard> vaccines = const <VaccineCard>[]})
+      : _sections = sections,
+        _vaccines = vaccines;
   factory _Year.fromJson(Map<String, dynamic> json) => _$YearFromJson(json);
 
   @override
@@ -402,6 +425,15 @@ class _Year implements Year {
     if (_sections is EqualUnmodifiableListView) return _sections;
     // ignore: implicit_dynamic_type
     return EqualUnmodifiableListView(_sections);
+  }
+
+  final List<VaccineCard> _vaccines;
+  @override
+  @JsonKey(name: 'vaccines', defaultValue: <VaccineCard>[])
+  List<VaccineCard> get vaccines {
+    if (_vaccines is EqualUnmodifiableListView) return _vaccines;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_vaccines);
   }
 
   /// Create a copy of Year
@@ -433,7 +465,8 @@ class _Year implements Year {
             (identical(other.locked, locked) || other.locked == locked) &&
             (identical(other.isCompleted, isCompleted) ||
                 other.isCompleted == isCompleted) &&
-            const DeepCollectionEquality().equals(other._sections, _sections));
+            const DeepCollectionEquality().equals(other._sections, _sections) &&
+            const DeepCollectionEquality().equals(other._vaccines, _vaccines));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -447,11 +480,12 @@ class _Year implements Year {
       publishedSectionsCount,
       locked,
       isCompleted,
-      const DeepCollectionEquality().hash(_sections));
+      const DeepCollectionEquality().hash(_sections),
+      const DeepCollectionEquality().hash(_vaccines));
 
   @override
   String toString() {
-    return 'Year(id: $id, year: $year, title: $title, summary: $summary, publishedSectionsCount: $publishedSectionsCount, locked: $locked, isCompleted: $isCompleted, sections: $sections)';
+    return 'Year(id: $id, year: $year, title: $title, summary: $summary, publishedSectionsCount: $publishedSectionsCount, locked: $locked, isCompleted: $isCompleted, sections: $sections, vaccines: $vaccines)';
   }
 }
 
@@ -470,7 +504,9 @@ abstract mixin class _$YearCopyWith<$Res> implements $YearCopyWith<$Res> {
       bool locked,
       @JsonKey(name: 'is_completed') bool isCompleted,
       @JsonKey(name: 'sections', defaultValue: <SectionSummary>[])
-      List<SectionSummary> sections});
+      List<SectionSummary> sections,
+      @JsonKey(name: 'vaccines', defaultValue: <VaccineCard>[])
+      List<VaccineCard> vaccines});
 }
 
 /// @nodoc
@@ -493,6 +529,7 @@ class __$YearCopyWithImpl<$Res> implements _$YearCopyWith<$Res> {
     Object? locked = null,
     Object? isCompleted = null,
     Object? sections = null,
+    Object? vaccines = null,
   }) {
     return _then(_Year(
       id: null == id
@@ -527,6 +564,10 @@ class __$YearCopyWithImpl<$Res> implements _$YearCopyWith<$Res> {
           ? _self._sections
           : sections // ignore: cast_nullable_to_non_nullable
               as List<SectionSummary>,
+      vaccines: null == vaccines
+          ? _self._vaccines
+          : vaccines // ignore: cast_nullable_to_non_nullable
+              as List<VaccineCard>,
     ));
   }
 }
