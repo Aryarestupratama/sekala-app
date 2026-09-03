@@ -37,12 +37,37 @@ class SectionDetailScreen extends ConsumerStatefulWidget {
 
 class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
   bool _completionTriggered = false;
+  final ScrollController _scrollController = ScrollController();
 
   int get _id => int.parse(widget.sectionId);
 
-  void _handleBottomVisible(VisibilityInfo info) {
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  /// Fallback untuk section pendek (Bug 1): kalau kontennya sendiri sudah
+  /// muat penuh di viewport (nggak ada apa pun buat di-scroll), marker
+  /// `VisibilityDetector` di bawah konten kadang nggak sempat ke-scan
+  /// tepat waktu oleh periodic check-nya. Dicek sekali setelah frame
+  /// pertama section ini selesai di-render — kalau memang tidak ada
+  /// scroll extent sama sekali, langsung anggap "selesai baca" tanpa
+  /// nunggu event visibility.
+  void _checkShortContentFallback() {
     if (_completionTriggered) return;
+    if (!_scrollController.hasClients) return;
+    if (_scrollController.position.maxScrollExtent > 0) return;
+    _attemptCompletion();
+  }
+
+  void _handleBottomVisible(VisibilityInfo info) {
     if (info.visibleFraction < 0.9) return;
+    _attemptCompletion();
+  }
+
+  void _attemptCompletion() {
+    if (_completionTriggered) return;
     if (ref.read(sectionJustCompletedProvider(_id))) return; // sudah sesi ini
 
     // R-PROG-02: hanya login TERVERIFIKASI yang progress-nya dicatat.
@@ -97,7 +122,17 @@ class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
     final blocks = [...section.contentBlocks]
       ..sort((a, b) => a.order.compareTo(b.order));
 
+    // Dijadwalkan tiap build content selesai (harmless kalau dipanggil
+    // berkali-kali — dijaga `_completionTriggered` di dalamnya): begitu
+    // frame pertama section ini kelar layout, cek apakah kontennya
+    // sependek itu sampai tidak ada scroll extent sama sekali.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _checkShortContentFallback();
+    });
+
     return ListView(
+      controller: _scrollController,
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
       children: [
         Row(

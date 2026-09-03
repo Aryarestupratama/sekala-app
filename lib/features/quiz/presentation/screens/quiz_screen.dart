@@ -6,6 +6,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/models/quiz.dart';
 import '../../../../shared/models/quiz_answer_feedback.dart';
 import '../../../../shared/models/quiz_question.dart';
+import '../../../../shared/models/quiz_submit_response.dart';
 import '../providers/quiz_providers.dart';
 
 /// Halaman Kuis in-app (Design.md §3.3 poin 5, mockup referensi Image 3).
@@ -160,11 +161,21 @@ class _QuizBodyState extends ConsumerState<_QuizBody> {
 
       // Soal terakhir dijawab -> submit sekali ke backend.
       setState(() => _phase = _QuizPhase.submitting);
-      final response = await ref.read(quizSubmitControllerProvider.notifier).submit(
-            yearId: widget.yearId,
-            eraSlug: widget.eraSlug,
-            answersByQuestionId: _selectedByQuestionId,
-          );
+      QuizSubmitResponse? response;
+      try {
+        response = await ref.read(quizSubmitControllerProvider.notifier).submit(
+              yearId: widget.yearId,
+              eraSlug: widget.eraSlug,
+              answersByQuestionId: _selectedByQuestionId,
+            );
+      } catch (_) {
+        // Jaring pengaman kedua: submit() sendiri sudah nangani
+        // DioException/ApiException secara internal dan return null (bukan
+        // throw) untuk kasus itu. try/catch di sini cuma buat exception
+        // tak terduga lain (mis. race disposal provider) supaya _phase
+        // TETAP ke-reset, bukan nyangkut selamanya di submitting.
+        response = null;
+      }
       if (!mounted) return;
 
       if (response == null) {
@@ -177,9 +188,13 @@ class _QuizBodyState extends ConsumerState<_QuizBody> {
         return;
       }
 
+      // Dart tidak bisa promosikan `response` jadi non-null otomatis di sini
+      // (di-assign lewat try/catch, bukan langsung dari `final response =
+      // await ...`) — bind ke variabel baru yang sudah pasti non-null.
+      final result = response;
       setState(() {
-        _feedback = response.feedback;
-        _newlyUnlockedVaccineIds = response.newlyUnlockedVaccineIds;
+        _feedback = result.feedback;
+        _newlyUnlockedVaccineIds = result.newlyUnlockedVaccineIds;
         _phase = _QuizPhase.reviewing;
         _index = 0; // mulai review dari soal 1
       });
@@ -233,6 +248,20 @@ class _QuizBodyState extends ConsumerState<_QuizBody> {
 
   @override
   Widget build(BuildContext context) {
+    // FIX (Bug 2 — kuis stuck loading di HP fisik): quizSubmitControllerProvider
+    // pakai `.autoDispose`, dan sebelumnya TIDAK ADA widget yang `ref.watch()`
+    // dia — cuma `ref.read()` sekali di _onPrimaryButtonTap(). Tanpa listener
+    // aktif, Riverpod bisa dispose provider ini di tengah `await` network call
+    // submit() masih jalan (race yang nyaris selalu menang di emulator karena
+    // response lokal super cepat, tapi kalah di HP fisik yang ada latensi
+    // network sungguhan). Begitu response server balik lalu submit() coba
+    // `state = AsyncData(response)` pada notifier yang sudah disposed -> throw
+    // "Bad state", unhandled, dan _phase nyangkut permanen di `submitting`.
+    // `ref.watch` di sini (walau hasilnya tak dipakai langsung) memastikan ada
+    // listener aktif selama _QuizBodyState hidup, jadi provider tidak
+    // di-dispose sebelum submit() selesai.
+    ref.watch(quizSubmitControllerProvider);
+
     final total = _questions.length;
     final selected = _selectedByQuestionId[_currentQuestion.id];
     final feedback = _phase == _QuizPhase.reviewing ? _feedbackFor(_currentQuestion.id) : null;
