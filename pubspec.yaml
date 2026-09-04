@@ -25,7 +25,15 @@ dependencies:
   google_sign_in: ^7.2.0
 
   # Media (video YouTube, webview untuk kuis Upresenter & PDF Drive embed)
-  youtube_player_flutter: 9.1.1
+  # NOTE: `youtube_player_flutter` (9.1.1) diganti `youtube_player_iframe`
+  # karena tombol play tidak merespons sama sekali di WebView Android
+  # versi baru — root cause: package lama pakai JS bridge tersembunyi
+  # (postMessage ke halaman IFrame API) yang mulai bentrok dengan update
+  # Android System WebView terbaru (package lama sudah lama tidak
+  # dimaintain aktif). `youtube_player_iframe` dibangun di atas
+  # `webview_flutter` versi modern secara langsung (bukan trik JS bridge
+  # terpisah), jadi lebih stabil untuk versi WebView sekarang & ke depan.
+  youtube_player_iframe: ^5.2.1
   webview_flutter: ^4.8.0
   url_launcher: ^6.3.0
 

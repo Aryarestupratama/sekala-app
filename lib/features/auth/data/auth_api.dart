@@ -79,4 +79,20 @@ class AuthApi {
       await _dio.post('/auth/email/verify/resend');
     });
   }
+
+  /// BARU — ganti password. Backend: POST /auth/password
+  /// (lihat AuthController::changePassword di backend).
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+    required String newPasswordConfirmation,
+  }) {
+    return unwrapApiCall(() async {
+      await _dio.post('/auth/password', data: {
+        'current_password': currentPassword,
+        'password': newPassword,
+        'password_confirmation': newPasswordConfirmation,
+      });
+    });
+  }
 }

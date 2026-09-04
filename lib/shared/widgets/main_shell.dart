@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:sekala_app/shared/provider/active_tab_provider.dart';
 import 'package:sekala_app/core/router/auth_state.dart';
 import 'package:sekala_app/core/theme/app_colors.dart';
 import 'package:sekala_app/features/auth/presentation/providers/auth_providers.dart';
@@ -41,7 +42,9 @@ class MainShell extends ConsumerWidget {
     _NavItemData(icon: Icons.person_outline, activeIcon: Icons.person, label: 'Profil'),
   ];
 
-  static const _koleksiIndex = 2;
+  // Konstanta index tab "Koleksi" dipusatkan di active_tab_provider.dart
+  // (koleksiTabIndex) supaya MainShell & VaccineListScreen selalu merujuk
+  // angka yang sama — hindari magic number `2` ditulis ulang di dua tempat.
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -52,12 +55,26 @@ class MainShell extends ConsumerWidget {
         ? ref.watch(cardListProvider).valueOrNull?.meta.unseen ?? 0
         : 0;
 
+    // Update `activeTabIndexProvider` setiap kali tab aktif berubah — di
+    // luar fase build (post-frame) supaya tidak melanggar aturan Riverpod
+    // "jangan modify provider lain selagi widget tree masih dibangun".
+    // Ini yang dipakai `VaccineListScreen` (dan widget serupa lainnya di
+    // masa depan) untuk membedakan "aku di-rebuild karena tab ini sedang
+    // dilihat user" vs "aku di-rebuild diam-diam di background karena
+    // IndexedStack" — lihat catatan lengkap di active_tab_provider.dart.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final tabNotifier = ref.read(activeTabIndexProvider.notifier);
+      if (tabNotifier.state != navigationShell.currentIndex) {
+        tabNotifier.state = navigationShell.currentIndex;
+      }
+    });
+
     return Scaffold(
       body: navigationShell,
       bottomNavigationBar: _BottomNavBar(
         selectedIndex: navigationShell.currentIndex,
         items: _items,
-        badgeIndex: unseenCount > 0 ? _koleksiIndex : null,
+        badgeIndex: unseenCount > 0 ? koleksiTabIndex : null,
         onDestinationSelected: (index) {
           navigationShell.goBranch(
             index,

@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../shared/provider/active_tab_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/models/vaccine_card.dart';
 import '../providers/card_providers.dart';
@@ -32,7 +33,21 @@ class VaccineListScreen extends ConsumerStatefulWidget {
 
 class _VaccineListScreenState extends ConsumerState<VaccineListScreen> {
   _VaccineFilter _filter = _VaccineFilter.all;
-  bool _revealQueueStarted = false;
+
+  // Vaksin yang sudah pernah masuk antrean reveal SELAMA widget ini hidup.
+  // Sengaja per-ID (bukan flag boolean tunggal) karena `MainShell` mem-
+  // pertahankan state tab ini lewat IndexedStack (tidak pernah dispose
+  // saat pindah tab) — kalau pakai flag boolean sekali-jalan, batch
+  // vaksin `unseen` yang datang dari kunjungan KEDUA dst. (mis. user
+  // selesaikan year lain lalu balik ke tab ini) tidak akan pernah
+  // di-reveal, karena flag-nya sudah kepakai di kunjungan pertama.
+  bool _revealQueueRunning = false;
+  final Set<int> _queuedVaccineIds = {};
+
+  // true selama user sedang berada di halaman detail vaksin (dibuka dari
+  // list ini) — lihat `_openDetail()` & catatan gating lapis 2 di
+  // `build()`.
+  bool _inDetail = false;
 
   List<VaccineCard> _applyFilter(List<VaccineCard> data) {
     switch (_filter) {
@@ -57,26 +72,43 @@ class _VaccineListScreenState extends ConsumerState<VaccineListScreen> {
   /// user beneran buka halaman detail vaksin — supaya ada jeda "glow
   /// menyala di grid" antara reveal selesai dan detail dibuka.
   Future<void> _maybeStartRevealQueue(List<VaccineCard> allData) async {
-    if (_revealQueueStarted) return;
-    final pending = allData.where((v) => v.unlocked && v.unseen).toList();
-    if (pending.isEmpty) return;
-    _revealQueueStarted = true;
+    // Guard ini cuma mencegah DUA antrean jalan bersamaan (mis. dipanggil
+    // dua kali beruntun dari dua post-frame callback) — BUKAN mencegah
+    // antrean berikutnya selamanya, karena widget ini bisa menerima batch
+    // vaksin `unseen` baru berkali-kali sepanjang hidupnya (lihat catatan
+    // di deklarasi field `_queuedVaccineIds`).
+    if (_revealQueueRunning) return;
 
-    for (var i = 0; i < pending.length; i++) {
-      if (!mounted) return;
-      await showGeneralDialog<void>(
-        context: context,
-        barrierDismissible: false,
-        barrierColor: Colors.black87,
-        transitionDuration: const Duration(milliseconds: 300),
-        pageBuilder: (context, _, __) => _VaccineRevealDialog(
-          vaccine: pending[i],
-          index: i + 1,
-          total: pending.length,
-        ),
-        transitionBuilder: (context, animation, _, child) =>
-            FadeTransition(opacity: animation, child: child),
-      );
+    final pending = allData
+        .where((v) => v.unlocked && v.unseen && !_queuedVaccineIds.contains(v.id))
+        .toList();
+    if (pending.isEmpty) return;
+
+    _revealQueueRunning = true;
+    _queuedVaccineIds.addAll(pending.map((v) => v.id));
+
+    try {
+      for (var i = 0; i < pending.length; i++) {
+        if (!mounted) return;
+        await showGeneralDialog<void>(
+          context: context,
+          barrierDismissible: false,
+          barrierColor: Colors.black87,
+          transitionDuration: const Duration(milliseconds: 300),
+          pageBuilder: (context, _, __) => _VaccineRevealDialog(
+            vaccine: pending[i],
+            index: i + 1,
+            total: pending.length,
+          ),
+          transitionBuilder: (context, animation, _, child) =>
+              FadeTransition(opacity: animation, child: child),
+        );
+      }
+    } finally {
+      // Reset di `finally` (bukan cuma di akhir loop) supaya kalau widget
+      // ke-unmount di tengah antrean (return awal di atas), guard tetap
+      // kebuka lagi untuk percobaan berikutnya alih-alih nyangkut true.
+      if (mounted) _revealQueueRunning = false;
     }
   }
 
@@ -85,7 +117,15 @@ class _VaccineListScreenState extends ConsumerState<VaccineListScreen> {
   /// `unseen`, tandai "sudah dilihat" dulu (best-effort — kegagalan tidak
   /// menghalangi navigasi ke detail) sebelum pindah halaman, supaya glow
   /// & badge dot ikut hilang begitu user balik ke grid/bottom nav.
-  void _openDetail(VaccineCard vaccine) {
+  ///
+  /// PENTING: pakai `context.push()` (bukan `context.go()`) — `push()`
+  /// mengembalikan `Future` yang baru selesai persis ketika halaman
+  /// detail ini di-pop/kembali ke list. Ini dipakai sebagai sinyal pasti
+  /// "user beneran sudah balik ke list" untuk membuka kembali gate
+  /// `_inDetail` (lihat pemakaiannya di `build()`) — beda dari sekadar
+  /// mengandalkan `activeTabIndexProvider`, yang TIDAK berubah selama
+  /// user cuma buka/tutup detail di dalam tab Koleksi yang sama.
+  Future<void> _openDetail(VaccineCard vaccine) async {
     if (vaccine.unseen) {
       unawaited(
         ref.read(cardRepositoryProvider).markVaccineSeen(vaccine.id).then((_) {
@@ -93,12 +133,45 @@ class _VaccineListScreenState extends ConsumerState<VaccineListScreen> {
         }),
       );
     }
-    context.go('/cards/${vaccine.id}');
+
+    setState(() => _inDetail = true);
+    await context.push('/cards/${vaccine.id}');
+    if (!mounted) return;
+    setState(() => _inDetail = false);
+
+    // Begitu beneran balik ke list, cek ulang antrean reveal pakai data
+    // terbaru — kalau ada vaksin `unseen` baru yang datang SELAMA user
+    // di halaman detail (mis. dari year lain yang diselesaikan lewat
+    // deep-link/notifikasi, kasus langka tapi mungkin), animasinya baru
+    // muncul sekarang, bukan menimpa halaman detail tadi.
+    final latest = ref.read(cardListProvider).valueOrNull?.data;
+    if (latest != null) _maybeStartRevealQueue(latest);
   }
 
   @override
   Widget build(BuildContext context) {
     final cardsAsync = ref.watch(cardListProvider);
+
+    // GATING PENTING (lapis 1): `MainShell` mempertahankan state SEMUA
+    // tab lewat go_router `StatefulShellRoute.indexedStack` — widget ini
+    // tetap ter-build & rebuild di background walau tab "Koleksi" TIDAK
+    // sedang dilihat user (mis. `cardListProvider` di-invalidate dari
+    // halaman Kuis di tab lain setelah submit). Tanpa gating ini, reveal
+    // dialog bisa salah trigger duluan menimpa layar manapun yang sedang
+    // aktif. `activeTabIndexProvider` di-watch supaya begitu user PINDAH
+    // ke tab Koleksi, widget ini rebuild ulang dan reveal queue baru
+    // diizinkan jalan dengan data yang sudah ter-fetch duluan.
+    //
+    // GATING PENTING (lapis 2): `_inDetail` menutup celah yang TIDAK bisa
+    // dideteksi lapis 1 — index tab TIDAK berubah sama sekali selama user
+    // cuma buka halaman detail vaksin dari list yang sama (masih di
+    // branch "Koleksi" yang sama, cuma nested route beda). Tanpa lapis
+    // ini, reveal animasi bisa nongol menimpa halaman detail yang sedang
+    // dibuka user, alih-alih menunggu sampai user beneran balik ke list
+    // (lihat `_openDetail()` — flag ini di-reset begitu `context.push()`
+    // selesai/di-pop).
+    final isActiveTab = ref.watch(activeTabIndexProvider) == koleksiTabIndex;
+    final canRevealNow = isActiveTab && !_inDetail;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -106,7 +179,7 @@ class _VaccineListScreenState extends ConsumerState<VaccineListScreen> {
       body: cardsAsync.when(
         data: (response) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            _maybeStartRevealQueue(response.data);
+            if (canRevealNow) _maybeStartRevealQueue(response.data);
           });
 
           final filtered = _applyFilter(response.data);

@@ -124,3 +124,37 @@ final authControllerProvider =
     StateNotifierProvider<AuthController, AsyncValue<void>>(
   (ref) => AuthController(ref),
 );
+
+/// BARU — State loading/error khusus aksi ganti password. Dipisah dari
+/// authControllerProvider supaya loading logout (Profil) & loading simpan
+/// password (screen Ubah Kata Sandi) tidak saling tumpang tindih.
+class ChangePasswordController extends StateNotifier<AsyncValue<void>> {
+  ChangePasswordController(this._ref) : super(const AsyncData(null));
+  final Ref _ref;
+
+  Future<bool> submit({
+    required String currentPassword,
+    required String newPassword,
+    required String newPasswordConfirmation,
+  }) async {
+    if (state.isLoading) return false;
+    state = const AsyncLoading();
+    try {
+      await _ref.read(authRepositoryProvider).changePassword(
+            currentPassword: currentPassword,
+            newPassword: newPassword,
+            newPasswordConfirmation: newPasswordConfirmation,
+          );
+      state = const AsyncData(null);
+      return true;
+    } on ApiException catch (e, st) {
+      state = AsyncError(e, st);
+      return false;
+    }
+  }
+}
+
+final changePasswordControllerProvider = StateNotifierProvider.autoDispose<
+    ChangePasswordController, AsyncValue<void>>(
+  (ref) => ChangePasswordController(ref),
+);

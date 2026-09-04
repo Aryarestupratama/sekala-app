@@ -80,4 +80,20 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<void> resendVerificationEmail() => _api.resendVerificationEmail();
+
+  /// BARU — ganti password. Token device ini sendiri tetap valid setelah
+  /// sukses (backend mengecualikan token aktif dari pencabutan), jadi
+  /// tidak perlu logout lokal di sini.
+  @override
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+    required String newPasswordConfirmation,
+  }) {
+    return _api.changePassword(
+      currentPassword: currentPassword,
+      newPassword: newPassword,
+      newPasswordConfirmation: newPasswordConfirmation,
+    );
+  }
 }
