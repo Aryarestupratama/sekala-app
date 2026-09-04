@@ -24,4 +24,9 @@ class CardRepositoryImpl implements CardRepository {
         : raw as Map<String, dynamic>;
     return VaccineDetail.fromJson(data);
   }
+
+  @override
+  Future<void> markVaccineSeen(int vaccineId) async {
+    await _api.markVaccineSeen(vaccineId);
+  }
 }

@@ -9,4 +9,8 @@ abstract class CardRepository {
   /// GET /api/cards/{vaccine} — CARD-02. 404 kalau vaccine belum unlock
   /// (R-VAC-04/05, ditangani sebagai ApiException oleh unwrapApiCall).
   Future<VaccineDetail> fetchVaccineDetail(int vaccineId);
+
+  /// POST /api/cards/{vaccine}/seen — tandai sudah dilihat, dipanggil
+  /// begitu animasi reveal locked->unlocked selesai diputar.
+  Future<void> markVaccineSeen(int vaccineId);
 }

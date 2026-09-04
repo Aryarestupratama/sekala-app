@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -7,6 +8,7 @@ import '../../../../shared/models/quiz.dart';
 import '../../../../shared/models/quiz_answer_feedback.dart';
 import '../../../../shared/models/quiz_question.dart';
 import '../../../../shared/models/quiz_submit_response.dart';
+import '../../../card/presentation/providers/card_providers.dart';
 import '../providers/quiz_providers.dart';
 
 /// Halaman Kuis in-app (Design.md §3.3 poin 5, mockup referensi Image 3).
@@ -212,14 +214,29 @@ class _QuizBodyState extends ConsumerState<_QuizBody> {
 
   void _finish() {
     // R-QUIZ-04: tanpa skor/status lulus — cuma konfirmasi selesai.
-    // Halaman reveal khusus animasi "Vaksin baru terbuka!" belum dibuat
-    // (lihat progress.md) — sementara info vaksin baru ditampilkan lewat
-    // SnackBar sebagai placeholder, bukan hilang begitu saja.
-    final message = _newlyUnlockedVaccineIds.isEmpty
-        ? 'Kuis selesai dikerjakan!'
-        : 'Kuis selesai dikerjakan! ${_newlyUnlockedVaccineIds.length} vaksin baru terbuka.';
+    // Kalau ada vaksin baru terbuka, tampilkan banner kecil di atas
+    // (Design.md §3.3 poin 6) via root Overlay — dipasang SEBELUM
+    // navigate supaya tetap hidup lintas halaman (QuizScreen sendiri
+    // bakal di-dispose begitu context.go() dipanggil). Detail animasi
+    // reveal per-vaksin (locked->unlocked) baru terjadi nanti di halaman
+    // Koleksi Vaksin (vaccine_list_screen.dart), bukan di sini.
+    // BUG FIX: sebelumnya cardListProvider tidak pernah di-invalidate di
+    // sini — akibatnya MainShell (badge dot) & VaccineListScreen (grid +
+    // animasi reveal) masih pakai cache lama dari SEBELUM kuis ini
+    // selesai (autoDispose tapi tetap hidup selama MainShell meng-watch
+    // dia terus). Data baru (vaksin unlocked, meta.unseen bertambah)
+    // baru akan kepakai kalau provider ini di-refetch.
+    if (_newlyUnlockedVaccineIds.isNotEmpty) {
+      ref.invalidate(cardListProvider);
+      _showVaccineUnlockBanner(context, _newlyUnlockedVaccineIds.length);
+      context.go('/history/${widget.eraSlug}');
+      return;
+    }
+
     context.go('/history/${widget.eraSlug}');
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Kuis selesai dikerjakan!')),
+    );
   }
 
   void _confirmExit() {
@@ -463,5 +480,115 @@ class _OptionTile extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Banner "Kamu telah membuka X koleksi vaksin baru!" — dipasang ke root
+/// Overlay (bukan Scaffold/SnackBar biasa) supaya tetap tampil walau
+/// halaman yang manggilnya (QuizScreen) sudah di-dispose begitu
+/// `context.go()` pindah ke roadmap era. Auto-dismiss sendiri setelah
+/// beberapa detik; tap banner langsung ke halaman Koleksi Vaksin.
+void _showVaccineUnlockBanner(BuildContext context, int count) {
+  final overlay = Overlay.of(context, rootOverlay: true);
+  late OverlayEntry entry;
+  entry = OverlayEntry(
+    builder: (context) => _VaccineUnlockBanner(
+      count: count,
+      onDismissed: () => entry.remove(),
+    ),
+  );
+  overlay.insert(entry);
+}
+
+class _VaccineUnlockBanner extends StatefulWidget {
+  const _VaccineUnlockBanner({required this.count, required this.onDismissed});
+
+  final int count;
+  final VoidCallback onDismissed;
+
+  @override
+  State<_VaccineUnlockBanner> createState() => _VaccineUnlockBannerState();
+}
+
+class _VaccineUnlockBannerState extends State<_VaccineUnlockBanner> {
+  bool _visible = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Tunda 1 frame biar transisi slide-in kepakai (bukan langsung
+    // full-visible tanpa animasi).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() => _visible = true);
+    });
+    Future.delayed(const Duration(milliseconds: 3200), () {
+      if (mounted) setState(() => _visible = false);
+    });
+    Future.delayed(const Duration(milliseconds: 3700), widget.onDismissed);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      top: 0,
+      left: 0,
+      right: 0,
+      child: SafeArea(
+        child: AnimatedSlide(
+          duration: const Duration(milliseconds: 350),
+          curve: Curves.easeOutCubic,
+          offset: _visible ? Offset.zero : const Offset(0, -1.2),
+          child: AnimatedOpacity(
+            duration: const Duration(milliseconds: 250),
+            opacity: _visible ? 1 : 0,
+            // PENTING: banner ini dipasang ke root Overlay (bukan lewat
+            // Scaffold/MaterialApp biasa), jadi TIDAK ada ancestor
+            // `Material` yang biasanya nyediain DefaultTextStyle sesuai
+            // Theme (bodyMedium dsb) — tanpa ini, Text di dalamnya jatuh
+            // ke default mentah (font besar & rata tanpa styling), inilah
+            // penyebab bug font gede tanpa style. `type: transparency`
+            // biar nggak nambah background putih tak terduga, warnanya
+            // tetap dari Container di bawah.
+            child: Material(
+              type: MaterialType.transparency,
+              child: GestureDetector(
+                // Dari mana pun quiz ini dipanggil, /cards selalu valid buat
+                // user login terverifikasi (satu-satunya yang bisa sampai ke
+                // layar ini, R-QUIZ-02/09) — jadi aman diarahkan langsung.
+                onTap: () => context.go('/cards'),
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: AppColors.gamify,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: const [
+                      BoxShadow(color: Colors.black26, blurRadius: 12, offset: Offset(0, 4)),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.vaccines_outlined, color: Colors.white),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Kamu telah membuka ${widget.count} koleksi vaksin baru!',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                            height: 1.3,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ).animate().fadeIn(duration: 200.ms);
   }
 }

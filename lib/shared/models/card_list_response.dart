@@ -16,6 +16,10 @@ abstract class CardListMeta with _$CardListMeta {
   const factory CardListMeta({
     required int total,
     required int unlocked,
+    // Jumlah vaksin unlocked yang belum pernah dilihat (seen_at null).
+    // Dipakai buat badge dot bottom nav tanpa perlu itung ulang dari
+    // `data` sisi Flutter.
+    required int unseen,
   }) = _CardListMeta;
 
   factory CardListMeta.fromJson(Map<String, dynamic> json) =>

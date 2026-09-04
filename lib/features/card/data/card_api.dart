@@ -21,4 +21,14 @@ class CardApi {
       return response.data;
     });
   }
+
+  /// POST /api/cards/{vaccine}/seen — tandai vaksin sudah dilihat user
+  /// (animasi reveal locked->unlocked sudah diputar di halaman Koleksi).
+  /// Idempotent di sisi backend (UserVaccineUnlock::markSeen()).
+  Future<Map<String, dynamic>> markVaccineSeen(int vaccineId) {
+    return unwrapApiCall(() async {
+      final response = await _dio.post('/cards/$vaccineId/seen');
+      return response.data as Map<String, dynamic>;
+    });
+  }
 }

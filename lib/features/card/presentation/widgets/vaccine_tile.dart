@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -9,24 +11,36 @@ import '../../../../shared/models/vaccine_card.dart';
 /// "???" saat terkunci — R-VAC-04 cuma menyembunyikan FOTO, bukan nama.
 /// Yang disembunyikan hanya `photoUrl` (backend kirim null saat locked,
 /// diganti `photoLockedUrl` versi siluet — lihat VaccineCardResource).
+///
+/// GLOW "BARU" (baru): vaksin yang `unlocked && unseen` (sudah lolos
+/// animasi reveal di dialog, tapi belum pernah dibuka detailnya — lihat
+/// `_openDetail` di vaccine_list_screen.dart yang baru menandai `seen`
+/// pas detail dibuka, BUKAN pas dialog reveal ditutup) dikasih glow
+/// pulsing + badge kecil "Baru!", supaya tetap menonjol di grid sampai
+/// user benar-benar buka detailnya.
 class VaccineTile extends StatelessWidget {
   const VaccineTile({super.key, required this.vaccine, required this.onTap});
 
   final VaccineCard vaccine;
   final VoidCallback onTap;
 
+  bool get _needsGlow => vaccine.unlocked && vaccine.unseen;
+
   @override
   Widget build(BuildContext context) {
     final accent = vaccine.unlocked ? AppColors.gamify : AppColors.border;
 
-    return InkWell(
+    final card = InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: accent.withValues(alpha: vaccine.unlocked ? 0.6 : 1)),
+          border: Border.all(
+            color: _needsGlow ? AppColors.gamify : accent.withValues(alpha: vaccine.unlocked ? 0.6 : 1),
+            width: _needsGlow ? 1.5 : 1,
+          ),
         ),
         clipBehavior: Clip.antiAlias,
         child: Column(
@@ -56,6 +70,30 @@ class VaccineTile extends StatelessWidget {
                           Icons.lock_outline,
                           size: 14,
                           color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                  if (_needsGlow)
+                    Positioned(
+                      top: 6,
+                      left: 6,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: AppColors.gamify,
+                          borderRadius: BorderRadius.circular(999),
+                          boxShadow: const [
+                            BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
+                          ],
+                        ),
+                        child: const Text(
+                          'Baru!',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.2,
+                          ),
                         ),
                       ),
                     ),
@@ -105,6 +143,10 @@ class VaccineTile extends StatelessWidget {
         ),
       ),
     );
+
+    // Glow cuma dipasang kalau perlu — item locked/sudah-dilihat nggak
+    // ke-overhead animasi looping sama sekali.
+    return _needsGlow ? _PulsingGlow(child: card) : card;
   }
 
   Widget _buildImage() {
@@ -122,6 +164,63 @@ class VaccineTile extends StatelessWidget {
       imageUrl: url,
       fit: BoxFit.cover,
       errorWidget: (context, url, error) => const Icon(Icons.vaccines_outlined, size: 32),
+    );
+  }
+}
+
+/// Border-glow yang "berdenyut" pelan tanpa henti (dipasang di luar
+/// `InkWell` supaya efek shadow nggak ke-clip sama `Clip.antiAlias` di
+/// Container dalamnya). Blur & spread naik-turun terus lewat kurva sin,
+/// jadi transisinya mulus di kedua ujung (bukan "loncat" pas reverse).
+class _PulsingGlow extends StatefulWidget {
+  const _PulsingGlow({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_PulsingGlow> createState() => _PulsingGlowState();
+}
+
+class _PulsingGlowState extends State<_PulsingGlow> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        // sin -> 0..1..0 mulus, dipakai buat naik-turunin blur/spread/opacity.
+        final t = (math.sin(_controller.value * 2 * math.pi) + 1) / 2;
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.gamify.withValues(alpha: 0.25 + 0.35 * t),
+                blurRadius: 8 + 14 * t,
+                spreadRadius: 1 + 2 * t,
+              ),
+            ],
+          ),
+          child: child,
+        );
+      },
+      child: widget.child,
     );
   }
 }

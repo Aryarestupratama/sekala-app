@@ -17,6 +17,7 @@ T _$identity<T>(T value) => value;
 mixin _$CardListMeta {
   int get total;
   int get unlocked;
+  int get unseen;
 
   /// Create a copy of CardListMeta
   /// with the given fields replaced by the non-null parameter values.
@@ -36,16 +37,17 @@ mixin _$CardListMeta {
             other is CardListMeta &&
             (identical(other.total, total) || other.total == total) &&
             (identical(other.unlocked, unlocked) ||
-                other.unlocked == unlocked));
+                other.unlocked == unlocked) &&
+            (identical(other.unseen, unseen) || other.unseen == unseen));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, total, unlocked);
+  int get hashCode => Object.hash(runtimeType, total, unlocked, unseen);
 
   @override
   String toString() {
-    return 'CardListMeta(total: $total, unlocked: $unlocked)';
+    return 'CardListMeta(total: $total, unlocked: $unlocked, unseen: $unseen)';
   }
 }
 
@@ -55,7 +57,7 @@ abstract mixin class $CardListMetaCopyWith<$Res> {
           CardListMeta value, $Res Function(CardListMeta) _then) =
       _$CardListMetaCopyWithImpl;
   @useResult
-  $Res call({int total, int unlocked});
+  $Res call({int total, int unlocked, int unseen});
 }
 
 /// @nodoc
@@ -72,6 +74,7 @@ class _$CardListMetaCopyWithImpl<$Res> implements $CardListMetaCopyWith<$Res> {
   $Res call({
     Object? total = null,
     Object? unlocked = null,
+    Object? unseen = null,
   }) {
     return _then(CardListMeta(
       total: null == total
@@ -81,6 +84,10 @@ class _$CardListMetaCopyWithImpl<$Res> implements $CardListMetaCopyWith<$Res> {
       unlocked: null == unlocked
           ? _self.unlocked
           : unlocked // ignore: cast_nullable_to_non_nullable
+              as int,
+      unseen: null == unseen
+          ? _self.unseen
+          : unseen // ignore: cast_nullable_to_non_nullable
               as int,
     ));
   }
@@ -179,13 +186,13 @@ extension CardListMetaPatterns on CardListMeta {
 
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>(
-    TResult Function(int total, int unlocked)? $default, {
+    TResult Function(int total, int unlocked, int unseen)? $default, {
     required TResult orElse(),
   }) {
     final _that = this;
     switch (_that) {
       case _CardListMeta() when $default != null:
-        return $default(_that.total, _that.unlocked);
+        return $default(_that.total, _that.unlocked, _that.unseen);
       case _:
         return orElse();
     }
@@ -206,12 +213,12 @@ extension CardListMetaPatterns on CardListMeta {
 
   @optionalTypeArgs
   TResult when<TResult extends Object?>(
-    TResult Function(int total, int unlocked) $default,
+    TResult Function(int total, int unlocked, int unseen) $default,
   ) {
     final _that = this;
     switch (_that) {
       case _CardListMeta():
-        return $default(_that.total, _that.unlocked);
+        return $default(_that.total, _that.unlocked, _that.unseen);
       case _:
         throw StateError('Unexpected subclass');
     }
@@ -231,12 +238,12 @@ extension CardListMetaPatterns on CardListMeta {
 
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>(
-    TResult? Function(int total, int unlocked)? $default,
+    TResult? Function(int total, int unlocked, int unseen)? $default,
   ) {
     final _that = this;
     switch (_that) {
       case _CardListMeta() when $default != null:
-        return $default(_that.total, _that.unlocked);
+        return $default(_that.total, _that.unlocked, _that.unseen);
       case _:
         return null;
     }
@@ -246,7 +253,8 @@ extension CardListMetaPatterns on CardListMeta {
 /// @nodoc
 @JsonSerializable()
 class _CardListMeta implements CardListMeta {
-  const _CardListMeta({required this.total, required this.unlocked});
+  const _CardListMeta(
+      {required this.total, required this.unlocked, required this.unseen});
   factory _CardListMeta.fromJson(Map<String, dynamic> json) =>
       _$CardListMetaFromJson(json);
 
@@ -254,6 +262,8 @@ class _CardListMeta implements CardListMeta {
   final int total;
   @override
   final int unlocked;
+  @override
+  final int unseen;
 
   /// Create a copy of CardListMeta
   /// with the given fields replaced by the non-null parameter values.
@@ -277,16 +287,17 @@ class _CardListMeta implements CardListMeta {
             other is _CardListMeta &&
             (identical(other.total, total) || other.total == total) &&
             (identical(other.unlocked, unlocked) ||
-                other.unlocked == unlocked));
+                other.unlocked == unlocked) &&
+            (identical(other.unseen, unseen) || other.unseen == unseen));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, total, unlocked);
+  int get hashCode => Object.hash(runtimeType, total, unlocked, unseen);
 
   @override
   String toString() {
-    return 'CardListMeta(total: $total, unlocked: $unlocked)';
+    return 'CardListMeta(total: $total, unlocked: $unlocked, unseen: $unseen)';
   }
 }
 
@@ -298,7 +309,7 @@ abstract mixin class _$CardListMetaCopyWith<$Res>
       __$CardListMetaCopyWithImpl;
   @override
   @useResult
-  $Res call({int total, int unlocked});
+  $Res call({int total, int unlocked, int unseen});
 }
 
 /// @nodoc
@@ -316,6 +327,7 @@ class __$CardListMetaCopyWithImpl<$Res>
   $Res call({
     Object? total = null,
     Object? unlocked = null,
+    Object? unseen = null,
   }) {
     return _then(_CardListMeta(
       total: null == total
@@ -325,6 +337,10 @@ class __$CardListMetaCopyWithImpl<$Res>
       unlocked: null == unlocked
           ? _self.unlocked
           : unlocked // ignore: cast_nullable_to_non_nullable
+              as int,
+      unseen: null == unseen
+          ? _self.unseen
+          : unseen // ignore: cast_nullable_to_non_nullable
               as int,
     ));
   }

@@ -36,6 +36,13 @@ abstract class VaccineCard with _$VaccineCard {
     // guest juga seharusnya tidak pernah sampai render screen ini (guard
     // router menendang ke /auth, R-VAC-05/R-GUEST-03).
     @JsonKey(name: 'unlocked', defaultValue: false) required bool unlocked,
+
+    // Belum pernah dilihat user di halaman Koleksi (kolom `seen_at` masih
+    // null di backend). Selalu false kalau `unlocked == false` (siluet
+    // tidak pernah dianggap "perlu dilihat"). Dipakai buat: (1) badge dot
+    // di bottom nav "Koleksi", (2) nentuin vaksin mana yang diputar
+    // animasi reveal locked->unlocked saat halaman Koleksi dibuka.
+    @JsonKey(name: 'unseen', defaultValue: false) required bool unseen,
   }) = _VaccineCard;
 
   factory VaccineCard.fromJson(Map<String, dynamic> json) =>

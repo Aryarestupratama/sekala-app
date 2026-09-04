@@ -23,6 +23,8 @@ mixin _$VaccineCard {
   String? get photoLockedUrl;
   @JsonKey(name: 'unlocked', defaultValue: false)
   bool get unlocked;
+  @JsonKey(name: 'unseen', defaultValue: false)
+  bool get unseen;
 
   /// Create a copy of VaccineCard
   /// with the given fields replaced by the non-null parameter values.
@@ -46,17 +48,18 @@ mixin _$VaccineCard {
             (identical(other.photoLockedUrl, photoLockedUrl) ||
                 other.photoLockedUrl == photoLockedUrl) &&
             (identical(other.unlocked, unlocked) ||
-                other.unlocked == unlocked));
+                other.unlocked == unlocked) &&
+            (identical(other.unseen, unseen) || other.unseen == unseen));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode =>
-      Object.hash(runtimeType, id, name, photoUrl, photoLockedUrl, unlocked);
+  int get hashCode => Object.hash(
+      runtimeType, id, name, photoUrl, photoLockedUrl, unlocked, unseen);
 
   @override
   String toString() {
-    return 'VaccineCard(id: $id, name: $name, photoUrl: $photoUrl, photoLockedUrl: $photoLockedUrl, unlocked: $unlocked)';
+    return 'VaccineCard(id: $id, name: $name, photoUrl: $photoUrl, photoLockedUrl: $photoLockedUrl, unlocked: $unlocked, unseen: $unseen)';
   }
 }
 
@@ -71,7 +74,8 @@ abstract mixin class $VaccineCardCopyWith<$Res> {
       String name,
       @JsonKey(name: 'photo_url') String? photoUrl,
       @JsonKey(name: 'photo_locked_url') String? photoLockedUrl,
-      @JsonKey(name: 'unlocked', defaultValue: false) bool unlocked});
+      @JsonKey(name: 'unlocked', defaultValue: false) bool unlocked,
+      @JsonKey(name: 'unseen', defaultValue: false) bool unseen});
 }
 
 /// @nodoc
@@ -91,6 +95,7 @@ class _$VaccineCardCopyWithImpl<$Res> implements $VaccineCardCopyWith<$Res> {
     Object? photoUrl = freezed,
     Object? photoLockedUrl = freezed,
     Object? unlocked = null,
+    Object? unseen = null,
   }) {
     return _then(VaccineCard(
       id: null == id
@@ -112,6 +117,10 @@ class _$VaccineCardCopyWithImpl<$Res> implements $VaccineCardCopyWith<$Res> {
       unlocked: null == unlocked
           ? _self.unlocked
           : unlocked // ignore: cast_nullable_to_non_nullable
+              as bool,
+      unseen: null == unseen
+          ? _self.unseen
+          : unseen // ignore: cast_nullable_to_non_nullable
               as bool,
     ));
   }
@@ -215,7 +224,8 @@ extension VaccineCardPatterns on VaccineCard {
             String name,
             @JsonKey(name: 'photo_url') String? photoUrl,
             @JsonKey(name: 'photo_locked_url') String? photoLockedUrl,
-            @JsonKey(name: 'unlocked', defaultValue: false) bool unlocked)?
+            @JsonKey(name: 'unlocked', defaultValue: false) bool unlocked,
+            @JsonKey(name: 'unseen', defaultValue: false) bool unseen)?
         $default, {
     required TResult orElse(),
   }) {
@@ -223,7 +233,7 @@ extension VaccineCardPatterns on VaccineCard {
     switch (_that) {
       case _VaccineCard() when $default != null:
         return $default(_that.id, _that.name, _that.photoUrl,
-            _that.photoLockedUrl, _that.unlocked);
+            _that.photoLockedUrl, _that.unlocked, _that.unseen);
       case _:
         return orElse();
     }
@@ -249,14 +259,15 @@ extension VaccineCardPatterns on VaccineCard {
             String name,
             @JsonKey(name: 'photo_url') String? photoUrl,
             @JsonKey(name: 'photo_locked_url') String? photoLockedUrl,
-            @JsonKey(name: 'unlocked', defaultValue: false) bool unlocked)
+            @JsonKey(name: 'unlocked', defaultValue: false) bool unlocked,
+            @JsonKey(name: 'unseen', defaultValue: false) bool unseen)
         $default,
   ) {
     final _that = this;
     switch (_that) {
       case _VaccineCard():
         return $default(_that.id, _that.name, _that.photoUrl,
-            _that.photoLockedUrl, _that.unlocked);
+            _that.photoLockedUrl, _that.unlocked, _that.unseen);
       case _:
         throw StateError('Unexpected subclass');
     }
@@ -281,14 +292,15 @@ extension VaccineCardPatterns on VaccineCard {
             String name,
             @JsonKey(name: 'photo_url') String? photoUrl,
             @JsonKey(name: 'photo_locked_url') String? photoLockedUrl,
-            @JsonKey(name: 'unlocked', defaultValue: false) bool unlocked)?
+            @JsonKey(name: 'unlocked', defaultValue: false) bool unlocked,
+            @JsonKey(name: 'unseen', defaultValue: false) bool unseen)?
         $default,
   ) {
     final _that = this;
     switch (_that) {
       case _VaccineCard() when $default != null:
         return $default(_that.id, _that.name, _that.photoUrl,
-            _that.photoLockedUrl, _that.unlocked);
+            _that.photoLockedUrl, _that.unlocked, _that.unseen);
       case _:
         return null;
     }
@@ -303,7 +315,8 @@ class _VaccineCard implements VaccineCard {
       required this.name,
       @JsonKey(name: 'photo_url') this.photoUrl,
       @JsonKey(name: 'photo_locked_url') this.photoLockedUrl,
-      @JsonKey(name: 'unlocked', defaultValue: false) required this.unlocked});
+      @JsonKey(name: 'unlocked', defaultValue: false) required this.unlocked,
+      @JsonKey(name: 'unseen', defaultValue: false) required this.unseen});
   factory _VaccineCard.fromJson(Map<String, dynamic> json) =>
       _$VaccineCardFromJson(json);
 
@@ -320,6 +333,9 @@ class _VaccineCard implements VaccineCard {
   @override
   @JsonKey(name: 'unlocked', defaultValue: false)
   final bool unlocked;
+  @override
+  @JsonKey(name: 'unseen', defaultValue: false)
+  final bool unseen;
 
   /// Create a copy of VaccineCard
   /// with the given fields replaced by the non-null parameter values.
@@ -348,17 +364,18 @@ class _VaccineCard implements VaccineCard {
             (identical(other.photoLockedUrl, photoLockedUrl) ||
                 other.photoLockedUrl == photoLockedUrl) &&
             (identical(other.unlocked, unlocked) ||
-                other.unlocked == unlocked));
+                other.unlocked == unlocked) &&
+            (identical(other.unseen, unseen) || other.unseen == unseen));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode =>
-      Object.hash(runtimeType, id, name, photoUrl, photoLockedUrl, unlocked);
+  int get hashCode => Object.hash(
+      runtimeType, id, name, photoUrl, photoLockedUrl, unlocked, unseen);
 
   @override
   String toString() {
-    return 'VaccineCard(id: $id, name: $name, photoUrl: $photoUrl, photoLockedUrl: $photoLockedUrl, unlocked: $unlocked)';
+    return 'VaccineCard(id: $id, name: $name, photoUrl: $photoUrl, photoLockedUrl: $photoLockedUrl, unlocked: $unlocked, unseen: $unseen)';
   }
 }
 
@@ -375,7 +392,8 @@ abstract mixin class _$VaccineCardCopyWith<$Res>
       String name,
       @JsonKey(name: 'photo_url') String? photoUrl,
       @JsonKey(name: 'photo_locked_url') String? photoLockedUrl,
-      @JsonKey(name: 'unlocked', defaultValue: false) bool unlocked});
+      @JsonKey(name: 'unlocked', defaultValue: false) bool unlocked,
+      @JsonKey(name: 'unseen', defaultValue: false) bool unseen});
 }
 
 /// @nodoc
@@ -395,6 +413,7 @@ class __$VaccineCardCopyWithImpl<$Res> implements _$VaccineCardCopyWith<$Res> {
     Object? photoUrl = freezed,
     Object? photoLockedUrl = freezed,
     Object? unlocked = null,
+    Object? unseen = null,
   }) {
     return _then(_VaccineCard(
       id: null == id
@@ -416,6 +435,10 @@ class __$VaccineCardCopyWithImpl<$Res> implements _$VaccineCardCopyWith<$Res> {
       unlocked: null == unlocked
           ? _self.unlocked
           : unlocked // ignore: cast_nullable_to_non_nullable
+              as bool,
+      unseen: null == unseen
+          ? _self.unseen
+          : unseen // ignore: cast_nullable_to_non_nullable
               as bool,
     ));
   }

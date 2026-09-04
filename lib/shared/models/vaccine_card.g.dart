@@ -12,6 +12,7 @@ _VaccineCard _$VaccineCardFromJson(Map<String, dynamic> json) => _VaccineCard(
       photoUrl: json['photo_url'] as String?,
       photoLockedUrl: json['photo_locked_url'] as String?,
       unlocked: json['unlocked'] as bool? ?? false,
+      unseen: json['unseen'] as bool? ?? false,
     );
 
 Map<String, dynamic> _$VaccineCardToJson(_VaccineCard instance) =>
@@ -21,4 +22,5 @@ Map<String, dynamic> _$VaccineCardToJson(_VaccineCard instance) =>
       'photo_url': instance.photoUrl,
       'photo_locked_url': instance.photoLockedUrl,
       'unlocked': instance.unlocked,
+      'unseen': instance.unseen,
     };

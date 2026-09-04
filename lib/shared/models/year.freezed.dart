@@ -26,7 +26,7 @@ mixin _$Year {
   bool get isCompleted;
   @JsonKey(name: 'sections', defaultValue: <SectionSummary>[])
   List<SectionSummary> get sections;
-  @JsonKey(name: 'vaccines', defaultValue: <VaccineCard>[])
+  @JsonKey(name: 'vaccines')
   List<VaccineCard> get vaccines;
 
   /// Create a copy of Year
@@ -92,8 +92,7 @@ abstract mixin class $YearCopyWith<$Res> {
       @JsonKey(name: 'is_completed') bool isCompleted,
       @JsonKey(name: 'sections', defaultValue: <SectionSummary>[])
       List<SectionSummary> sections,
-      @JsonKey(name: 'vaccines', defaultValue: <VaccineCard>[])
-      List<VaccineCard> vaccines});
+      @JsonKey(name: 'vaccines') List<VaccineCard> vaccines});
 }
 
 /// @nodoc
@@ -263,8 +262,7 @@ extension YearPatterns on Year {
             @JsonKey(name: 'is_completed') bool isCompleted,
             @JsonKey(name: 'sections', defaultValue: <SectionSummary>[])
             List<SectionSummary> sections,
-            @JsonKey(name: 'vaccines', defaultValue: <VaccineCard>[])
-            List<VaccineCard> vaccines)?
+            @JsonKey(name: 'vaccines') List<VaccineCard> vaccines)?
         $default, {
     required TResult orElse(),
   }) {
@@ -312,8 +310,7 @@ extension YearPatterns on Year {
             @JsonKey(name: 'is_completed') bool isCompleted,
             @JsonKey(name: 'sections', defaultValue: <SectionSummary>[])
             List<SectionSummary> sections,
-            @JsonKey(name: 'vaccines', defaultValue: <VaccineCard>[])
-            List<VaccineCard> vaccines)
+            @JsonKey(name: 'vaccines') List<VaccineCard> vaccines)
         $default,
   ) {
     final _that = this;
@@ -359,8 +356,7 @@ extension YearPatterns on Year {
             @JsonKey(name: 'is_completed') bool isCompleted,
             @JsonKey(name: 'sections', defaultValue: <SectionSummary>[])
             List<SectionSummary> sections,
-            @JsonKey(name: 'vaccines', defaultValue: <VaccineCard>[])
-            List<VaccineCard> vaccines)?
+            @JsonKey(name: 'vaccines') List<VaccineCard> vaccines)?
         $default,
   ) {
     final _that = this;
@@ -395,7 +391,7 @@ class _Year implements Year {
       @JsonKey(name: 'is_completed') this.isCompleted = false,
       @JsonKey(name: 'sections', defaultValue: <SectionSummary>[])
       required List<SectionSummary> sections,
-      @JsonKey(name: 'vaccines', defaultValue: <VaccineCard>[])
+      @JsonKey(name: 'vaccines')
       List<VaccineCard> vaccines = const <VaccineCard>[]})
       : _sections = sections,
         _vaccines = vaccines;
@@ -429,7 +425,7 @@ class _Year implements Year {
 
   final List<VaccineCard> _vaccines;
   @override
-  @JsonKey(name: 'vaccines', defaultValue: <VaccineCard>[])
+  @JsonKey(name: 'vaccines')
   List<VaccineCard> get vaccines {
     if (_vaccines is EqualUnmodifiableListView) return _vaccines;
     // ignore: implicit_dynamic_type
@@ -505,8 +501,7 @@ abstract mixin class _$YearCopyWith<$Res> implements $YearCopyWith<$Res> {
       @JsonKey(name: 'is_completed') bool isCompleted,
       @JsonKey(name: 'sections', defaultValue: <SectionSummary>[])
       List<SectionSummary> sections,
-      @JsonKey(name: 'vaccines', defaultValue: <VaccineCard>[])
-      List<VaccineCard> vaccines});
+      @JsonKey(name: 'vaccines') List<VaccineCard> vaccines});
 }
 
 /// @nodoc

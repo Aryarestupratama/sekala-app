@@ -10,12 +10,14 @@ _CardListMeta _$CardListMetaFromJson(Map<String, dynamic> json) =>
     _CardListMeta(
       total: (json['total'] as num).toInt(),
       unlocked: (json['unlocked'] as num).toInt(),
+      unseen: (json['unseen'] as num).toInt(),
     );
 
 Map<String, dynamic> _$CardListMetaToJson(_CardListMeta instance) =>
     <String, dynamic>{
       'total': instance.total,
       'unlocked': instance.unlocked,
+      'unseen': instance.unseen,
     };
 
 _CardListResponse _$CardListResponseFromJson(Map<String, dynamic> json) =>

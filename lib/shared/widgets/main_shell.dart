@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
+import 'package:sekala_app/core/router/auth_state.dart';
+import 'package:sekala_app/core/theme/app_colors.dart';
+import 'package:sekala_app/features/auth/presentation/providers/auth_providers.dart';
+import 'package:sekala_app/features/card/presentation/providers/card_providers.dart';
 
 /// Bottom nav 4 tab: Home / Informasi / Koleksi / Profil (Design.md §2,
 /// mockup Home terbaru). Dipakai sama untuk user login & guest — kalau
@@ -16,7 +22,14 @@ import 'package:go_router/go_router.dart';
 ///    fade in/out) mengikuti tab aktif.
 /// 3. Hover khusus (web/desktop): item non-aktif tetap pudar warnanya,
 ///    tapi labelnya ikut muncul (pudar juga) selama di-hover.
-class MainShell extends StatelessWidget {
+///
+/// **Badge dot merah** di tab "Koleksi" (baru) — nyala kalau ada vaksin
+/// unlocked yang belum dilihat user (`meta.unseen` dari GET /api/cards,
+/// lihat animasi reveal di vaccine_list_screen.dart). Cuma di-watch untuk
+/// user login terverifikasi (guest tidak pernah unlock apapun & endpoint
+/// /cards butuh auth+verified, R-GUEST-02) — supaya guest tidak memicu
+/// request yang bakal 401/403 percuma.
+class MainShell extends ConsumerWidget {
   const MainShell({super.key, required this.navigationShell});
 
   final StatefulNavigationShell navigationShell;
@@ -28,13 +41,23 @@ class MainShell extends StatelessWidget {
     _NavItemData(icon: Icons.person_outline, activeIcon: Icons.person, label: 'Profil'),
   ];
 
+  static const _koleksiIndex = 2;
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authNotifierProvider);
+    final isVerifiedUser = authState.status == AuthStatus.authenticated;
+
+    final unseenCount = isVerifiedUser
+        ? ref.watch(cardListProvider).valueOrNull?.meta.unseen ?? 0
+        : 0;
+
     return Scaffold(
       body: navigationShell,
       bottomNavigationBar: _BottomNavBar(
         selectedIndex: navigationShell.currentIndex,
         items: _items,
+        badgeIndex: unseenCount > 0 ? _koleksiIndex : null,
         onDestinationSelected: (index) {
           navigationShell.goBranch(
             index,
@@ -64,11 +87,16 @@ class _BottomNavBar extends StatelessWidget {
     required this.selectedIndex,
     required this.items,
     required this.onDestinationSelected,
+    this.badgeIndex,
   });
 
   final int selectedIndex;
   final List<_NavItemData> items;
   final ValueChanged<int> onDestinationSelected;
+
+  /// Index item yang perlu dot merah kecil (mis. tab "Koleksi" pas ada
+  /// vaksin belum dilihat). Null = tidak ada badge sama sekali.
+  final int? badgeIndex;
 
   static const double _barHeight = 72;
   static const double _dotSize = 5;
@@ -100,6 +128,7 @@ class _BottomNavBar extends StatelessWidget {
                           child: _NavItem(
                             data: items[index],
                             isActive: index == selectedIndex,
+                            showBadge: index == badgeIndex,
                             onTap: () => onDestinationSelected(index),
                           ),
                         );
@@ -139,11 +168,13 @@ class _NavItem extends StatefulWidget {
     required this.data,
     required this.isActive,
     required this.onTap,
+    this.showBadge = false,
   });
 
   final _NavItemData data;
   final bool isActive;
   final VoidCallback onTap;
+  final bool showBadge;
 
   @override
   State<_NavItem> createState() => _NavItemState();
@@ -177,15 +208,38 @@ class _NavItemState extends State<_NavItem> {
               // Efek zoom halus saat aktif — scale-nya sengaja kecil
               // (1.0 -> 1.1) + curve easeOutCubic supaya terasa lembut,
               // bukan "lompat" mendadak.
-              AnimatedScale(
-                scale: widget.isActive ? 1.1 : 1.0,
-                duration: const Duration(milliseconds: 220),
-                curve: Curves.easeOutCubic,
-                child: Icon(
-                  widget.isActive ? widget.data.activeIcon : widget.data.icon,
-                  color: color,
-                  size: 24,
-                ),
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  AnimatedScale(
+                    scale: widget.isActive ? 1.1 : 1.0,
+                    duration: const Duration(milliseconds: 220),
+                    curve: Curves.easeOutCubic,
+                    child: Icon(
+                      widget.isActive ? widget.data.activeIcon : widget.data.icon,
+                      color: color,
+                      size: 24,
+                    ),
+                  ),
+                  if (widget.showBadge)
+                    Positioned(
+                      top: -1,
+                      right: -3,
+                      child: AnimatedOpacity(
+                        opacity: widget.showBadge ? 1 : 0,
+                        duration: const Duration(milliseconds: 200),
+                        child: Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppColors.coral,
+                            border: Border.all(color: Colors.white, width: 1.5),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
               const SizedBox(height: 4),
               AnimatedOpacity(

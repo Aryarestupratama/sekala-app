@@ -22,7 +22,7 @@ _Year _$YearFromJson(Map<String, dynamic> json) => _Year(
       vaccines: (json['vaccines'] as List<dynamic>?)
               ?.map((e) => VaccineCard.fromJson(e as Map<String, dynamic>))
               .toList() ??
-          [],
+          const <VaccineCard>[],
     );
 
 Map<String, dynamic> _$YearToJson(_Year instance) => <String, dynamic>{

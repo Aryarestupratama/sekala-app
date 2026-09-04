@@ -43,7 +43,7 @@ abstract class Year with _$Year {
     // JSON `vaccines`, dan tiap entry berbentuk sama seperti response
     // GET /api/cards (VaccineCard: id, name, photo_url, photo_locked_url,
     // unlocked) — tolong verifikasi ke source backend sebelum dipakai.
-    @JsonKey(name: 'vaccines', defaultValue: <VaccineCard>[])
+    @JsonKey(name: 'vaccines')
     @Default(<VaccineCard>[])
     List<VaccineCard> vaccines,
   }) = _Year;
