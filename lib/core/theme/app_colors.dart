@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 class AppColors {
   AppColors._();
 
-  // === Core palette (Design.md §5.2) ===
+  // === Core palette (Design.md) ===
   static const Color ink = Color(0xFF0C0C0C);
   static const Color green = Color(0xFF4BA95F);
   static const Color sky = Color(0xFF77DDFA);
