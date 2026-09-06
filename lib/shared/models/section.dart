@@ -28,12 +28,28 @@ part 'section.g.dart';
 ///   Status "selesai baca" buat keperluan UI (nampilin tombol kuis)
 ///   sekarang dilacak lokal per sesi lewat sectionJustCompletedProvider,
 ///   BUKAN dari field API ini lagi.
+///
+/// PERUBAHAN (revisi Header Gambar Section, baru):
+/// - `title` DIPERTAHANKAN di response (backend tetap kirim), TAPI
+///   **tidak lagi dirender sebagai judul** di layar Detail Section — posisi
+///   paling atas digantikan `headerImageUrl` (lihat di bawah). Field ini
+///   cuma dipakai kalau ada kebutuhan internal/debug, bukan untuk UI utama.
+/// - `headerImageUrl` (BARU) — OPSIONAL murni per section (bisa null kalau
+///   section ini tidak diisi header gambar oleh admin, BUKAN wajib per
+///   section maupun 1x per year). Sudah di-resolve backend ke direct-view
+///   URL (accessor `Section::getResolvedHeaderImageUrlAttribute()`), siap
+///   dipakai langsung sebagai `src` <Image.network>.
 @freezed
 abstract class Section with _$Section {
   const factory Section({
     required int id,
     required String title,
     required SectionYear year,
+
+    // (Baru) Header gambar — opsional, null kalau belum/tidak diisi admin.
+    // Tampil di posisi paling atas layar Detail Section, menggantikan judul
+    // teks (judul teks di atas TIDAK lagi dirender ke user).
+    @JsonKey(name: 'header_image_url') String? headerImageUrl,
 
     @JsonKey(name: 'content_blocks')
     @Default(<ContentBlock>[])

@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -8,9 +9,18 @@ import '../providers/history_providers.dart';
 
 /// Halaman Rangkuman Wabah — muncul setelah SELURUH section dalam satu
 /// `year` completed (Design.md §3.3 poin 4, INFO-04). Menampilkan
-/// `years.summary` lalu CTA "Kerjakan Kuis" ke halaman Kuis (INFO-05).
+/// rangkuman (infografis) -> quote -> referensi, lalu CTA "Kerjakan Kuis"
+/// ke halaman Kuis (INFO-05).
 ///
-/// SENGAJA tidak fetch endpoint baru — `Year.summary` sudah ikut di
+/// REVISI (Rangkuman jadi Infografis + Quote + Referensi, baru):
+/// - `years.summary` (teks) sudah diganti `summary_image_url` (gambar) di
+///   backend — layar ini sekarang render `Year.summaryImageUrl` sebagai
+///   gambar, BUKAN lagi teks paragraf.
+/// - +Quote (`Year.quoteText`) & +Referensi (`Year.references`, list),
+///   tampil di halaman yang sama, urutan: rangkuman -> quote -> referensi
+///   -> tombol Kerjakan Kuis (Design.md §3.3.4).
+///
+/// SENGAJA tidak fetch endpoint baru — field-field di atas sudah ikut di
 /// response roadmap (`yearsProvider`), jadi cukup numpang cache lewat
 /// `yearInEraProvider` (lihat history_providers.dart). `eraSlug` datang
 /// dari query param `?era=` (di-set oleh pemanggil, mis.
@@ -60,7 +70,10 @@ class _SummaryBody extends StatelessWidget {
   final String eraSlug;
   final Color accent;
 
-  bool get _hasSummary => year.summary != null && year.summary!.trim().isNotEmpty;
+  bool get _hasSummaryImage =>
+      year.summaryImageUrl != null && year.summaryImageUrl!.trim().isNotEmpty;
+
+  bool get _hasQuote => year.quoteText != null && year.quoteText!.trim().isNotEmpty;
 
   @override
   Widget build(BuildContext context) {
@@ -99,16 +112,94 @@ class _SummaryBody extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 20),
-        if (_hasSummary)
-          Text(
-            year.summary!,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(height: 1.5),
+        // (Revisi) Rangkuman sekarang infografis (gambar), bukan teks.
+        if (_hasSummaryImage)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: CachedNetworkImage(
+              imageUrl: year.summaryImageUrl!,
+              fit: BoxFit.cover,
+              width: double.infinity,
+              placeholder: (context, url) => const AspectRatio(
+                aspectRatio: 16 / 9,
+                child: Center(child: CircularProgressIndicator()),
+              ),
+              errorWidget: (context, url, error) => const AspectRatio(
+                aspectRatio: 16 / 9,
+                child: Center(child: Icon(Icons.broken_image_outlined)),
+              ),
+            ),
           )
         else
           const Text(
             'Rangkuman untuk wabah ini belum tersedia.',
             style: TextStyle(color: AppColors.textSecondary),
           ),
+
+        // (Baru) Quote — 1 teks kutipan per wabah, opsional.
+        if (_hasQuote) ...[
+          const SizedBox(height: 24),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.format_quote, color: accent, size: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    year.quoteText!,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontStyle: FontStyle.italic,
+                          height: 1.5,
+                        ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+
+        // (Baru) Referensi — list teks, tampil mirip daftar pustaka. Cuma
+        // dirender kalau ada isinya (opsional, boleh kosong).
+        if (year.references.isNotEmpty) ...[
+          const SizedBox(height: 24),
+          const Text(
+            'REFERENSI',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textSecondary,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+          for (var i = 0; i < year.references.length; i++)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${i + 1}. ',
+                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                  ),
+                  Expanded(
+                    child: Text(
+                      year.references[i],
+                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 12, height: 1.4),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
         const SizedBox(height: 40),
         Container(
           padding: const EdgeInsets.all(16),

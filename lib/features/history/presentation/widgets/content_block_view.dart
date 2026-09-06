@@ -11,10 +11,10 @@ import '../../../../shared/models/content_block_type.dart';
 /// Render satu ContentBlock sesuai tipenya (CMS-02, Schema.md §2.5).
 ///
 /// CATATAN KETERBATASAN MVP:
-/// - `text` & `summary` di-render sebagai plain text. Schema.md bilang
-///   kolomnya "bisa berisi HTML" (dari rich text editor CMS-03) — kalau
-///   admin nyimpen HTML beneran, tag-nya bakal kelihatan mentah di sini.
-///   Perlu nambah package `flutter_html` kalau mau render HTML proper.
+/// - `text` di-render sebagai plain text. Schema.md bilang kolomnya "bisa
+///   berisi HTML" (dari rich text editor CMS-03) — kalau admin nyimpen
+///   HTML beneran, tag-nya bakal kelihatan mentah di sini. Perlu nambah
+///   package `flutter_html` kalau mau render HTML proper.
 /// - `pdf` dibuka via WebView in-app (dialog fullscreen) yang me-render
 ///   link "preview" Google Drive (`LinkParserService::toDrivePdfEmbedUrl()`)
 ///   — SENGAJA bukan lagi browser eksternal (`url_launcher`): membuka di
@@ -37,44 +37,42 @@ class ContentBlockView extends StatelessWidget {
           child: Text(block.content, style: Theme.of(context).textTheme.bodyLarge),
         );
 
-      case ContentBlockType.summary:
-        return Container(
-          width: double.infinity,
-          margin: const EdgeInsets.symmetric(vertical: 12),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppColors.ink.withValues(alpha: 0.04),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Rangkuman', style: Theme.of(context).textTheme.titleSmall),
-              const SizedBox(height: 8),
-              Text(block.content, style: Theme.of(context).textTheme.bodyLarge),
-            ],
-          ),
-        );
-
       case ContentBlockType.image:
         final imageUrl = block.resolvedUrl ?? block.content;
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 8),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: CachedNetworkImage(
-              imageUrl: imageUrl,
-              fit: BoxFit.cover,
-              placeholder: (context, url) => const AspectRatio(
-                aspectRatio: 16 / 9,
-                child: Center(child: CircularProgressIndicator()),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: CachedNetworkImage(
+                  imageUrl: imageUrl,
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) => const AspectRatio(
+                    aspectRatio: 16 / 9,
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                  errorWidget: (context, url, error) => const AspectRatio(
+                    aspectRatio: 16 / 9,
+                    child: Center(child: Icon(Icons.broken_image_outlined)),
+                  ),
+                ),
               ),
-              errorWidget: (context, url, error) => const AspectRatio(
-                aspectRatio: 16 / 9,
-                child: Center(child: Icon(Icons.broken_image_outlined)),
-              ),
-            ),
+              // (Baru) Caption -- opsional, sumber/keterangan gambar.
+              // Cuma dirender kalau memang diisi admin, tidak ada
+              // placeholder kalau kosong.
+              if (block.caption != null && block.caption!.trim().isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(
+                  block.caption!,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                        fontStyle: FontStyle.italic,
+                      ),
+                ),
+              ],
+            ],
           ),
         );
 
@@ -119,9 +117,25 @@ class ContentBlockView extends StatelessWidget {
         // ulang) — bukan setiap kali parent rebuild.
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 8),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: _YoutubeBlockPlayer(key: ValueKey(videoId), videoId: videoId),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: _YoutubeBlockPlayer(key: ValueKey(videoId), videoId: videoId),
+              ),
+              // (Baru) Caption -- opsional, sumber/keterangan video.
+              if (block.caption != null && block.caption!.trim().isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(
+                  block.caption!,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                        fontStyle: FontStyle.italic,
+                      ),
+                ),
+              ],
+            ],
           ),
         );
 

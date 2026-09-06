@@ -1,4 +1,5 @@
 import '../../../shared/models/quiz.dart';
+import '../../../shared/models/quiz_answer_check_result.dart';
 import '../../../shared/models/quiz_submit_response.dart';
 import '../domain/quiz_repository.dart';
 import 'quiz_api.dart';
@@ -29,5 +30,15 @@ class QuizRepositoryImpl implements QuizRepository {
   ) async {
     final raw = await _api.submitAttempt(yearId, answersByQuestionId);
     return QuizSubmitResponse.fromJson(_asObject(raw));
+  }
+
+  @override
+  Future<QuizAnswerCheckResult> answerQuestion(
+    int yearId,
+    int questionId,
+    int optionId,
+  ) async {
+    final raw = await _api.answerQuestion(yearId, questionId, optionId);
+    return QuizAnswerCheckResult.fromJson(_asObject(raw));
   }
 }

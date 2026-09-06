@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../shared/models/quiz.dart';
+import '../../../../shared/models/quiz_answer_check_result.dart';
 import '../../../../shared/models/quiz_submit_response.dart';
 import '../../../history/presentation/providers/history_providers.dart';
 import '../../data/quiz_api.dart';
@@ -61,4 +62,59 @@ class QuizSubmitController extends StateNotifier<AsyncValue<QuizSubmitResponse?>
 final quizSubmitControllerProvider = StateNotifierProvider.autoDispose<
     QuizSubmitController, AsyncValue<QuizSubmitResponse?>>(
   (ref) => QuizSubmitController(ref),
+);
+
+/// BARU — state cek jawaban real-time per soal (skema kuis "instan").
+/// Dipakai QuizScreen: setiap user tap 1 opsi, panggil `answer()`, lalu
+/// hasilnya (warna benar/salah + opsi benar + explanation) langsung
+/// dipakai buat render soal yang sedang aktif — TIDAK ADA lagi fase
+/// replay seperti `QuizSubmitController` di atas.
+///
+/// Dipisah dari `QuizSubmitController` (bukan reuse) karena bentuk
+/// state-nya beda total (`QuizAnswerCheckResult` per SATU soal, bukan
+/// `QuizSubmitResponse` untuk SEMUA soal) dan siklus hidupnya beda (state
+/// di sini di-reset tiap pindah soal, bukan sekali di akhir kuis).
+class QuizAnswerController extends StateNotifier<AsyncValue<QuizAnswerCheckResult?>> {
+  QuizAnswerController(this._ref) : super(const AsyncData(null));
+  final Ref _ref;
+
+  Future<QuizAnswerCheckResult?> answer({
+    required int yearId,
+    required int questionId,
+    required int optionId,
+    required String eraSlug,
+  }) async {
+    state = const AsyncLoading();
+    try {
+      final result = await _ref
+          .read(quizRepositoryProvider)
+          .answerQuestion(yearId, questionId, optionId);
+
+      if (result.quizCompleted) {
+        // R-PROG-07/08: soal ini adalah soal TERAKHIR yang belum
+        // terjawab -> attempt baru saja ditandai selesai di backend.
+        // Invalidate roadmap era supaya status year completed/locked
+        // tahun berikutnya (R-YEAR-02) langsung ter-update begitu user
+        // kembali ke roadmap.
+        _ref.invalidate(yearsProvider(eraSlug));
+      }
+
+      state = AsyncData(result);
+      return result;
+    } catch (e, st) {
+      state = AsyncError(e, st);
+      return null;
+    }
+  }
+
+  /// Dipanggil QuizScreen setiap pindah ke soal berikutnya, supaya state
+  /// soal sebelumnya tidak "bocor" ke soal baru sebelum dijawab.
+  void reset() {
+    state = const AsyncData(null);
+  }
+}
+
+final quizAnswerControllerProvider = StateNotifierProvider.autoDispose<
+    QuizAnswerController, AsyncValue<QuizAnswerCheckResult?>>(
+  (ref) => QuizAnswerController(ref),
 );

@@ -5,7 +5,7 @@ part 'quiz_answer_feedback.g.dart';
 
 /// DIKONFIRMASI ke `UserQuizController::submitAttempt()` — shape persis
 /// dari `$feedback` yang dibentuk di situ:
-/// `{ question_id, selected_option_id, is_correct }`.
+/// `{ question_id, selected_option_id, is_correct, explanation }`.
 ///
 /// PENTING (koreksi dari asumsi versi sebelumnya): TIDAK ADA
 /// `correct_option_id` di response ini. Backend cuma memberi tahu apakah
@@ -23,12 +23,20 @@ part 'quiz_answer_feedback.g.dart';
 /// mengirim `null` per soal (rule backend: `'answers.*' =>
 /// 'nullable|integer|...'`) — meski alur normal UI mengharuskan semua
 /// soal dijawab sebelum submit.
+///
+/// `explanation` (BARU — revisi feedback dipecah 2 kolom) — teks yang
+/// SUDAH dipilih di sisi server lewat `QuizQuestion::explanationFor()`:
+/// isinya dari `explanation_correct` kalau `isCorrect == true`, atau dari
+/// `explanation_incorrect` kalau `isCorrect == false`. Flutter tidak perlu
+/// (dan tidak punya cara) memilih sendiri di antara 2 kolom — cukup
+/// tampilkan `explanation` apa adanya sesuai `isCorrect`.
 @freezed
 abstract class QuizAnswerFeedback with _$QuizAnswerFeedback {
   const factory QuizAnswerFeedback({
     @JsonKey(name: 'question_id') required int questionId,
     @JsonKey(name: 'selected_option_id') int? selectedOptionId,
     @JsonKey(name: 'is_correct') required bool isCorrect,
+    required String explanation,
   }) = _QuizAnswerFeedback;
 
   factory QuizAnswerFeedback.fromJson(Map<String, dynamic> json) =>

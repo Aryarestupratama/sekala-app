@@ -49,4 +49,22 @@ class QuizApi {
       return response.data;
     });
   }
+
+  /// POST /api/years/{year}/quiz/questions/{questionId}/answer — BARU,
+  /// dipakai skema kuis "instan per soal" (menggantikan pola submit-di-
+  /// akhir + replay yang dipakai `submitAttempt()` di atas untuk
+  /// QuizScreen). Progresif: setiap panggilan menyimpan 1 jawaban ke
+  /// attempt di backend, dan begitu SEMUA soal sudah terjawab, backend
+  /// otomatis menandai attempt selesai (`quiz_completed: true` di
+  /// response) dan mengecek unlock vaksin — tidak perlu panggilan
+  /// terpisah lagi ke `submitAttempt()` untuk menyelesaikan kuis ini.
+  Future<dynamic> answerQuestion(int yearId, int questionId, int optionId) {
+    return unwrapApiCall(() async {
+      final response = await _dio.post(
+        '/years/$yearId/quiz/questions/$questionId/answer',
+        data: {'option_id': optionId},
+      );
+      return response.data;
+    });
+  }
 }

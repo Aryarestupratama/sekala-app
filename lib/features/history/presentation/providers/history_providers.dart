@@ -37,13 +37,14 @@ final yearsProvider =
 /// BARU — cari satu `Year` spesifik dari cache roadmap era yang sama
 /// (`yearsProvider`), dipakai SectionDetailScreen (nentuin CTA "Baca
 /// Materi Berikutnya"/"Lihat Rangkuman" dari `year.sections`) & baru
-/// YearSummaryScreen (`year.summary`, `year.vaccines`) — sengaja TIDAK
-/// bikin endpoint/model baru karena `Year` sudah bawa semua field yang
-/// dibutuhkan (summary, sections lengkap dgn order/locked/completed,
-/// vaccines). Numpang cache `yearsProvider` yang sudah ada supaya kalau
-/// user datang dari roadmap, ini gratis (tidak fetch ulang); kalau
-/// `yearsProvider` belum pernah di-watch sama sekali di sesi ini (mis.
-/// deep link langsung ke section), FutureProvider akan fetch sendiri.
+/// YearSummaryScreen (`year.summaryImageUrl`/`year.quoteText`/
+/// `year.references`/`year.vaccines`) — sengaja TIDAK bikin endpoint/model
+/// baru karena `Year` sudah bawa semua field yang dibutuhkan (sections
+/// lengkap dgn order/locked/completed, vaccines). Numpang cache
+/// `yearsProvider` yang sudah ada supaya kalau user datang dari roadmap,
+/// ini gratis (tidak fetch ulang); kalau `yearsProvider` belum pernah
+/// di-watch sama sekali di sesi ini (mis. deep link langsung ke section),
+/// FutureProvider akan fetch sendiri.
 final yearInEraProvider = FutureProvider.family
     .autoDispose<Year?, ({String eraSlug, int yearId})>((ref, params) async {
   final roadmap = await ref.watch(yearsProvider(params.eraSlug).future);

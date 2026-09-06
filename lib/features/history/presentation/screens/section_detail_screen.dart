@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -29,6 +30,12 @@ import '../widgets/content_block_view.dart';
 /// pindah ke section berikutnya/rangkuman. Rangkuman & kuis tetap tidak
 /// nyempil di layar ini (sudah naik level ke `year`, Architecture.md
 /// §4.2/§4.8).
+///
+/// REVISI (Header Gambar Section, baru): judul section TIDAK LAGI
+/// dirender di body layar ini — posisi paling atas sekarang header gambar
+/// (`section.headerImageUrl`, opsional per section, bisa null). AppBar di
+/// bawah tetap menampilkan `section.title` sebagai label navigasi
+/// (bukan bagian dari "posisi paling atas" konten yang dimaksud revisi).
 class SectionDetailScreen extends ConsumerStatefulWidget {
   const SectionDetailScreen({super.key, required this.sectionId});
 
@@ -145,8 +152,30 @@ class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
           ],
         ),
         const SizedBox(height: 8),
-        Text(section.title, style: Theme.of(context).textTheme.headlineSmall),
-        const SizedBox(height: 16),
+        // (Revisi) Judul section TIDAK LAGI dirender di sini — posisi
+        // paling atas sekarang header gambar (opsional per section, bisa
+        // null). Kalau null, langsung lanjut ke blok konten pertama tanpa
+        // header apa pun (bukan fallback ke judul teks).
+        if (section.headerImageUrl != null &&
+            section.headerImageUrl!.trim().isNotEmpty) ...[
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: CachedNetworkImage(
+              imageUrl: section.headerImageUrl!,
+              fit: BoxFit.cover,
+              width: double.infinity,
+              placeholder: (context, url) => const AspectRatio(
+                aspectRatio: 16 / 9,
+                child: Center(child: CircularProgressIndicator()),
+              ),
+              errorWidget: (context, url, error) => const AspectRatio(
+                aspectRatio: 16 / 9,
+                child: Center(child: Icon(Icons.broken_image_outlined)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
         for (final block in blocks) ContentBlockView(block: block),
         const SizedBox(height: 24),
       ],

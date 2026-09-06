@@ -18,6 +18,8 @@ mixin _$Section {
   int get id;
   String get title;
   SectionYear get year;
+  @JsonKey(name: 'header_image_url')
+  String? get headerImageUrl;
   @JsonKey(name: 'content_blocks')
   List<ContentBlock> get contentBlocks;
 
@@ -39,18 +41,20 @@ mixin _$Section {
             (identical(other.id, id) || other.id == id) &&
             (identical(other.title, title) || other.title == title) &&
             (identical(other.year, year) || other.year == year) &&
+            (identical(other.headerImageUrl, headerImageUrl) ||
+                other.headerImageUrl == headerImageUrl) &&
             const DeepCollectionEquality()
                 .equals(other.contentBlocks, contentBlocks));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, id, title, year,
+  int get hashCode => Object.hash(runtimeType, id, title, year, headerImageUrl,
       const DeepCollectionEquality().hash(contentBlocks));
 
   @override
   String toString() {
-    return 'Section(id: $id, title: $title, year: $year, contentBlocks: $contentBlocks)';
+    return 'Section(id: $id, title: $title, year: $year, headerImageUrl: $headerImageUrl, contentBlocks: $contentBlocks)';
   }
 }
 
@@ -63,6 +67,7 @@ abstract mixin class $SectionCopyWith<$Res> {
       {int id,
       String title,
       SectionYear year,
+      @JsonKey(name: 'header_image_url') String? headerImageUrl,
       @JsonKey(name: 'content_blocks') List<ContentBlock> contentBlocks});
 
   $SectionYearCopyWith<$Res> get year;
@@ -83,6 +88,7 @@ class _$SectionCopyWithImpl<$Res> implements $SectionCopyWith<$Res> {
     Object? id = null,
     Object? title = null,
     Object? year = null,
+    Object? headerImageUrl = freezed,
     Object? contentBlocks = null,
   }) {
     return _then(Section(
@@ -98,6 +104,10 @@ class _$SectionCopyWithImpl<$Res> implements $SectionCopyWith<$Res> {
           ? _self.year
           : year // ignore: cast_nullable_to_non_nullable
               as SectionYear,
+      headerImageUrl: freezed == headerImageUrl
+          ? _self.headerImageUrl
+          : headerImageUrl // ignore: cast_nullable_to_non_nullable
+              as String?,
       contentBlocks: null == contentBlocks
           ? _self.contentBlocks
           : contentBlocks // ignore: cast_nullable_to_non_nullable
@@ -209,7 +219,11 @@ extension SectionPatterns on Section {
 
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>(
-    TResult Function(int id, String title, SectionYear year,
+    TResult Function(
+            int id,
+            String title,
+            SectionYear year,
+            @JsonKey(name: 'header_image_url') String? headerImageUrl,
             @JsonKey(name: 'content_blocks') List<ContentBlock> contentBlocks)?
         $default, {
     required TResult orElse(),
@@ -217,7 +231,8 @@ extension SectionPatterns on Section {
     final _that = this;
     switch (_that) {
       case _Section() when $default != null:
-        return $default(_that.id, _that.title, _that.year, _that.contentBlocks);
+        return $default(_that.id, _that.title, _that.year, _that.headerImageUrl,
+            _that.contentBlocks);
       case _:
         return orElse();
     }
@@ -238,14 +253,19 @@ extension SectionPatterns on Section {
 
   @optionalTypeArgs
   TResult when<TResult extends Object?>(
-    TResult Function(int id, String title, SectionYear year,
+    TResult Function(
+            int id,
+            String title,
+            SectionYear year,
+            @JsonKey(name: 'header_image_url') String? headerImageUrl,
             @JsonKey(name: 'content_blocks') List<ContentBlock> contentBlocks)
         $default,
   ) {
     final _that = this;
     switch (_that) {
       case _Section():
-        return $default(_that.id, _that.title, _that.year, _that.contentBlocks);
+        return $default(_that.id, _that.title, _that.year, _that.headerImageUrl,
+            _that.contentBlocks);
       case _:
         throw StateError('Unexpected subclass');
     }
@@ -265,14 +285,19 @@ extension SectionPatterns on Section {
 
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>(
-    TResult? Function(int id, String title, SectionYear year,
+    TResult? Function(
+            int id,
+            String title,
+            SectionYear year,
+            @JsonKey(name: 'header_image_url') String? headerImageUrl,
             @JsonKey(name: 'content_blocks') List<ContentBlock> contentBlocks)?
         $default,
   ) {
     final _that = this;
     switch (_that) {
       case _Section() when $default != null:
-        return $default(_that.id, _that.title, _that.year, _that.contentBlocks);
+        return $default(_that.id, _that.title, _that.year, _that.headerImageUrl,
+            _that.contentBlocks);
       case _:
         return null;
     }
@@ -286,6 +311,7 @@ class _Section implements Section {
       {required this.id,
       required this.title,
       required this.year,
+      @JsonKey(name: 'header_image_url') this.headerImageUrl,
       @JsonKey(name: 'content_blocks')
       List<ContentBlock> contentBlocks = const <ContentBlock>[]})
       : _contentBlocks = contentBlocks;
@@ -298,6 +324,9 @@ class _Section implements Section {
   final String title;
   @override
   final SectionYear year;
+  @override
+  @JsonKey(name: 'header_image_url')
+  final String? headerImageUrl;
   final List<ContentBlock> _contentBlocks;
   @override
   @JsonKey(name: 'content_blocks')
@@ -330,18 +359,20 @@ class _Section implements Section {
             (identical(other.id, id) || other.id == id) &&
             (identical(other.title, title) || other.title == title) &&
             (identical(other.year, year) || other.year == year) &&
+            (identical(other.headerImageUrl, headerImageUrl) ||
+                other.headerImageUrl == headerImageUrl) &&
             const DeepCollectionEquality()
                 .equals(other._contentBlocks, _contentBlocks));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, id, title, year,
+  int get hashCode => Object.hash(runtimeType, id, title, year, headerImageUrl,
       const DeepCollectionEquality().hash(_contentBlocks));
 
   @override
   String toString() {
-    return 'Section(id: $id, title: $title, year: $year, contentBlocks: $contentBlocks)';
+    return 'Section(id: $id, title: $title, year: $year, headerImageUrl: $headerImageUrl, contentBlocks: $contentBlocks)';
   }
 }
 
@@ -355,6 +386,7 @@ abstract mixin class _$SectionCopyWith<$Res> implements $SectionCopyWith<$Res> {
       {int id,
       String title,
       SectionYear year,
+      @JsonKey(name: 'header_image_url') String? headerImageUrl,
       @JsonKey(name: 'content_blocks') List<ContentBlock> contentBlocks});
 
   @override
@@ -376,6 +408,7 @@ class __$SectionCopyWithImpl<$Res> implements _$SectionCopyWith<$Res> {
     Object? id = null,
     Object? title = null,
     Object? year = null,
+    Object? headerImageUrl = freezed,
     Object? contentBlocks = null,
   }) {
     return _then(_Section(
@@ -391,6 +424,10 @@ class __$SectionCopyWithImpl<$Res> implements _$SectionCopyWith<$Res> {
           ? _self.year
           : year // ignore: cast_nullable_to_non_nullable
               as SectionYear,
+      headerImageUrl: freezed == headerImageUrl
+          ? _self.headerImageUrl
+          : headerImageUrl // ignore: cast_nullable_to_non_nullable
+              as String?,
       contentBlocks: null == contentBlocks
           ? _self._contentBlocks
           : contentBlocks // ignore: cast_nullable_to_non_nullable

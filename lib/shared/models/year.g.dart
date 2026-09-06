@@ -10,7 +10,12 @@ _Year _$YearFromJson(Map<String, dynamic> json) => _Year(
       id: (json['id'] as num).toInt(),
       year: (json['year'] as num).toInt(),
       title: json['title'] as String,
-      summary: json['summary'] as String?,
+      summaryImageUrl: json['summary_image_url'] as String?,
+      quoteText: json['quote_text'] as String?,
+      references: (json['references'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          [],
       publishedSectionsCount:
           (json['published_sections_count'] as num?)?.toInt(),
       locked: json['locked'] as bool? ?? true,
@@ -29,7 +34,9 @@ Map<String, dynamic> _$YearToJson(_Year instance) => <String, dynamic>{
       'id': instance.id,
       'year': instance.year,
       'title': instance.title,
-      'summary': instance.summary,
+      'summary_image_url': instance.summaryImageUrl,
+      'quote_text': instance.quoteText,
+      'references': instance.references,
       'published_sections_count': instance.publishedSectionsCount,
       'locked': instance.locked,
       'is_completed': instance.isCompleted,

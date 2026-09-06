@@ -12,6 +12,7 @@ _ContentBlock _$ContentBlockFromJson(Map<String, dynamic> json) =>
       type: $enumDecode(_$ContentBlockTypeEnumMap, json['type']),
       content: json['content'] as String,
       resolvedUrl: json['resolved_url'] as String?,
+      caption: json['caption'] as String?,
       order: (json['order'] as num).toInt(),
     );
 
@@ -21,6 +22,7 @@ Map<String, dynamic> _$ContentBlockToJson(_ContentBlock instance) =>
       'type': _$ContentBlockTypeEnumMap[instance.type]!,
       'content': instance.content,
       'resolved_url': instance.resolvedUrl,
+      'caption': instance.caption,
       'order': instance.order,
     };
 
@@ -29,5 +31,4 @@ const _$ContentBlockTypeEnumMap = {
   ContentBlockType.image: 'image',
   ContentBlockType.video: 'video',
   ContentBlockType.pdf: 'pdf',
-  ContentBlockType.summary: 'summary',
 };

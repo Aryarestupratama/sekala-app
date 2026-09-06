@@ -21,6 +21,7 @@ mixin _$QuizAnswerFeedback {
   int? get selectedOptionId;
   @JsonKey(name: 'is_correct')
   bool get isCorrect;
+  String get explanation;
 
   /// Create a copy of QuizAnswerFeedback
   /// with the given fields replaced by the non-null parameter values.
@@ -43,17 +44,19 @@ mixin _$QuizAnswerFeedback {
             (identical(other.selectedOptionId, selectedOptionId) ||
                 other.selectedOptionId == selectedOptionId) &&
             (identical(other.isCorrect, isCorrect) ||
-                other.isCorrect == isCorrect));
+                other.isCorrect == isCorrect) &&
+            (identical(other.explanation, explanation) ||
+                other.explanation == explanation));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode =>
-      Object.hash(runtimeType, questionId, selectedOptionId, isCorrect);
+  int get hashCode => Object.hash(
+      runtimeType, questionId, selectedOptionId, isCorrect, explanation);
 
   @override
   String toString() {
-    return 'QuizAnswerFeedback(questionId: $questionId, selectedOptionId: $selectedOptionId, isCorrect: $isCorrect)';
+    return 'QuizAnswerFeedback(questionId: $questionId, selectedOptionId: $selectedOptionId, isCorrect: $isCorrect, explanation: $explanation)';
   }
 }
 
@@ -66,7 +69,8 @@ abstract mixin class $QuizAnswerFeedbackCopyWith<$Res> {
   $Res call(
       {@JsonKey(name: 'question_id') int questionId,
       @JsonKey(name: 'selected_option_id') int? selectedOptionId,
-      @JsonKey(name: 'is_correct') bool isCorrect});
+      @JsonKey(name: 'is_correct') bool isCorrect,
+      String explanation});
 }
 
 /// @nodoc
@@ -85,6 +89,7 @@ class _$QuizAnswerFeedbackCopyWithImpl<$Res>
     Object? questionId = null,
     Object? selectedOptionId = freezed,
     Object? isCorrect = null,
+    Object? explanation = null,
   }) {
     return _then(QuizAnswerFeedback(
       questionId: null == questionId
@@ -99,6 +104,10 @@ class _$QuizAnswerFeedbackCopyWithImpl<$Res>
           ? _self.isCorrect
           : isCorrect // ignore: cast_nullable_to_non_nullable
               as bool,
+      explanation: null == explanation
+          ? _self.explanation
+          : explanation // ignore: cast_nullable_to_non_nullable
+              as String,
     ));
   }
 }
@@ -199,15 +208,16 @@ extension QuizAnswerFeedbackPatterns on QuizAnswerFeedback {
     TResult Function(
             @JsonKey(name: 'question_id') int questionId,
             @JsonKey(name: 'selected_option_id') int? selectedOptionId,
-            @JsonKey(name: 'is_correct') bool isCorrect)?
+            @JsonKey(name: 'is_correct') bool isCorrect,
+            String explanation)?
         $default, {
     required TResult orElse(),
   }) {
     final _that = this;
     switch (_that) {
       case _QuizAnswerFeedback() when $default != null:
-        return $default(
-            _that.questionId, _that.selectedOptionId, _that.isCorrect);
+        return $default(_that.questionId, _that.selectedOptionId,
+            _that.isCorrect, _that.explanation);
       case _:
         return orElse();
     }
@@ -231,14 +241,15 @@ extension QuizAnswerFeedbackPatterns on QuizAnswerFeedback {
     TResult Function(
             @JsonKey(name: 'question_id') int questionId,
             @JsonKey(name: 'selected_option_id') int? selectedOptionId,
-            @JsonKey(name: 'is_correct') bool isCorrect)
+            @JsonKey(name: 'is_correct') bool isCorrect,
+            String explanation)
         $default,
   ) {
     final _that = this;
     switch (_that) {
       case _QuizAnswerFeedback():
-        return $default(
-            _that.questionId, _that.selectedOptionId, _that.isCorrect);
+        return $default(_that.questionId, _that.selectedOptionId,
+            _that.isCorrect, _that.explanation);
       case _:
         throw StateError('Unexpected subclass');
     }
@@ -261,14 +272,15 @@ extension QuizAnswerFeedbackPatterns on QuizAnswerFeedback {
     TResult? Function(
             @JsonKey(name: 'question_id') int questionId,
             @JsonKey(name: 'selected_option_id') int? selectedOptionId,
-            @JsonKey(name: 'is_correct') bool isCorrect)?
+            @JsonKey(name: 'is_correct') bool isCorrect,
+            String explanation)?
         $default,
   ) {
     final _that = this;
     switch (_that) {
       case _QuizAnswerFeedback() when $default != null:
-        return $default(
-            _that.questionId, _that.selectedOptionId, _that.isCorrect);
+        return $default(_that.questionId, _that.selectedOptionId,
+            _that.isCorrect, _that.explanation);
       case _:
         return null;
     }
@@ -281,7 +293,8 @@ class _QuizAnswerFeedback implements QuizAnswerFeedback {
   const _QuizAnswerFeedback(
       {@JsonKey(name: 'question_id') required this.questionId,
       @JsonKey(name: 'selected_option_id') this.selectedOptionId,
-      @JsonKey(name: 'is_correct') required this.isCorrect});
+      @JsonKey(name: 'is_correct') required this.isCorrect,
+      required this.explanation});
   factory _QuizAnswerFeedback.fromJson(Map<String, dynamic> json) =>
       _$QuizAnswerFeedbackFromJson(json);
 
@@ -294,6 +307,8 @@ class _QuizAnswerFeedback implements QuizAnswerFeedback {
   @override
   @JsonKey(name: 'is_correct')
   final bool isCorrect;
+  @override
+  final String explanation;
 
   /// Create a copy of QuizAnswerFeedback
   /// with the given fields replaced by the non-null parameter values.
@@ -320,17 +335,19 @@ class _QuizAnswerFeedback implements QuizAnswerFeedback {
             (identical(other.selectedOptionId, selectedOptionId) ||
                 other.selectedOptionId == selectedOptionId) &&
             (identical(other.isCorrect, isCorrect) ||
-                other.isCorrect == isCorrect));
+                other.isCorrect == isCorrect) &&
+            (identical(other.explanation, explanation) ||
+                other.explanation == explanation));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode =>
-      Object.hash(runtimeType, questionId, selectedOptionId, isCorrect);
+  int get hashCode => Object.hash(
+      runtimeType, questionId, selectedOptionId, isCorrect, explanation);
 
   @override
   String toString() {
-    return 'QuizAnswerFeedback(questionId: $questionId, selectedOptionId: $selectedOptionId, isCorrect: $isCorrect)';
+    return 'QuizAnswerFeedback(questionId: $questionId, selectedOptionId: $selectedOptionId, isCorrect: $isCorrect, explanation: $explanation)';
   }
 }
 
@@ -345,7 +362,8 @@ abstract mixin class _$QuizAnswerFeedbackCopyWith<$Res>
   $Res call(
       {@JsonKey(name: 'question_id') int questionId,
       @JsonKey(name: 'selected_option_id') int? selectedOptionId,
-      @JsonKey(name: 'is_correct') bool isCorrect});
+      @JsonKey(name: 'is_correct') bool isCorrect,
+      String explanation});
 }
 
 /// @nodoc
@@ -364,6 +382,7 @@ class __$QuizAnswerFeedbackCopyWithImpl<$Res>
     Object? questionId = null,
     Object? selectedOptionId = freezed,
     Object? isCorrect = null,
+    Object? explanation = null,
   }) {
     return _then(_QuizAnswerFeedback(
       questionId: null == questionId
@@ -378,6 +397,10 @@ class __$QuizAnswerFeedbackCopyWithImpl<$Res>
           ? _self.isCorrect
           : isCorrect // ignore: cast_nullable_to_non_nullable
               as bool,
+      explanation: null == explanation
+          ? _self.explanation
+          : explanation // ignore: cast_nullable_to_non_nullable
+              as String,
     ));
   }
 }

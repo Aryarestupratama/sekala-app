@@ -9,13 +9,37 @@ part 'year.g.dart';
 /// status lock & completed di level TAHUN itu sendiri sejak Sequential
 /// Year Unlock (Rules.md §4.2, R-YEAR-02–05), bukan cuma lock per section
 /// seperti versi sebelumnya.
+///
+/// PERUBAHAN (revisi Rangkuman Wabah jadi Infografis + Quote + Referensi,
+/// baru):
+/// - `summary` (String? teks) DIHAPUS TOTAL — rangkuman wabah sekarang
+///   berupa infografis (gambar), bukan teks. Diganti `summaryImageUrl`.
+/// - `summaryImageUrl` (BARU) — sudah di-resolve backend ke direct-view
+///   URL (`years.summary_image`, accessor
+///   `Year::getResolvedSummaryImageUrlAttribute()`), null kalau admin
+///   belum mengisi. Wajib terisi sebelum quiz year ini bisa di-publish
+///   (R-QUIZ-05), tapi TIDAK wajib sebelum section-section-nya publish.
+/// - `quoteText` (BARU) — 1 teks kutipan per wabah, null kalau belum
+///   diisi admin. Tampil di halaman yang sama dengan rangkuman.
+/// - `references` (BARU) — list teks referensi (mis. daftar pustaka),
+///   selalu berupa List (default `[]`, BUKAN null) supaya UI aman iterasi
+///   tanpa null-check.
+/// - Urutan tampil di halaman Rangkuman Wabah (Design.md §3.3.4):
+///   `summaryImageUrl` -> `quoteText` -> `references` -> tombol "Kerjakan
+///   Kuis".
 @freezed
 abstract class Year with _$Year {
   const factory Year({
     required int id,
     required int year,
     required String title,
-    String? summary,
+
+    @JsonKey(name: 'summary_image_url') String? summaryImageUrl,
+    @JsonKey(name: 'quote_text') String? quoteText,
+    @JsonKey(name: 'references', defaultValue: <String>[])
+    @Default(<String>[])
+    List<String> references,
+
     @JsonKey(name: 'published_sections_count') int? publishedSectionsCount,
 
     // R-YEAR-02/03 (baru): status lock DI LEVEL TAHUN itu sendiri —

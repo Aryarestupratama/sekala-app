@@ -5,27 +5,30 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/models/quiz.dart';
-import '../../../../shared/models/quiz_answer_feedback.dart';
+import '../../../../shared/models/quiz_answer_check_result.dart';
 import '../../../../shared/models/quiz_question.dart';
-import '../../../../shared/models/quiz_submit_response.dart';
 import '../../../card/presentation/providers/card_providers.dart';
 import '../providers/quiz_providers.dart';
 
 /// Halaman Kuis in-app (Design.md §3.3 poin 5, mockup referensi Image 3).
 ///
-/// MEKANISME "feedback instan" (disepakati bukan submit per-soal, karena
-/// backend cuma punya SATU endpoint submit untuk semua jawaban sekaligus,
-/// lihat quiz_api.dart):
-/// 1. Fase MENJAWAB — user isi soal 1..N berurutan, belum ada feedback
-///    berwarna, cuma pilih opsi lalu "Lanjut".
-/// 2. Begitu soal terakhir dijawab -> submit SEKALI ke backend
-///    (POST /quiz/attempt) di background.
-/// 3. Fase REVIEW — begitu submit sukses, kembali ke soal 1, sekarang
-///    opsi yang DIPILIH user sudah bisa diberi warna (hijau/merah) dari
-///    `feedback` yang sudah diterima -> terasa "instan per soal" walau
-///    submit aslinya cuma sekali di akhir. Soal terakhir tombolnya jadi
-///    "Selesai" (bukan skor — R-QUIZ-04, tanpa reveal opsi mana yang
-///    benar kalau user salah, lihat catatan di quiz_answer_feedback.dart).
+/// SKEMA BARU — "instan per soal" (menggantikan pola submit-di-akhir +
+/// replay yang lama):
+/// 1. User tap 1 opsi -> LANGSUNG panggil
+///    `POST /quiz/questions/{id}/answer` (QuizAnswerController.answer()).
+/// 2. Begitu response balik: opsi yang dipilih diwarnai hijau/coral sesuai
+///    benar/salah; kalau salah, opsi yang BENAR (dari `correctOptionId`)
+///    ikut di-highlight hijau juga (PRD.md QUIZ-03 / Rules.md R-QUIZ-04 —
+///    beda dari model `QuizAnswerFeedback` lama yang sengaja tidak
+///    membawa opsi benar). Teks `explanation` tampil di BOX TERPISAH di
+///    atas tombol "Lanjut" (bukan menyatu di dalam opsi seperti versi
+///    lama) supaya tidak terasa "aneh" saat digabung ke tile opsi.
+/// 3. Tombol berubah jadi "Lanjut" (atau "Selesai" kalau ini soal
+///    terakhir & `quizCompleted == true` dari response) -> pindah ke
+///    soal berikutnya, reset state jawaban lokal.
+/// 4. TIDAK ADA lagi fase replay/submit terpisah di akhir — backend
+///    sudah progresif menyimpan tiap jawaban & otomatis menandai attempt
+///    selesai begitu soal terakhir dijawab (lihat quiz_providers.dart).
 class QuizScreen extends ConsumerWidget {
   const QuizScreen({
     super.key,
@@ -103,8 +106,6 @@ class _QuizUnavailable extends StatelessWidget {
   }
 }
 
-enum _QuizPhase { answering, submitting, reviewing }
-
 class _QuizBody extends ConsumerStatefulWidget {
   const _QuizBody({
     required this.quiz,
@@ -124,91 +125,92 @@ class _QuizBody extends ConsumerStatefulWidget {
 
 class _QuizBodyState extends ConsumerState<_QuizBody> {
   late final List<QuizQuestion> _questions;
-  late final Map<int, int?> _selectedByQuestionId; // questionId -> optionId
-  _QuizPhase _phase = _QuizPhase.answering;
   int _index = 0;
-  List<QuizAnswerFeedback> _feedback = const [];
+
+  /// Jawaban yang dipilih untuk soal yang SEDANG AKTIF (bukan riwayat
+  /// semua soal — beda dari skema lama yang simpan map lengkap
+  /// questionId->optionId di client). Backend yang menyimpan progresif.
+  int? _selectedOptionId;
+
+  /// Hasil cek soal aktif, null sebelum dijawab / setelah pindah soal.
+  QuizAnswerCheckResult? _result;
+
+  bool _isChecking = false;
   List<int> _newlyUnlockedVaccineIds = const [];
 
   @override
   void initState() {
     super.initState();
     _questions = [...widget.quiz.questions]..sort((a, b) => a.order.compareTo(b.order));
-    _selectedByQuestionId = {for (final q in _questions) q.id: null};
   }
 
   QuizQuestion get _currentQuestion => _questions[_index];
   bool get _isLastQuestion => _index == _questions.length - 1;
+  bool get _isAnswered => _result != null;
 
-  QuizAnswerFeedback? _feedbackFor(int questionId) {
-    for (final f in _feedback) {
-      if (f.questionId == questionId) return f;
+  Future<void> _selectOption(int optionId) async {
+    if (_isAnswered || _isChecking) return; // sudah dijawab / lagi proses -> read-only
+
+    setState(() {
+      _selectedOptionId = optionId;
+      _isChecking = true;
+    });
+
+    QuizAnswerCheckResult? result;
+    try {
+      result = await ref.read(quizAnswerControllerProvider.notifier).answer(
+            yearId: widget.yearId,
+            questionId: _currentQuestion.id,
+            optionId: optionId,
+            eraSlug: widget.eraSlug,
+          );
+    } catch (_) {
+      // Jaring pengaman kedua — answer() sendiri sudah nangani exception
+      // & return null, ini buat exception tak terduga lain.
+      result = null;
     }
-    return null;
-  }
+    if (!mounted) return;
 
-  void _selectOption(int optionId) {
-    if (_phase != _QuizPhase.answering) return; // review = read-only
-    setState(() => _selectedByQuestionId[_currentQuestion.id] = optionId);
-  }
-
-  Future<void> _onPrimaryButtonTap() async {
-    if (_phase == _QuizPhase.answering) {
-      if (_selectedByQuestionId[_currentQuestion.id] == null) return; // guard
-
-      if (!_isLastQuestion) {
-        setState(() => _index += 1);
-        return;
-      }
-
-      // Soal terakhir dijawab -> submit sekali ke backend.
-      setState(() => _phase = _QuizPhase.submitting);
-      QuizSubmitResponse? response;
-      try {
-        response = await ref.read(quizSubmitControllerProvider.notifier).submit(
-              yearId: widget.yearId,
-              eraSlug: widget.eraSlug,
-              answersByQuestionId: _selectedByQuestionId,
-            );
-      } catch (_) {
-        // Jaring pengaman kedua: submit() sendiri sudah nangani
-        // DioException/ApiException secara internal dan return null (bukan
-        // throw) untuk kasus itu. try/catch di sini cuma buat exception
-        // tak terduga lain (mis. race disposal provider) supaya _phase
-        // TETAP ke-reset, bukan nyangkut selamanya di submitting.
-        response = null;
-      }
-      if (!mounted) return;
-
-      if (response == null) {
-        // Gagal submit (network dsb.) — biarkan user coba lagi dari soal
-        // terakhir, jangan hilang progress jawabannya.
-        setState(() => _phase = _QuizPhase.answering);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Gagal mengirim jawaban, coba lagi.')),
-        );
-        return;
-      }
-
-      // Dart tidak bisa promosikan `response` jadi non-null otomatis di sini
-      // (di-assign lewat try/catch, bukan langsung dari `final response =
-      // await ...`) — bind ke variabel baru yang sudah pasti non-null.
-      final result = response;
+    if (result == null) {
+      // Gagal cek jawaban (network dsb.) — biarkan user coba pilih lagi,
+      // jangan nyangkut di state "sudah pilih tapi belum ada hasil".
       setState(() {
-        _feedback = result.feedback;
-        _newlyUnlockedVaccineIds = result.newlyUnlockedVaccineIds;
-        _phase = _QuizPhase.reviewing;
-        _index = 0; // mulai review dari soal 1
+        _selectedOptionId = null;
+        _isChecking = false;
       });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Gagal memeriksa jawaban, coba lagi.')),
+      );
       return;
     }
 
-    if (_phase == _QuizPhase.reviewing) {
-      if (!_isLastQuestion) {
-        setState(() => _index += 1);
-        return;
+    setState(() {
+      _result = result;
+      _isChecking = false;
+      if (result!.newlyUnlockedVaccineIds.isNotEmpty) {
+        _newlyUnlockedVaccineIds = result.newlyUnlockedVaccineIds;
       }
+    });
+  }
+
+  void _onPrimaryButtonTap() {
+    if (!_isAnswered) return; // guard, tombol harusnya disabled
+
+    if (_result!.quizCompleted) {
       _finish();
+      return;
+    }
+
+    if (!_isLastQuestion) {
+      // Reset provider state juga, supaya soal berikutnya tidak sempat
+      // "mewarisi" hasil soal sebelumnya sepersekian detik sebelum
+      // build ulang.
+      ref.read(quizAnswerControllerProvider.notifier).reset();
+      setState(() {
+        _index += 1;
+        _selectedOptionId = null;
+        _result = null;
+      });
     }
   }
 
@@ -220,12 +222,6 @@ class _QuizBodyState extends ConsumerState<_QuizBody> {
     // bakal di-dispose begitu context.go() dipanggil). Detail animasi
     // reveal per-vaksin (locked->unlocked) baru terjadi nanti di halaman
     // Koleksi Vaksin (vaccine_list_screen.dart), bukan di sini.
-    // BUG FIX: sebelumnya cardListProvider tidak pernah di-invalidate di
-    // sini — akibatnya MainShell (badge dot) & VaccineListScreen (grid +
-    // animasi reveal) masih pakai cache lama dari SEBELUM kuis ini
-    // selesai (autoDispose tapi tetap hidup selama MainShell meng-watch
-    // dia terus). Data baru (vaksin unlocked, meta.unseen bertambah)
-    // baru akan kepakai kalau provider ini di-refetch.
     if (_newlyUnlockedVaccineIds.isNotEmpty) {
       ref.invalidate(cardListProvider);
       _showVaccineUnlockBanner(context, _newlyUnlockedVaccineIds.length);
@@ -240,7 +236,7 @@ class _QuizBodyState extends ConsumerState<_QuizBody> {
   }
 
   void _confirmExit() {
-    if (_phase != _QuizPhase.answering || _selectedByQuestionId.values.every((v) => v == null)) {
+    if (_selectedOptionId == null && _index == 0) {
       context.pop();
       return;
     }
@@ -248,7 +244,9 @@ class _QuizBodyState extends ConsumerState<_QuizBody> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Keluar dari kuis?'),
-        content: const Text('Jawaban yang sudah kamu isi belum dikirim dan akan hilang.'),
+        content: const Text(
+          'Jawaban yang sudah kamu isi tersimpan, tapi kuis belum ditandai selesai sampai seluruh soal dijawab.',
+        ),
         actions: [
           TextButton(onPressed: () => context.pop(), child: const Text('Batal')),
           TextButton(
@@ -265,24 +263,17 @@ class _QuizBodyState extends ConsumerState<_QuizBody> {
 
   @override
   Widget build(BuildContext context) {
-    // FIX (Bug 2 — kuis stuck loading di HP fisik): quizSubmitControllerProvider
-    // pakai `.autoDispose`, dan sebelumnya TIDAK ADA widget yang `ref.watch()`
-    // dia — cuma `ref.read()` sekali di _onPrimaryButtonTap(). Tanpa listener
-    // aktif, Riverpod bisa dispose provider ini di tengah `await` network call
-    // submit() masih jalan (race yang nyaris selalu menang di emulator karena
-    // response lokal super cepat, tapi kalah di HP fisik yang ada latensi
-    // network sungguhan). Begitu response server balik lalu submit() coba
-    // `state = AsyncData(response)` pada notifier yang sudah disposed -> throw
-    // "Bad state", unhandled, dan _phase nyangkut permanen di `submitting`.
-    // `ref.watch` di sini (walau hasilnya tak dipakai langsung) memastikan ada
-    // listener aktif selama _QuizBodyState hidup, jadi provider tidak
-    // di-dispose sebelum submit() selesai.
-    ref.watch(quizSubmitControllerProvider);
+    // FIX (dari kasus Bug 2 skema lama — kuis stuck loading di HP fisik):
+    // quizAnswerControllerProvider pakai `.autoDispose`, jadi butuh ada
+    // listener AKTIF (ref.watch, bukan cuma ref.read di event handler)
+    // selama widget ini hidup, supaya provider tidak di-dispose Riverpod
+    // di tengah `await` network call answer() masih berjalan (race yang
+    // nyaris selalu menang di emulator karena latensi lokal super cepat,
+    // tapi kalah di HP fisik).
+    ref.watch(quizAnswerControllerProvider);
 
     final total = _questions.length;
-    final selected = _selectedByQuestionId[_currentQuestion.id];
-    final feedback = _phase == _QuizPhase.reviewing ? _feedbackFor(_currentQuestion.id) : null;
-    final isSubmitting = _phase == _QuizPhase.submitting;
+    final isLastAndCompleted = _isAnswered && _result!.quizCompleted;
 
     return Column(
       children: [
@@ -354,14 +345,26 @@ class _QuizBodyState extends ConsumerState<_QuizBody> {
                 ..sort((a, b) => a.order.compareTo(b.order)))
                 _OptionTile(
                   label: option.optionText,
-                  isSelected: selected == option.id,
-                  // Cuma opsi yang DIPILIH user yang bisa diwarnai
-                  // (R-QUIZ-04 — tidak pernah reveal opsi benar yang lain).
-                  feedback: (feedback != null && selected == option.id)
-                      ? feedback
-                      : null,
+                  isSelected: _selectedOptionId == option.id,
+                  // Opsi yang dipilih user diwarnai sesuai benar/salah;
+                  // opsi BENAR (dari correctOptionId) ikut diwarnai hijau
+                  // walau bukan yang dipilih user (highlight jawaban
+                  // benar saat user salah, PRD.md QUIZ-03).
+                  isCorrectOption: _isAnswered && _result!.correctOptionId == option.id,
+                  isWrongSelectedOption:
+                      _isAnswered && !_result!.isCorrect && _selectedOptionId == option.id,
+                  isAnswered: _isAnswered,
                   onTap: () => _selectOption(option.id),
                 ),
+              // BARU — box keterangan terpisah (bukan menyatu di opsi),
+              // warna mengikuti benar/salah jawaban user untuk soal ini.
+              if (_isAnswered) ...[
+                const SizedBox(height: 8),
+                _ExplanationBox(
+                  isCorrect: _result!.isCorrect,
+                  explanation: _result!.explanation,
+                ).animate().fadeIn(duration: 200.ms).slideY(begin: 0.08, end: 0),
+              ],
             ],
           ),
         ),
@@ -375,15 +378,15 @@ class _QuizBodyState extends ConsumerState<_QuizBody> {
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
               ),
-              onPressed: (selected == null || isSubmitting) ? null : _onPrimaryButtonTap,
-              child: isSubmitting
+              onPressed: (!_isAnswered || _isChecking) ? null : _onPrimaryButtonTap,
+              child: _isChecking
                   ? const SizedBox(
                       height: 20,
                       width: 20,
                       child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                     )
                   : Text(
-                      _phase == _QuizPhase.reviewing && _isLastQuestion ? 'Selesai' : 'Lanjut',
+                      isLastAndCompleted ? 'Selesai' : 'Lanjut',
                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                     ),
             ),
@@ -394,59 +397,108 @@ class _QuizBodyState extends ConsumerState<_QuizBody> {
   }
 }
 
+/// Box keterangan (`explanation_correct`/`explanation_incorrect`,
+/// dipilih server) — SENGAJA dipisah dari `_OptionTile` (bukan menyatu di
+/// dalam opsi seperti versi lama), muncul di atas tombol "Lanjut"/
+/// "Selesai".
+class _ExplanationBox extends StatelessWidget {
+  const _ExplanationBox({required this.isCorrect, required this.explanation});
+
+  final bool isCorrect;
+  final String explanation;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isCorrect ? AppColors.success : AppColors.coral;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color, width: 1),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            isCorrect ? Icons.check_circle : Icons.info_outline,
+            size: 20,
+            color: color,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isCorrect ? 'Benar!' : 'Kurang tepat',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: color),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  explanation,
+                  style: const TextStyle(fontSize: 13, height: 1.4, color: AppColors.ink),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _OptionTile extends StatelessWidget {
   const _OptionTile({
     required this.label,
     required this.isSelected,
-    required this.feedback,
+    required this.isCorrectOption,
+    required this.isWrongSelectedOption,
+    required this.isAnswered,
     required this.onTap,
   });
 
   final String label;
   final bool isSelected;
-  final QuizAnswerFeedback? feedback;
+
+  /// True kalau opsi ini adalah jawaban yang benar (dari
+  /// `correctOptionId`) — bisa true meski BUKAN yang dipilih user, kalau
+  /// user salah jawab (PRD.md QUIZ-03: opsi benar ikut di-highlight).
+  final bool isCorrectOption;
+
+  /// True kalau opsi ini yang DIPILIH user DAN jawabannya salah.
+  final bool isWrongSelectedOption;
+
+  final bool isAnswered;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    // feedback != null berarti tile ini yang dipilih user & sudah masuk
-    // fase review — warnai hijau (benar)/coral (Design.md §5.2, bukan
-    // merah destructive standar) sesuai R-QUIZ-04.
     Color borderColor = isSelected ? AppColors.ink : AppColors.border;
     Color? bgColor;
     Widget? trailingBadge;
 
-    if (feedback != null) {
-      if (feedback!.isCorrect) {
+    if (isAnswered) {
+      if (isCorrectOption) {
         borderColor = AppColors.success;
         bgColor = AppColors.success.withValues(alpha: 0.08);
-      } else {
+        trailingBadge = _Badge(
+          label: isSelected ? 'Benar!' : 'Jawaban benar',
+          color: AppColors.success,
+        );
+      } else if (isWrongSelectedOption) {
         borderColor = AppColors.coral;
         bgColor = AppColors.coral.withValues(alpha: 0.08);
+        trailingBadge = const _Badge(label: 'Kurang tepat', color: AppColors.coral);
       }
-      trailingBadge = Container(
-        margin: const EdgeInsets.only(top: 6),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-        decoration: BoxDecoration(
-          color: (feedback!.isCorrect ? AppColors.success : AppColors.coral).withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Text(
-          feedback!.isCorrect ? 'Benar!' : 'Kurang tepat',
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.bold,
-            color: feedback!.isCorrect ? AppColors.success : AppColors.coral,
-          ),
-        ),
-      );
     }
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
-        onTap: feedback == null ? onTap : null, // review = read-only
+        onTap: isAnswered ? null : onTap, // read-only begitu soal dijawab
         child: Container(
           width: double.infinity,
           padding: const EdgeInsets.all(16),
@@ -455,29 +507,52 @@ class _OptionTile extends StatelessWidget {
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: borderColor, width: isSelected ? 1.5 : 1),
           ),
-          child: Column(
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(
-                    feedback == null
-                        ? (isSelected ? Icons.radio_button_checked : Icons.radio_button_off)
-                        : (feedback!.isCorrect ? Icons.check_circle : Icons.cancel),
-                    size: 20,
-                    color: feedback == null
-                        ? (isSelected ? AppColors.ink : AppColors.textDisabled)
-                        : (feedback!.isCorrect ? AppColors.success : AppColors.coral),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(child: Text(label, style: const TextStyle(fontSize: 15))),
-                ],
+              Icon(
+                !isAnswered
+                    ? (isSelected ? Icons.radio_button_checked : Icons.radio_button_off)
+                    : (isCorrectOption
+                        ? Icons.check_circle
+                        : (isWrongSelectedOption
+                            ? Icons.cancel
+                            : Icons.radio_button_off)), // netral, bukan dipilih & bukan yang benar
+                size: 20,
+                color: !isAnswered
+                    ? (isSelected ? AppColors.ink : AppColors.textDisabled)
+                    : (isCorrectOption
+                        ? AppColors.success
+                        : (isWrongSelectedOption ? AppColors.coral : AppColors.textDisabled)),
               ),
+              const SizedBox(width: 12),
+              Expanded(child: Text(label, style: const TextStyle(fontSize: 15))),
               if (trailingBadge != null) trailingBadge,
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _Badge extends StatelessWidget {
+  const _Badge({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color),
       ),
     );
   }
@@ -588,7 +663,7 @@ class _VaccineUnlockBannerState extends State<_VaccineUnlockBanner> {
             ),
           ),
         ),
-      ),
-    ).animate().fadeIn(duration: 200.ms);
+      ).animate().fadeIn(duration: 200.ms),
+    );
   }
 }

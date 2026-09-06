@@ -18,7 +18,12 @@ mixin _$Year {
   int get id;
   int get year;
   String get title;
-  String? get summary;
+  @JsonKey(name: 'summary_image_url')
+  String? get summaryImageUrl;
+  @JsonKey(name: 'quote_text')
+  String? get quoteText;
+  @JsonKey(name: 'references', defaultValue: <String>[])
+  List<String> get references;
   @JsonKey(name: 'published_sections_count')
   int? get publishedSectionsCount;
   bool get locked;
@@ -47,7 +52,12 @@ mixin _$Year {
             (identical(other.id, id) || other.id == id) &&
             (identical(other.year, year) || other.year == year) &&
             (identical(other.title, title) || other.title == title) &&
-            (identical(other.summary, summary) || other.summary == summary) &&
+            (identical(other.summaryImageUrl, summaryImageUrl) ||
+                other.summaryImageUrl == summaryImageUrl) &&
+            (identical(other.quoteText, quoteText) ||
+                other.quoteText == quoteText) &&
+            const DeepCollectionEquality()
+                .equals(other.references, references) &&
             (identical(other.publishedSectionsCount, publishedSectionsCount) ||
                 other.publishedSectionsCount == publishedSectionsCount) &&
             (identical(other.locked, locked) || other.locked == locked) &&
@@ -64,7 +74,9 @@ mixin _$Year {
       id,
       year,
       title,
-      summary,
+      summaryImageUrl,
+      quoteText,
+      const DeepCollectionEquality().hash(references),
       publishedSectionsCount,
       locked,
       isCompleted,
@@ -73,7 +85,7 @@ mixin _$Year {
 
   @override
   String toString() {
-    return 'Year(id: $id, year: $year, title: $title, summary: $summary, publishedSectionsCount: $publishedSectionsCount, locked: $locked, isCompleted: $isCompleted, sections: $sections, vaccines: $vaccines)';
+    return 'Year(id: $id, year: $year, title: $title, summaryImageUrl: $summaryImageUrl, quoteText: $quoteText, references: $references, publishedSectionsCount: $publishedSectionsCount, locked: $locked, isCompleted: $isCompleted, sections: $sections, vaccines: $vaccines)';
   }
 }
 
@@ -86,7 +98,10 @@ abstract mixin class $YearCopyWith<$Res> {
       {int id,
       int year,
       String title,
-      String? summary,
+      @JsonKey(name: 'summary_image_url') String? summaryImageUrl,
+      @JsonKey(name: 'quote_text') String? quoteText,
+      @JsonKey(name: 'references', defaultValue: <String>[])
+      List<String> references,
       @JsonKey(name: 'published_sections_count') int? publishedSectionsCount,
       bool locked,
       @JsonKey(name: 'is_completed') bool isCompleted,
@@ -110,7 +125,9 @@ class _$YearCopyWithImpl<$Res> implements $YearCopyWith<$Res> {
     Object? id = null,
     Object? year = null,
     Object? title = null,
-    Object? summary = freezed,
+    Object? summaryImageUrl = freezed,
+    Object? quoteText = freezed,
+    Object? references = null,
     Object? publishedSectionsCount = freezed,
     Object? locked = null,
     Object? isCompleted = null,
@@ -130,10 +147,18 @@ class _$YearCopyWithImpl<$Res> implements $YearCopyWith<$Res> {
           ? _self.title
           : title // ignore: cast_nullable_to_non_nullable
               as String,
-      summary: freezed == summary
-          ? _self.summary
-          : summary // ignore: cast_nullable_to_non_nullable
+      summaryImageUrl: freezed == summaryImageUrl
+          ? _self.summaryImageUrl
+          : summaryImageUrl // ignore: cast_nullable_to_non_nullable
               as String?,
+      quoteText: freezed == quoteText
+          ? _self.quoteText
+          : quoteText // ignore: cast_nullable_to_non_nullable
+              as String?,
+      references: null == references
+          ? _self.references
+          : references // ignore: cast_nullable_to_non_nullable
+              as List<String>,
       publishedSectionsCount: freezed == publishedSectionsCount
           ? _self.publishedSectionsCount
           : publishedSectionsCount // ignore: cast_nullable_to_non_nullable
@@ -255,7 +280,10 @@ extension YearPatterns on Year {
             int id,
             int year,
             String title,
-            String? summary,
+            @JsonKey(name: 'summary_image_url') String? summaryImageUrl,
+            @JsonKey(name: 'quote_text') String? quoteText,
+            @JsonKey(name: 'references', defaultValue: <String>[])
+            List<String> references,
             @JsonKey(name: 'published_sections_count')
             int? publishedSectionsCount,
             bool locked,
@@ -273,7 +301,9 @@ extension YearPatterns on Year {
             _that.id,
             _that.year,
             _that.title,
-            _that.summary,
+            _that.summaryImageUrl,
+            _that.quoteText,
+            _that.references,
             _that.publishedSectionsCount,
             _that.locked,
             _that.isCompleted,
@@ -303,7 +333,10 @@ extension YearPatterns on Year {
             int id,
             int year,
             String title,
-            String? summary,
+            @JsonKey(name: 'summary_image_url') String? summaryImageUrl,
+            @JsonKey(name: 'quote_text') String? quoteText,
+            @JsonKey(name: 'references', defaultValue: <String>[])
+            List<String> references,
             @JsonKey(name: 'published_sections_count')
             int? publishedSectionsCount,
             bool locked,
@@ -320,7 +353,9 @@ extension YearPatterns on Year {
             _that.id,
             _that.year,
             _that.title,
-            _that.summary,
+            _that.summaryImageUrl,
+            _that.quoteText,
+            _that.references,
             _that.publishedSectionsCount,
             _that.locked,
             _that.isCompleted,
@@ -349,7 +384,10 @@ extension YearPatterns on Year {
             int id,
             int year,
             String title,
-            String? summary,
+            @JsonKey(name: 'summary_image_url') String? summaryImageUrl,
+            @JsonKey(name: 'quote_text') String? quoteText,
+            @JsonKey(name: 'references', defaultValue: <String>[])
+            List<String> references,
             @JsonKey(name: 'published_sections_count')
             int? publishedSectionsCount,
             bool locked,
@@ -366,7 +404,9 @@ extension YearPatterns on Year {
             _that.id,
             _that.year,
             _that.title,
-            _that.summary,
+            _that.summaryImageUrl,
+            _that.quoteText,
+            _that.references,
             _that.publishedSectionsCount,
             _that.locked,
             _that.isCompleted,
@@ -385,7 +425,10 @@ class _Year implements Year {
       {required this.id,
       required this.year,
       required this.title,
-      this.summary,
+      @JsonKey(name: 'summary_image_url') this.summaryImageUrl,
+      @JsonKey(name: 'quote_text') this.quoteText,
+      @JsonKey(name: 'references', defaultValue: <String>[])
+      List<String> references = const <String>[],
       @JsonKey(name: 'published_sections_count') this.publishedSectionsCount,
       this.locked = true,
       @JsonKey(name: 'is_completed') this.isCompleted = false,
@@ -393,7 +436,8 @@ class _Year implements Year {
       required List<SectionSummary> sections,
       @JsonKey(name: 'vaccines')
       List<VaccineCard> vaccines = const <VaccineCard>[]})
-      : _sections = sections,
+      : _references = references,
+        _sections = sections,
         _vaccines = vaccines;
   factory _Year.fromJson(Map<String, dynamic> json) => _$YearFromJson(json);
 
@@ -404,7 +448,20 @@ class _Year implements Year {
   @override
   final String title;
   @override
-  final String? summary;
+  @JsonKey(name: 'summary_image_url')
+  final String? summaryImageUrl;
+  @override
+  @JsonKey(name: 'quote_text')
+  final String? quoteText;
+  final List<String> _references;
+  @override
+  @JsonKey(name: 'references', defaultValue: <String>[])
+  List<String> get references {
+    if (_references is EqualUnmodifiableListView) return _references;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_references);
+  }
+
   @override
   @JsonKey(name: 'published_sections_count')
   final int? publishedSectionsCount;
@@ -455,7 +512,12 @@ class _Year implements Year {
             (identical(other.id, id) || other.id == id) &&
             (identical(other.year, year) || other.year == year) &&
             (identical(other.title, title) || other.title == title) &&
-            (identical(other.summary, summary) || other.summary == summary) &&
+            (identical(other.summaryImageUrl, summaryImageUrl) ||
+                other.summaryImageUrl == summaryImageUrl) &&
+            (identical(other.quoteText, quoteText) ||
+                other.quoteText == quoteText) &&
+            const DeepCollectionEquality()
+                .equals(other._references, _references) &&
             (identical(other.publishedSectionsCount, publishedSectionsCount) ||
                 other.publishedSectionsCount == publishedSectionsCount) &&
             (identical(other.locked, locked) || other.locked == locked) &&
@@ -472,7 +534,9 @@ class _Year implements Year {
       id,
       year,
       title,
-      summary,
+      summaryImageUrl,
+      quoteText,
+      const DeepCollectionEquality().hash(_references),
       publishedSectionsCount,
       locked,
       isCompleted,
@@ -481,7 +545,7 @@ class _Year implements Year {
 
   @override
   String toString() {
-    return 'Year(id: $id, year: $year, title: $title, summary: $summary, publishedSectionsCount: $publishedSectionsCount, locked: $locked, isCompleted: $isCompleted, sections: $sections, vaccines: $vaccines)';
+    return 'Year(id: $id, year: $year, title: $title, summaryImageUrl: $summaryImageUrl, quoteText: $quoteText, references: $references, publishedSectionsCount: $publishedSectionsCount, locked: $locked, isCompleted: $isCompleted, sections: $sections, vaccines: $vaccines)';
   }
 }
 
@@ -495,7 +559,10 @@ abstract mixin class _$YearCopyWith<$Res> implements $YearCopyWith<$Res> {
       {int id,
       int year,
       String title,
-      String? summary,
+      @JsonKey(name: 'summary_image_url') String? summaryImageUrl,
+      @JsonKey(name: 'quote_text') String? quoteText,
+      @JsonKey(name: 'references', defaultValue: <String>[])
+      List<String> references,
       @JsonKey(name: 'published_sections_count') int? publishedSectionsCount,
       bool locked,
       @JsonKey(name: 'is_completed') bool isCompleted,
@@ -519,7 +586,9 @@ class __$YearCopyWithImpl<$Res> implements _$YearCopyWith<$Res> {
     Object? id = null,
     Object? year = null,
     Object? title = null,
-    Object? summary = freezed,
+    Object? summaryImageUrl = freezed,
+    Object? quoteText = freezed,
+    Object? references = null,
     Object? publishedSectionsCount = freezed,
     Object? locked = null,
     Object? isCompleted = null,
@@ -539,10 +608,18 @@ class __$YearCopyWithImpl<$Res> implements _$YearCopyWith<$Res> {
           ? _self.title
           : title // ignore: cast_nullable_to_non_nullable
               as String,
-      summary: freezed == summary
-          ? _self.summary
-          : summary // ignore: cast_nullable_to_non_nullable
+      summaryImageUrl: freezed == summaryImageUrl
+          ? _self.summaryImageUrl
+          : summaryImageUrl // ignore: cast_nullable_to_non_nullable
               as String?,
+      quoteText: freezed == quoteText
+          ? _self.quoteText
+          : quoteText // ignore: cast_nullable_to_non_nullable
+              as String?,
+      references: null == references
+          ? _self._references
+          : references // ignore: cast_nullable_to_non_nullable
+              as List<String>,
       publishedSectionsCount: freezed == publishedSectionsCount
           ? _self.publishedSectionsCount
           : publishedSectionsCount // ignore: cast_nullable_to_non_nullable

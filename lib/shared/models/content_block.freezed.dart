@@ -20,6 +20,7 @@ mixin _$ContentBlock {
   String get content;
   @JsonKey(name: 'resolved_url')
   String? get resolvedUrl;
+  String? get caption;
   int get order;
 
   /// Create a copy of ContentBlock
@@ -43,17 +44,18 @@ mixin _$ContentBlock {
             (identical(other.content, content) || other.content == content) &&
             (identical(other.resolvedUrl, resolvedUrl) ||
                 other.resolvedUrl == resolvedUrl) &&
+            (identical(other.caption, caption) || other.caption == caption) &&
             (identical(other.order, order) || other.order == order));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode =>
-      Object.hash(runtimeType, id, type, content, resolvedUrl, order);
+      Object.hash(runtimeType, id, type, content, resolvedUrl, caption, order);
 
   @override
   String toString() {
-    return 'ContentBlock(id: $id, type: $type, content: $content, resolvedUrl: $resolvedUrl, order: $order)';
+    return 'ContentBlock(id: $id, type: $type, content: $content, resolvedUrl: $resolvedUrl, caption: $caption, order: $order)';
   }
 }
 
@@ -68,6 +70,7 @@ abstract mixin class $ContentBlockCopyWith<$Res> {
       ContentBlockType type,
       String content,
       @JsonKey(name: 'resolved_url') String? resolvedUrl,
+      String? caption,
       int order});
 }
 
@@ -87,6 +90,7 @@ class _$ContentBlockCopyWithImpl<$Res> implements $ContentBlockCopyWith<$Res> {
     Object? type = null,
     Object? content = null,
     Object? resolvedUrl = freezed,
+    Object? caption = freezed,
     Object? order = null,
   }) {
     return _then(ContentBlock(
@@ -105,6 +109,10 @@ class _$ContentBlockCopyWithImpl<$Res> implements $ContentBlockCopyWith<$Res> {
       resolvedUrl: freezed == resolvedUrl
           ? _self.resolvedUrl
           : resolvedUrl // ignore: cast_nullable_to_non_nullable
+              as String?,
+      caption: freezed == caption
+          ? _self.caption
+          : caption // ignore: cast_nullable_to_non_nullable
               as String?,
       order: null == order
           ? _self.order
@@ -207,8 +215,13 @@ extension ContentBlockPatterns on ContentBlock {
 
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>(
-    TResult Function(int id, ContentBlockType type, String content,
-            @JsonKey(name: 'resolved_url') String? resolvedUrl, int order)?
+    TResult Function(
+            int id,
+            ContentBlockType type,
+            String content,
+            @JsonKey(name: 'resolved_url') String? resolvedUrl,
+            String? caption,
+            int order)?
         $default, {
     required TResult orElse(),
   }) {
@@ -216,7 +229,7 @@ extension ContentBlockPatterns on ContentBlock {
     switch (_that) {
       case _ContentBlock() when $default != null:
         return $default(_that.id, _that.type, _that.content, _that.resolvedUrl,
-            _that.order);
+            _that.caption, _that.order);
       case _:
         return orElse();
     }
@@ -237,15 +250,20 @@ extension ContentBlockPatterns on ContentBlock {
 
   @optionalTypeArgs
   TResult when<TResult extends Object?>(
-    TResult Function(int id, ContentBlockType type, String content,
-            @JsonKey(name: 'resolved_url') String? resolvedUrl, int order)
+    TResult Function(
+            int id,
+            ContentBlockType type,
+            String content,
+            @JsonKey(name: 'resolved_url') String? resolvedUrl,
+            String? caption,
+            int order)
         $default,
   ) {
     final _that = this;
     switch (_that) {
       case _ContentBlock():
         return $default(_that.id, _that.type, _that.content, _that.resolvedUrl,
-            _that.order);
+            _that.caption, _that.order);
       case _:
         throw StateError('Unexpected subclass');
     }
@@ -265,15 +283,20 @@ extension ContentBlockPatterns on ContentBlock {
 
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>(
-    TResult? Function(int id, ContentBlockType type, String content,
-            @JsonKey(name: 'resolved_url') String? resolvedUrl, int order)?
+    TResult? Function(
+            int id,
+            ContentBlockType type,
+            String content,
+            @JsonKey(name: 'resolved_url') String? resolvedUrl,
+            String? caption,
+            int order)?
         $default,
   ) {
     final _that = this;
     switch (_that) {
       case _ContentBlock() when $default != null:
         return $default(_that.id, _that.type, _that.content, _that.resolvedUrl,
-            _that.order);
+            _that.caption, _that.order);
       case _:
         return null;
     }
@@ -288,6 +311,7 @@ class _ContentBlock implements ContentBlock {
       required this.type,
       required this.content,
       @JsonKey(name: 'resolved_url') this.resolvedUrl,
+      this.caption,
       required this.order});
   factory _ContentBlock.fromJson(Map<String, dynamic> json) =>
       _$ContentBlockFromJson(json);
@@ -301,6 +325,8 @@ class _ContentBlock implements ContentBlock {
   @override
   @JsonKey(name: 'resolved_url')
   final String? resolvedUrl;
+  @override
+  final String? caption;
   @override
   final int order;
 
@@ -329,17 +355,18 @@ class _ContentBlock implements ContentBlock {
             (identical(other.content, content) || other.content == content) &&
             (identical(other.resolvedUrl, resolvedUrl) ||
                 other.resolvedUrl == resolvedUrl) &&
+            (identical(other.caption, caption) || other.caption == caption) &&
             (identical(other.order, order) || other.order == order));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode =>
-      Object.hash(runtimeType, id, type, content, resolvedUrl, order);
+      Object.hash(runtimeType, id, type, content, resolvedUrl, caption, order);
 
   @override
   String toString() {
-    return 'ContentBlock(id: $id, type: $type, content: $content, resolvedUrl: $resolvedUrl, order: $order)';
+    return 'ContentBlock(id: $id, type: $type, content: $content, resolvedUrl: $resolvedUrl, caption: $caption, order: $order)';
   }
 }
 
@@ -356,6 +383,7 @@ abstract mixin class _$ContentBlockCopyWith<$Res>
       ContentBlockType type,
       String content,
       @JsonKey(name: 'resolved_url') String? resolvedUrl,
+      String? caption,
       int order});
 }
 
@@ -376,6 +404,7 @@ class __$ContentBlockCopyWithImpl<$Res>
     Object? type = null,
     Object? content = null,
     Object? resolvedUrl = freezed,
+    Object? caption = freezed,
     Object? order = null,
   }) {
     return _then(_ContentBlock(
@@ -394,6 +423,10 @@ class __$ContentBlockCopyWithImpl<$Res>
       resolvedUrl: freezed == resolvedUrl
           ? _self.resolvedUrl
           : resolvedUrl // ignore: cast_nullable_to_non_nullable
+              as String?,
+      caption: freezed == caption
+          ? _self.caption
+          : caption // ignore: cast_nullable_to_non_nullable
               as String?,
       order: null == order
           ? _self.order
