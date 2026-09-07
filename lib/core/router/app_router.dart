@@ -12,6 +12,9 @@ import '../../features/history/presentation/screens/era_roadmap_screen.dart';
 import '../../features/history/presentation/screens/section_detail_screen.dart';
 import '../../features/history/presentation/screens/year_summary_screen.dart';
 import '../../features/quiz/presentation/screens/quiz_screen.dart';
+import '../../features/era_quiz/presentation/screens/era_quiz_screen.dart';
+import '../../features/era_quiz/presentation/screens/era_quiz_result_screen.dart';
+import '../../features/era_quiz/presentation/screens/era_quiz_recap_screen.dart';
 import '../../features/card/presentation/screens/vaccine_list_screen.dart';
 import '../../features/card/presentation/screens/vaccine_detail_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
@@ -36,11 +39,19 @@ const _protectedPathPrefixes = ['/cards', '/profile'];
 /// "Lihat Rangkuman" yang cuma muncul kalau section sudah completed, dan
 /// `completed` selalu false untuk guest (R-PROG-06, tidak ada
 /// user_progress tersimpan) — jadi guest praktis tidak akan pernah
-/// sampai ke sini lewat flow normal. Kuis (`/year/:yearId/quiz`) beda:
-/// R-QUIZ-09 melarang guest akses kuis SAMA SEKALI, jadi tetap dijaga
-/// eksplisit di `redirect` di bawah (bukan cuma implisit dari flow UI),
-/// buat jaga-jaga kalau ada deep link langsung ke path ini.
-bool _isQuizPath(String location) => location.contains('/quiz');
+/// sampai ke sini lewat flow normal. Kuis (`/year/:yearId/quiz` DAN
+/// `/era-quiz/:eraId`) beda: R-QUIZ-09/R-ERAQUIZ-03 melarang guest akses
+/// kuis SAMA SEKALI (baik kuis year maupun kuis sumatif era), jadi tetap
+/// dijaga eksplisit di `redirect` di bawah (bukan cuma implisit dari flow
+/// UI), buat jaga-jaga kalau ada deep link langsung ke path ini.
+///
+/// PERBAIKAN: sebelumnya fungsi ini cuma cek `contains('/quiz')`, yang
+/// TIDAK match `/era-quiz/3` (substring-nya `-quiz`, bukan `/quiz` —
+/// diawali `-` bukan `/`) — akibatnya kuis sumatif era LOLOS dari guard
+/// guest ini. Ditambahkan pengecekan eksplisit prefix `/era-quiz` di
+/// samping `/quiz` supaya dua-duanya konsisten terlindungi.
+bool _isQuizPath(String location) =>
+    location.contains('/quiz') || location.startsWith('/era-quiz');
 
 final routerProvider = Provider<GoRouter>((ref) {
   final refreshListenable = _AuthRefreshListenable(ref);
@@ -152,6 +163,37 @@ final routerProvider = Provider<GoRouter>((ref) {
                   yearId: int.parse(state.pathParameters['yearId']!),
                   eraSlug: state.uri.queryParameters['era'] ?? '',
                   yearTitle: state.uri.queryParameters['title'],
+                ),
+              ),
+              // BARU — Kuis Sumatif Era "final boss" (ERAQUIZ-01/02).
+              // Top-level juga (bukan nested di bawah /history/:eraSlug)
+              // sama alasannya dengan /year & /section di atas: bisa
+              // di-deep-link/di-push langsung dari node final-boss di
+              // roadmap tanpa perlu tahu path induknya. `eraId` di sini
+              // INTEGER (era_id Eloquent, DIKONFIRMASI ke `Era.php` yang
+              // tidak override `getRouteKeyName()`) — BEDA dari
+              // `:eraSlug` yang dipakai route /history di atas untuk
+              // roadmap publik. Jangan disamakan / tertukar keduanya.
+              GoRoute(
+                path: '/era-quiz/:eraId',
+                builder: (context, state) => EraQuizScreen(
+                  eraId: int.parse(state.pathParameters['eraId']!),
+                ),
+              ),
+              // TODO — SEMENTARA: ganti builder ini begitu layar Hasil
+              // sungguhan selesai (backlog berikutnya setelah layar
+              // Kerjakan Kuis). Lihat komentar di
+              // era_quiz_result_placeholder_screen.dart.
+              GoRoute(
+                path: '/era-quiz/:eraId/result',
+                builder: (context, state) => EraQuizResultScreen(
+                  eraId: int.parse(state.pathParameters['eraId']!),
+                ),
+              ),
+              GoRoute(
+                path: '/era-quiz/:eraId/recap',
+                builder: (context, state) => EraQuizRecapScreen(
+                  eraId: int.parse(state.pathParameters['eraId']!),
                 ),
               ),
             ],

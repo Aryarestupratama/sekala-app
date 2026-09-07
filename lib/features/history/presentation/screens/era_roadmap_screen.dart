@@ -9,6 +9,7 @@ import '../../../../shared/models/era_roadmap.dart';
 import '../../../../shared/models/section_summary.dart';
 import '../../../../shared/models/year.dart';
 import '../providers/history_providers.dart';
+import '../widgets/final_boss_node.dart';
 import '../widgets/roadmap_path_painter.dart';
 import '../widgets/year_node.dart';
 
@@ -21,6 +22,17 @@ import '../widgets/year_node.dart';
 /// backend (`Year.locked`/`Year.isCompleted`, `SectionSummary.locked`/
 /// `.completed`) — gap lama ("checkmark belum bisa ditampilkan") sudah
 /// ditutup di sesi revisi backend sebelumnya.
+///
+/// **BARU (ERAQUIZ-01)**: node "final boss" ditambahkan sebagai titik
+/// TERAKHIR jalur, setelah seluruh node tahun — lihat `FinalBossNode`.
+/// ASUMSI YANG BELUM DIVERIFIKASI: kode di bawah mengakses `era!.id`
+/// (int) untuk dikirim ke `EraQuizApi` (yang butuh `era_id`, dikonfirmasi
+/// lewat `Era.php` tidak override `getRouteKeyName()`) — belum saya cek
+/// apakah model `Era` Flutter (`shared/models/era.dart`) memang punya
+/// field `id`. Kalau modelnya cuma punya `slug`/`name`/`description`
+/// tanpa `id`, field itu perlu ditambah dulu (dan dipetakan dari
+/// response `GET /public/eras` yang seharusnya memang membawa `id` juga
+/// sebagai primary key Eloquent standar).
 class EraRoadmapScreen extends ConsumerWidget {
   const EraRoadmapScreen({super.key, required this.eraSlug});
 
@@ -75,6 +87,26 @@ class EraRoadmapScreen extends ConsumerWidget {
     );
   }
 
+  void _showFinalBossLockedMessage(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Selesaikan seluruh tahun pada era ini terlebih dahulu sebelum mengerjakan kuis sumatif.'),
+      ),
+    );
+  }
+
+  // TODO: sesuaikan path route ini begitu layar Kerjakan Kuis/Hasil kuis
+  // sumatif era sudah ada (2 sub-tugas backlog berikutnya) — untuk
+  // sekarang murni placeholder supaya wiring navigasi dari roadmap sudah
+  // siap lebih dulu.
+  void _openFinalBossUnattempted(BuildContext context, int eraId) {
+    context.push('/era-quiz/$eraId');
+  }
+
+  void _openFinalBossResult(BuildContext context, int eraId) {
+    context.push('/era-quiz/$eraId/result');
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final yearsAsync = ref.watch(yearsProvider(eraSlug));
@@ -100,6 +132,9 @@ class EraRoadmapScreen extends ConsumerWidget {
           stateOf: _stateOf,
           onTapUnlocked: (year) => _openYear(context, year),
           onTapLocked: () => _showLockedMessage(context),
+          onTapFinalBossLocked: () => _showFinalBossLockedMessage(context),
+          onTapFinalBossUnattempted: (eraId) => _openFinalBossUnattempted(context, eraId),
+          onTapFinalBossAttempted: (eraId) => _openFinalBossResult(context, eraId),
           nodeSpacing: _nodeSpacing,
           topPadding: _topPadding,
           bottomPadding: _bottomPadding,
@@ -121,6 +156,9 @@ class _RoadmapBody extends StatelessWidget {
     required this.stateOf,
     required this.onTapUnlocked,
     required this.onTapLocked,
+    required this.onTapFinalBossLocked,
+    required this.onTapFinalBossUnattempted,
+    required this.onTapFinalBossAttempted,
     required this.nodeSpacing,
     required this.topPadding,
     required this.bottomPadding,
@@ -134,6 +172,9 @@ class _RoadmapBody extends StatelessWidget {
   final YearNodeState Function(Year) stateOf;
   final void Function(Year) onTapUnlocked;
   final VoidCallback onTapLocked;
+  final VoidCallback onTapFinalBossLocked;
+  final void Function(int eraId) onTapFinalBossUnattempted;
+  final void Function(int eraId) onTapFinalBossAttempted;
   final double nodeSpacing;
   final double topPadding;
   final double bottomPadding;
@@ -142,6 +183,18 @@ class _RoadmapBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final years = roadmap.years;
+    // ERAQUIZ-01: node final-boss cuma bisa dirender kalau kita tahu
+    // era.id (dibutuhkan EraQuizApi, yang pakai era_id integer — lihat
+    // catatan di era_quiz_api.dart). Kalau `era` belum ke-resolve dari
+    // erasProvider (mis. masih loading atau slug tidak ketemu), node ini
+    // untuk sementara disembunyikan total daripada nge-crash — akan
+    // muncul begitu `era` ter-resolve karena widget ini rebuild seiring
+    // provider lain settle.
+    final hasFinalBoss = era != null;
+    // R-ERAQUIZ-02: unlocked hanya kalau SELURUH year (yang published,
+    // makanya cek dari totalYears bukan years.length) sudah completed.
+    final finalBossUnlocked =
+        roadmap.totalYears > 0 && roadmap.completedYears == roadmap.totalYears;
 
     return CustomScrollView(
       slivers: [
@@ -156,9 +209,12 @@ class _RoadmapBody extends StatelessWidget {
               : LayoutBuilder(
                   builder: (context, constraints) {
                     final width = constraints.maxWidth;
-                    final height = topPadding + nodeSpacing * years.length + bottomPadding;
+                    // +1 slot node kalau final-boss dirender, supaya jalur
+                    // & tinggi Stack ikut memanjang menampung node itu.
+                    final nodeCount = years.length + (hasFinalBoss ? 1 : 0);
+                    final height = topPadding + nodeSpacing * nodeCount + bottomPadding;
 
-                    final points = List<Offset>.generate(years.length, (i) {
+                    final points = List<Offset>.generate(nodeCount, (i) {
                       final xFraction = xFractions[i % xFractions.length];
                       return Offset(width * xFraction, topPadding + nodeSpacing * i);
                     });
@@ -196,6 +252,24 @@ class _RoadmapBody extends StatelessWidget {
                                       onTapUnlocked(years[i]);
                                     }
                                   },
+                                ),
+                              ),
+                            ),
+                          if (hasFinalBoss)
+                            Positioned(
+                              top: points.last.dy - 70,
+                              left: points.last.dx - 110,
+                              width: 220,
+                              child: Center(
+                                child: FinalBossNode(
+                                  eraId: era!.id,
+                                  unlocked: finalBossUnlocked,
+                                  accent: accent,
+                                  nodeX: points.last.dx,
+                                  screenWidth: width,
+                                  onTapLocked: onTapFinalBossLocked,
+                                  onTapUnattempted: () => onTapFinalBossUnattempted(era!.id),
+                                  onTapAttempted: () => onTapFinalBossAttempted(era!.id),
                                 ),
                               ),
                             ),
