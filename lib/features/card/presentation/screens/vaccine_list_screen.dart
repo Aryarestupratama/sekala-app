@@ -18,12 +18,15 @@ enum _VaccineFilter { all, unlocked, locked }
 /// GET /api/cards — CARD-01. Rute ini hanya bisa dicapai user login
 /// (guard router di app_router.dart nendang guest ke /auth — R-VAC-05).
 ///
-/// CATATAN DESAIN: mockup asli (era Figure/tokoh) pakai filter chip
-/// per-era (Kolonial/Kemerdekaan/Modern). `VaccineCard` saat ini TIDAK
-/// membawa info era per item (cuma id/name/photoUrl/photoLockedUrl/
-/// unlocked), jadi filter diganti Semua/Terbuka/Terkunci — bisa dihitung
-/// murni dari data yang sudah ada. Kalau filter era tetap diinginkan,
-/// `VaccineCardResource` di backend perlu ditambah field era dulu.
+/// CATATAN DESAIN (update): filter kini 2 lapis, digabung dengan logika
+/// AND — status (Semua/Terbuka/Terkunci, baris pertama) DAN era (baris
+/// kedua, dinamis dari `meta.eras`, bukan hardcode 3 era). Sebelumnya
+/// filter era sempat ditunda karena `VaccineCard` belum bawa info era per
+/// item — sudah ditambahkan di `VaccineCardResource`/`VaccineCard.eras`,
+/// jadi filter era diaktifkan kembali di sini.
+///
+/// Era dipilih via slug (bukan id) karena slug juga dipakai buat referensi
+/// di API/route lain (Schema.md §2.2) — `null` berarti "Semua Era".
 class VaccineListScreen extends ConsumerStatefulWidget {
   const VaccineListScreen({super.key});
 
@@ -33,6 +36,10 @@ class VaccineListScreen extends ConsumerStatefulWidget {
 
 class _VaccineListScreenState extends ConsumerState<VaccineListScreen> {
   _VaccineFilter _filter = _VaccineFilter.all;
+
+  // null = "Semua Era". Disimpan sebagai slug, bukan index/id, supaya
+  // tetap valid dipilih walau urutan/isi `meta.eras` berubah antar fetch.
+  String? _eraSlug;
 
   // Vaksin yang sudah pernah masuk antrean reveal SELAMA widget ini hidup.
   // Sengaja per-ID (bukan flag boolean tunggal) karena `MainShell` mem-
@@ -49,15 +56,19 @@ class _VaccineListScreenState extends ConsumerState<VaccineListScreen> {
   // `build()`.
   bool _inDetail = false;
 
+  // Status & era digabung dengan logika AND — mis. "Terbuka" + "Kolonial"
+  // = vaksin terbuka yang eras-nya mengandung slug "kolonial".
   List<VaccineCard> _applyFilter(List<VaccineCard> data) {
-    switch (_filter) {
-      case _VaccineFilter.all:
-        return data;
-      case _VaccineFilter.unlocked:
-        return data.where((v) => v.unlocked).toList();
-      case _VaccineFilter.locked:
-        return data.where((v) => !v.unlocked).toList();
-    }
+    final byStatus = switch (_filter) {
+      _VaccineFilter.all => data,
+      _VaccineFilter.unlocked => data.where((v) => v.unlocked).toList(),
+      _VaccineFilter.locked => data.where((v) => !v.unlocked).toList(),
+    };
+
+    if (_eraSlug == null) return byStatus;
+    return byStatus
+        .where((v) => v.eras.any((era) => era.slug == _eraSlug))
+        .toList();
   }
 
   /// Diputar sekali tiap kali halaman ini pertama kali dapat data dengan
@@ -224,6 +235,36 @@ class _VaccineListScreenState extends ConsumerState<VaccineListScreen> {
                     ),
                   ),
                 ),
+                // Baris kedua: filter era, dinamis dari `meta.eras` (cuma
+                // era yang benar-benar punya vaksin yang muncul sebagai
+                // chip) — bukan hardcode Kolonial/Kemerdekaan/Modern, biar
+                // tetap benar kalau daftar era di sistem berubah.
+                if (response.meta.eras.isNotEmpty)
+                  SliverToBoxAdapter(
+                    child: SizedBox(
+                      height: 44,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                        children: [
+                          _FilterChip(
+                            label: 'Semua Era',
+                            selected: _eraSlug == null,
+                            onTap: () => setState(() => _eraSlug = null),
+                          ),
+                          for (final era in response.meta.eras) ...[
+                            const SizedBox(width: 8),
+                            _FilterChip(
+                              label: '${era.name} (${era.unlocked}/${era.total})',
+                              selected: _eraSlug == era.slug,
+                              onTap: () => setState(() => _eraSlug = era.slug),
+                              color: EraAccents.ofSlug(era.slug),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
                 const SliverPadding(padding: EdgeInsets.only(top: 8)),
                 if (filtered.isEmpty)
                   SliverFillRemaining(
@@ -284,11 +325,22 @@ class _VaccineListScreenState extends ConsumerState<VaccineListScreen> {
 }
 
 class _FilterChip extends StatelessWidget {
-  const _FilterChip({required this.label, required this.selected, required this.onTap});
+  const _FilterChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.color = AppColors.gamify,
+  });
 
   final String label;
   final bool selected;
   final VoidCallback onTap;
+
+  // Warna saat selected — default gamify (dipakai chip status Semua/
+  // Terbuka/Terkunci, tidak berubah). Chip era mengoper warna per-era
+  // (EraAccents.ofSlug) supaya visually konsisten dengan Design.md §5.4
+  // (Kolonial=Orange, Kemerdekaan=Green, Modern=Sky).
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
@@ -299,9 +351,9 @@ class _FilterChip extends StatelessWidget {
         alignment: Alignment.center,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(
-          color: selected ? AppColors.gamify : AppColors.surface,
+          color: selected ? color : AppColors.surface,
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: selected ? AppColors.gamify : AppColors.border),
+          border: Border.all(color: selected ? color : AppColors.border),
         ),
         child: Text(
           label,

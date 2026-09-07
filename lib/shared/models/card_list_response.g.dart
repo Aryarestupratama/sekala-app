@@ -6,11 +6,32 @@ part of 'card_list_response.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
+_EraSummary _$EraSummaryFromJson(Map<String, dynamic> json) => _EraSummary(
+      id: (json['id'] as num).toInt(),
+      name: json['name'] as String,
+      slug: json['slug'] as String,
+      total: (json['total'] as num).toInt(),
+      unlocked: (json['unlocked'] as num).toInt(),
+    );
+
+Map<String, dynamic> _$EraSummaryToJson(_EraSummary instance) =>
+    <String, dynamic>{
+      'id': instance.id,
+      'name': instance.name,
+      'slug': instance.slug,
+      'total': instance.total,
+      'unlocked': instance.unlocked,
+    };
+
 _CardListMeta _$CardListMetaFromJson(Map<String, dynamic> json) =>
     _CardListMeta(
       total: (json['total'] as num).toInt(),
       unlocked: (json['unlocked'] as num).toInt(),
       unseen: (json['unseen'] as num).toInt(),
+      eras: (json['eras'] as List<dynamic>?)
+              ?.map((e) => EraSummary.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const <EraSummary>[],
     );
 
 Map<String, dynamic> _$CardListMetaToJson(_CardListMeta instance) =>
@@ -18,6 +39,7 @@ Map<String, dynamic> _$CardListMetaToJson(_CardListMeta instance) =>
       'total': instance.total,
       'unlocked': instance.unlocked,
       'unseen': instance.unseen,
+      'eras': instance.eras,
     };
 
 _CardListResponse _$CardListResponseFromJson(Map<String, dynamic> json) =>

@@ -27,6 +27,7 @@ mixin _$VaccineDetail {
   @JsonKey(name: 'year_introduced')
   int? get yearIntroduced;
   String get description;
+  List<VaccineEra> get eras;
 
   /// Create a copy of VaccineDetail
   /// with the given fields replaced by the non-null parameter values.
@@ -57,17 +58,27 @@ mixin _$VaccineDetail {
             (identical(other.yearIntroduced, yearIntroduced) ||
                 other.yearIntroduced == yearIntroduced) &&
             (identical(other.description, description) ||
-                other.description == description));
+                other.description == description) &&
+            const DeepCollectionEquality().equals(other.eras, eras));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, id, name, photoUrl,
-      photoLockedUrl, manufacturer, diseaseTarget, yearIntroduced, description);
+  int get hashCode => Object.hash(
+      runtimeType,
+      id,
+      name,
+      photoUrl,
+      photoLockedUrl,
+      manufacturer,
+      diseaseTarget,
+      yearIntroduced,
+      description,
+      const DeepCollectionEquality().hash(eras));
 
   @override
   String toString() {
-    return 'VaccineDetail(id: $id, name: $name, photoUrl: $photoUrl, photoLockedUrl: $photoLockedUrl, manufacturer: $manufacturer, diseaseTarget: $diseaseTarget, yearIntroduced: $yearIntroduced, description: $description)';
+    return 'VaccineDetail(id: $id, name: $name, photoUrl: $photoUrl, photoLockedUrl: $photoLockedUrl, manufacturer: $manufacturer, diseaseTarget: $diseaseTarget, yearIntroduced: $yearIntroduced, description: $description, eras: $eras)';
   }
 }
 
@@ -85,7 +96,8 @@ abstract mixin class $VaccineDetailCopyWith<$Res> {
       String? manufacturer,
       @JsonKey(name: 'disease_target') String diseaseTarget,
       @JsonKey(name: 'year_introduced') int? yearIntroduced,
-      String description});
+      String description,
+      List<VaccineEra> eras});
 }
 
 /// @nodoc
@@ -109,6 +121,7 @@ class _$VaccineDetailCopyWithImpl<$Res>
     Object? diseaseTarget = null,
     Object? yearIntroduced = freezed,
     Object? description = null,
+    Object? eras = null,
   }) {
     return _then(VaccineDetail(
       id: null == id
@@ -143,6 +156,10 @@ class _$VaccineDetailCopyWithImpl<$Res>
           ? _self.description
           : description // ignore: cast_nullable_to_non_nullable
               as String,
+      eras: null == eras
+          ? _self.eras
+          : eras // ignore: cast_nullable_to_non_nullable
+              as List<VaccineEra>,
     ));
   }
 }
@@ -248,7 +265,8 @@ extension VaccineDetailPatterns on VaccineDetail {
             String? manufacturer,
             @JsonKey(name: 'disease_target') String diseaseTarget,
             @JsonKey(name: 'year_introduced') int? yearIntroduced,
-            String description)?
+            String description,
+            List<VaccineEra> eras)?
         $default, {
     required TResult orElse(),
   }) {
@@ -263,7 +281,8 @@ extension VaccineDetailPatterns on VaccineDetail {
             _that.manufacturer,
             _that.diseaseTarget,
             _that.yearIntroduced,
-            _that.description);
+            _that.description,
+            _that.eras);
       case _:
         return orElse();
     }
@@ -292,7 +311,8 @@ extension VaccineDetailPatterns on VaccineDetail {
             String? manufacturer,
             @JsonKey(name: 'disease_target') String diseaseTarget,
             @JsonKey(name: 'year_introduced') int? yearIntroduced,
-            String description)
+            String description,
+            List<VaccineEra> eras)
         $default,
   ) {
     final _that = this;
@@ -306,7 +326,8 @@ extension VaccineDetailPatterns on VaccineDetail {
             _that.manufacturer,
             _that.diseaseTarget,
             _that.yearIntroduced,
-            _that.description);
+            _that.description,
+            _that.eras);
       case _:
         throw StateError('Unexpected subclass');
     }
@@ -334,7 +355,8 @@ extension VaccineDetailPatterns on VaccineDetail {
             String? manufacturer,
             @JsonKey(name: 'disease_target') String diseaseTarget,
             @JsonKey(name: 'year_introduced') int? yearIntroduced,
-            String description)?
+            String description,
+            List<VaccineEra> eras)?
         $default,
   ) {
     final _that = this;
@@ -348,7 +370,8 @@ extension VaccineDetailPatterns on VaccineDetail {
             _that.manufacturer,
             _that.diseaseTarget,
             _that.yearIntroduced,
-            _that.description);
+            _that.description,
+            _that.eras);
       case _:
         return null;
     }
@@ -366,7 +389,9 @@ class _VaccineDetail implements VaccineDetail {
       this.manufacturer,
       @JsonKey(name: 'disease_target') required this.diseaseTarget,
       @JsonKey(name: 'year_introduced') this.yearIntroduced,
-      required this.description});
+      required this.description,
+      List<VaccineEra> eras = const <VaccineEra>[]})
+      : _eras = eras;
   factory _VaccineDetail.fromJson(Map<String, dynamic> json) =>
       _$VaccineDetailFromJson(json);
 
@@ -390,6 +415,14 @@ class _VaccineDetail implements VaccineDetail {
   final int? yearIntroduced;
   @override
   final String description;
+  final List<VaccineEra> _eras;
+  @override
+  @JsonKey()
+  List<VaccineEra> get eras {
+    if (_eras is EqualUnmodifiableListView) return _eras;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_eras);
+  }
 
   /// Create a copy of VaccineDetail
   /// with the given fields replaced by the non-null parameter values.
@@ -424,17 +457,27 @@ class _VaccineDetail implements VaccineDetail {
             (identical(other.yearIntroduced, yearIntroduced) ||
                 other.yearIntroduced == yearIntroduced) &&
             (identical(other.description, description) ||
-                other.description == description));
+                other.description == description) &&
+            const DeepCollectionEquality().equals(other._eras, _eras));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, id, name, photoUrl,
-      photoLockedUrl, manufacturer, diseaseTarget, yearIntroduced, description);
+  int get hashCode => Object.hash(
+      runtimeType,
+      id,
+      name,
+      photoUrl,
+      photoLockedUrl,
+      manufacturer,
+      diseaseTarget,
+      yearIntroduced,
+      description,
+      const DeepCollectionEquality().hash(_eras));
 
   @override
   String toString() {
-    return 'VaccineDetail(id: $id, name: $name, photoUrl: $photoUrl, photoLockedUrl: $photoLockedUrl, manufacturer: $manufacturer, diseaseTarget: $diseaseTarget, yearIntroduced: $yearIntroduced, description: $description)';
+    return 'VaccineDetail(id: $id, name: $name, photoUrl: $photoUrl, photoLockedUrl: $photoLockedUrl, manufacturer: $manufacturer, diseaseTarget: $diseaseTarget, yearIntroduced: $yearIntroduced, description: $description, eras: $eras)';
   }
 }
 
@@ -454,7 +497,8 @@ abstract mixin class _$VaccineDetailCopyWith<$Res>
       String? manufacturer,
       @JsonKey(name: 'disease_target') String diseaseTarget,
       @JsonKey(name: 'year_introduced') int? yearIntroduced,
-      String description});
+      String description,
+      List<VaccineEra> eras});
 }
 
 /// @nodoc
@@ -478,6 +522,7 @@ class __$VaccineDetailCopyWithImpl<$Res>
     Object? diseaseTarget = null,
     Object? yearIntroduced = freezed,
     Object? description = null,
+    Object? eras = null,
   }) {
     return _then(_VaccineDetail(
       id: null == id
@@ -512,6 +557,10 @@ class __$VaccineDetailCopyWithImpl<$Res>
           ? _self.description
           : description // ignore: cast_nullable_to_non_nullable
               as String,
+      eras: null == eras
+          ? _self._eras
+          : eras // ignore: cast_nullable_to_non_nullable
+              as List<VaccineEra>,
     ));
   }
 }

@@ -16,6 +16,10 @@ _VaccineDetail _$VaccineDetailFromJson(Map<String, dynamic> json) =>
       diseaseTarget: json['disease_target'] as String,
       yearIntroduced: (json['year_introduced'] as num?)?.toInt(),
       description: json['description'] as String,
+      eras: (json['eras'] as List<dynamic>?)
+              ?.map((e) => VaccineEra.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const <VaccineEra>[],
     );
 
 Map<String, dynamic> _$VaccineDetailToJson(_VaccineDetail instance) =>
@@ -28,4 +32,5 @@ Map<String, dynamic> _$VaccineDetailToJson(_VaccineDetail instance) =>
       'disease_target': instance.diseaseTarget,
       'year_introduced': instance.yearIntroduced,
       'description': instance.description,
+      'eras': instance.eras,
     };

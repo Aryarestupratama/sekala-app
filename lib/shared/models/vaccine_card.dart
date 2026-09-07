@@ -3,6 +3,24 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 part 'vaccine_card.freezed.dart';
 part 'vaccine_card.g.dart';
 
+/// Mengacu field `eras` baru di VaccineCardResource/VaccineDetailResource
+/// (diturunkan backend dari `years->era`, lihat Vaccine::getErasAttribute()).
+/// Dipakai buat filter per-era di VaccineListScreen — didefinisikan di sini
+/// (bukan file terpisah) karena dipakai bareng oleh VaccineCard &
+/// VaccineDetail, dan biar cuma satu tempat yang perlu diubah kalau field
+/// era backend berubah.
+@freezed
+abstract class VaccineEra with _$VaccineEra {
+  const factory VaccineEra({
+    required int id,
+    required String name,
+    required String slug,
+  }) = _VaccineEra;
+
+  factory VaccineEra.fromJson(Map<String, dynamic> json) =>
+      _$VaccineEraFromJson(json);
+}
+
 /// Mengacu VaccineCardResource.php (Schema.md §2.6 `vaccines` + status unlock
 /// dari §2.13 `user_vaccine_unlocks`, digabung jadi satu response oleh
 /// backend — Schema.md §4 "Status card vaksin terkunci/siluet ... logic di
@@ -43,6 +61,12 @@ abstract class VaccineCard with _$VaccineCard {
     // di bottom nav "Koleksi", (2) nentuin vaksin mana yang diputar
     // animasi reveal locked->unlocked saat halaman Koleksi dibuka.
     @JsonKey(name: 'unseen', defaultValue: false) required bool unseen,
+
+    // Era yang terhubung ke vaksin ini (bisa >1 secara teori, VAC-03 —
+    // vaksin bisa nempel ke beberapa year, walau praktiknya biasanya 1).
+    // Dikirim di KEDUA mode locked & unlocked (bukan spoiler, cuma label
+    // era) — dipakai buat chip filter era di VaccineListScreen.
+    @Default(<VaccineEra>[]) List<VaccineEra> eras,
   }) = _VaccineCard;
 
   factory VaccineCard.fromJson(Map<String, dynamic> json) =>

@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:chewie/chewie.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:video_player/video_player.dart';
+import 'package:visibility_detector/visibility_detector.dart';
 import 'package:webview_flutter/webview_flutter.dart';
-import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/models/content_block.dart';
@@ -77,44 +81,28 @@ class ContentBlockView extends StatelessWidget {
         );
 
       case ContentBlockType.video:
-        // FIX (sebelumnya stuck loading selamanya): `resolvedUrl` dari
-        // backend ternyata full embed URL (`LinkParserService::
-        // toYoutubeEmbedUrl()` -> "https://www.youtube.com/embed/{id}"),
-        // BUKAN video ID murni seperti asumsi lama. Kode lama pakai
-        // `block.resolvedUrl` apa adanya sebagai `initialVideoId` tanpa
-        // konversi -> YoutubePlayerController dikasih string URL penuh,
-        // gagal resolve video, dan macet di loading spinner tanpa error
-        // yang kelihatan (cuma jalur fallback `block.content` yang
-        // sebelumnya dilewatkan `convertUrlToId()`).
+        // MIGRASI YouTube -> Google Drive, lalu MIGRASI LAGI dari WebView
+        // (embed halaman `/preview` Drive) -> native player `video_player`
+        // + `chewie` (progress.md — backlog "Flutter — render video block
+        // via Google Drive").
         //
-        // Sekarang KEDUA sumber selalu dinormalisasi lewat
-        // `convertUrlToId()` — package ini bisa handle baik URL penuh
-        // (watch?v=, youtu.be/, embed/) maupun ID murni 11 karakter,
-        // jadi aman dipakai untuk format resolvedUrl apapun yang
-        // dihasilkan backend saat ini maupun kalau nanti berubah.
-        final videoId = _extractYoutubeVideoId(block.resolvedUrl) ??
-            _extractYoutubeVideoId(block.content);
-        if (videoId == null || videoId.isEmpty) {
+        // Alasan migrasi kedua: embed `/preview` selalu membawa toolbar
+        // bawaan halaman Drive (progress bar, tombol volume/setting/
+        // maximize) yang ukurannya relatif besar & tidak bisa
+        // disembunyikan tanpa memodifikasi DOM halaman pihak ketiga
+        // (rapuh, berisiko rusak sewaktu-waktu). Native player kontrolnya
+        // full didesain sendiri, jadi masalah toolbar itu hilang total.
+        //
+        // `fileId` (bukan lagi full embed URL) yang dioper ke
+        // `_DriveVideoBlockPlayer` — dipakai untuk 2 hal: URL thumbnail
+        // publik Drive (tampilan sebelum tap Play) dan URL direct-download
+        // Drive (byte video mentah yang dikonsumsi `video_player`
+        // langsung, lihat catatan risiko di `_directVideoUrl`).
+        final fileId = _extractDriveFileId(block.resolvedUrl) ??
+            _extractDriveFileId(block.content);
+        if (fileId == null || fileId.isEmpty) {
           return const _UnavailableMediaCard(label: 'Video tidak tersedia');
         }
-        // FIX (thumbnail + tombol play muncul tapi tap tidak merespons):
-        // sebelumnya `YoutubePlayerController` dibuat langsung di sini,
-        // di dalam `build()` milik `ContentBlockView` yang StatelessWidget.
-        // Setiap kali ancestor rebuild (mis. `setState(_navigating)` di
-        // `SectionDetailScreen` saat CTA ditekan), method `build()` ini
-        // ikut jalan lagi dan bikin instance controller BARU dari nol,
-        // menggantikan yang lama tanpa pernah di-`dispose()`. Controller
-        // lama yang WebView-nya sedang proses init jadi "digantung", dan
-        // controller baru yang terpasang ke `YoutubePlayer` sering tidak
-        // ke-attach sempurna ke State internal package pada saat itu —
-        // hasilnya thumbnail/tombol play tampil (render awal sebelum
-        // WebView player siap) tapi tap tidak direspons karena controller
-        // yang "hidup" di layar sudah beda identitas dari yang seharusnya
-        // dipakai. Fix: pindah ke widget terpisah (`_YoutubeBlockPlayer`)
-        // yang StatefulWidget, controller dibuat sekali di `initState()`
-        // dan hidup selama widget itu sendiri hidup (key by `videoId`
-        // supaya kalau video-nya beneran ganti, baru controller dibuat
-        // ulang) — bukan setiap kali parent rebuild.
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: Column(
@@ -122,7 +110,10 @@ class ContentBlockView extends StatelessWidget {
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: _YoutubeBlockPlayer(key: ValueKey(videoId), videoId: videoId),
+                child: _DriveVideoBlockPlayer(
+                  key: ValueKey('drive-video-$fileId'),
+                  fileId: fileId,
+                ),
               ),
               // (Baru) Caption -- opsional, sumber/keterangan video.
               if (block.caption != null && block.caption!.trim().isNotEmpty) ...[
@@ -240,130 +231,291 @@ class _PdfPreviewDialogState extends State<_PdfPreviewDialog> {
   }
 }
 
-/// MIGRASI dari `youtube_player_flutter` ke `youtube_player_iframe`
-/// (lihat catatan di `pubspec.yaml`): tombol play sebelumnya diam total
-/// tanpa reaksi apa pun di WebView Android versi baru — root cause,
-/// `youtube_player_flutter` mengandalkan JS bridge tersembunyi
-/// (`postMessage` ke halaman IFrame API yang di-embed manual) yang mulai
-/// tidak kompatibel dengan update `webview_flutter`/Android System
-/// WebView terbaru, dan package tsb sudah lama tidak dimaintain aktif.
-/// `youtube_player_iframe` memakai `webview_flutter` secara langsung
-/// (bukan trik JS bridge terpisah), lebih stabil untuk versi WebView
-/// sekarang & ke depan.
+/// MIGRASI YouTube -> Google Drive -> native player (`video_player` +
+/// `chewie`) (progress.md, backlog "Flutter — render video block via
+/// Google Drive").
 ///
-/// Controller tetap dibuat sekali di `initState()` (bukan di `build()`
-/// milik parent yang stateless) — alasan yang sama seperti fix
-/// sebelumnya: supaya rebuild dari ancestor manapun (mis. `setState`
-/// CTA di `SectionDetailScreen`) tidak membuat controller baru yang
-/// memutus koneksi player yang sedang berjalan.
-class _YoutubeBlockPlayer extends StatefulWidget {
-  const _YoutubeBlockPlayer({super.key, required this.videoId});
+/// Versi sebelumnya me-render halaman `drive.google.com/.../preview`
+/// lewat WebView — ternyata halaman itu punya toolbar bawaan (progress
+/// bar, tombol volume/setting/maximize) yang cukup besar dan TIDAK bisa
+/// disembunyikan tanpa memodifikasi DOM halaman pihak ketiga (rapuh,
+/// berisiko rusak sewaktu-waktu kalau Google ubah markup-nya). Sekarang
+/// diganti total: `video_player` memutar **byte video mentah** langsung
+/// dari direct-download link Drive (lihat `_directVideoUrl`), dan
+/// `chewie` menyediakan UI kontrol (play/pause/seek/volume/fullscreen)
+/// yang didesain sendiri — tidak ada lagi WebView/toolbar Drive sama
+/// sekali untuk video.
+///
+/// LAZY-LOAD (tetap dipertahankan dari versi WebView): `VideoPlayerController`
+/// baru dibuat & di-`initialize()` saat user tap Play (`_startPlayback`),
+/// bukan langsung saat block dirender — sebelum itu cukup thumbnail
+/// publik Drive (`drive.google.com/thumbnail?id=...`) + tombol Play,
+/// supaya tidak ada beberapa video sekaligus mem-buffer di background
+/// begitu section dibuka (section bisa punya maks 2 video sekaligus,
+/// lihat Architecture.md §Backend).
+///
+/// DISPOSE SAAT KELUAR VIEWPORT (tetap dipertahankan): dibungkus
+/// `VisibilityDetector` dengan grace period 1 detik setelah start +
+/// debounce 400ms sebelum benar-benar dispose (lihat komentar di
+/// `_startPlayback`/`onVisibilityChanged` bawah) — mencegah bug loop
+/// yang sempat terjadi di versi WebView (`visibleFraction` sempat
+/// dilaporkan rendah secara sesaat pas platform view baru attach).
+class _DriveVideoBlockPlayer extends StatefulWidget {
+  const _DriveVideoBlockPlayer({super.key, required this.fileId});
 
-  final String videoId;
+  final String fileId;
 
   @override
-  State<_YoutubeBlockPlayer> createState() => _YoutubeBlockPlayerState();
+  State<_DriveVideoBlockPlayer> createState() => _DriveVideoBlockPlayerState();
 }
 
-class _YoutubeBlockPlayerState extends State<_YoutubeBlockPlayer> {
-  late final YoutubePlayerController _controller;
+class _DriveVideoBlockPlayerState extends State<_DriveVideoBlockPlayer> {
+  VideoPlayerController? _videoController;
+  ChewieController? _chewieController;
+  bool _playing = false;
+  bool _initializing = false;
+  String? _errorMessage;
 
-  @override
-  void initState() {
-    super.initState();
-    _controller = YoutubePlayerController.fromVideoId(
-      videoId: widget.videoId,
-      autoPlay: false,
-      params: const YoutubePlayerParams(
-        showControls: true,
-        showFullscreenButton: true,
-        mute: false,
-      ),
-    );
+  // Grace period + debounce visibility — lihat docstring class di atas
+  // & penjelasan lengkap di `onVisibilityChanged` bawah.
+  DateTime? _playbackStartedAt;
+  Timer? _visibilityDebounce;
+
+  // Endpoint thumbnail publik Drive — jalan asal file di-share "Anyone
+  // with the link" (syarat yang sama dengan validasi link Drive lain,
+  // R-CMS-05/06), tanpa perlu API key/OAuth.
+  String get _thumbnailUrl =>
+      'https://drive.google.com/thumbnail?id=${widget.fileId}&sz=w1024';
+
+  // Direct-download link Drive — byte video mentah, dikonsumsi
+  // `video_player` (ExoPlayer/AVPlayer) langsung, BUKAN lagi di-render
+  // sebagai halaman HTML lewat WebView seperti versi sebelumnya. Ini
+  // yang menghilangkan toolbar/chrome bawaan Drive sepenuhnya.
+  //
+  // CATATAN RISIKO (baca sebelum debug kalau video gagal muat di
+  // lapangan): endpoint ini TIDAK resmi didukung Google untuk hotlink
+  // streaming — sama kelas risikonya dengan endpoint thumbnail publik
+  // yang sudah lebih dulu dipakai di app ini. Untuk file yang cukup
+  // besar, Drive KADANG menyajikan halaman HTML "Google Drive tidak
+  // bisa memindai file ini untuk virus" alih-alih byte video langsung
+  // — kalau ini terjadi, `video_player` akan gagal `initialize()` dan
+  // otomatis jatuh ke `_UnavailableMediaCard` (tombol "Buka di Drive").
+  // Karena app ini sudah membatasi maks 50MB/file video (progress.md),
+  // risiko ini relatif kecil tapi TIDAK nol — kalau sering kejadian di
+  // lapangan, pertimbangkan proxy video lewat backend sendiri sebagai
+  // solusi jangka panjang yang lebih robust.
+  String get _directVideoUrl =>
+      'https://drive.google.com/uc?export=download&id=${widget.fileId}';
+
+  Future<void> _startPlayback() async {
+    _visibilityDebounce?.cancel();
+    _playbackStartedAt = DateTime.now();
+    setState(() {
+      _playing = true;
+      _initializing = true;
+      _errorMessage = null;
+    });
+
+    final controller = VideoPlayerController.networkUrl(Uri.parse(_directVideoUrl));
+    try {
+      await controller.initialize();
+      if (!mounted) {
+        controller.dispose();
+        return;
+      }
+      final chewie = ChewieController(
+        videoPlayerController: controller,
+        autoPlay: true,
+        looping: false,
+        aspectRatio:
+            controller.value.aspectRatio == 0 ? 16 / 9 : controller.value.aspectRatio,
+        materialProgressColors: ChewieProgressColors(
+          playedColor: AppColors.ink,
+          handleColor: AppColors.ink,
+        ),
+        errorBuilder: (context, errorMessage) => _UnavailableMediaCard(
+          label: 'Video tidak bisa diputar di dalam aplikasi.',
+          actionLabel: 'Buka di Drive',
+          onAction: _openInDriveApp,
+        ),
+      );
+      if (!mounted) {
+        chewie.dispose();
+        controller.dispose();
+        return;
+      }
+      setState(() {
+        _videoController = controller;
+        _chewieController = chewie;
+        _initializing = false;
+      });
+    } catch (_) {
+      controller.dispose();
+      // FIX (video gagal dimuat, mis. respons Drive ternyata halaman
+      // HTML "tidak bisa scan virus" bukan byte video, atau format
+      // tidak didukung codec device) — jangan biarkan `_initializing`
+      // nyangkut true selamanya, fallback ke kartu error + tombol
+      // "Buka di Drive" (pola sama seperti `_PdfPreviewDialog`).
+      if (mounted) {
+        setState(() {
+          _initializing = false;
+          _errorMessage =
+              'Gagal memuat video. Video mungkin terlalu besar, formatnya tidak didukung, atau koneksi bermasalah.';
+        });
+      }
+    }
   }
 
-  @override
-  void dispose() {
-    _controller.close();
-    super.dispose();
+  void _stopPlayback() {
+    if (!_playing) return;
+    _visibilityDebounce?.cancel();
+    _playbackStartedAt = null;
+    _chewieController?.dispose();
+    _videoController?.dispose();
+    _chewieController = null;
+    _videoController = null;
+    if (mounted) {
+      setState(() {
+        _playing = false;
+        _initializing = false;
+        _errorMessage = null;
+      });
+    }
   }
 
-  Future<void> _openInYoutubeApp() async {
-    final uri = Uri.parse('https://www.youtube.com/watch?v=${widget.videoId}');
+  Future<void> _openInDriveApp() async {
+    final uri = Uri.parse('https://drive.google.com/file/d/${widget.fileId}/view');
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   @override
+  void dispose() {
+    _visibilityDebounce?.cancel();
+    _chewieController?.dispose();
+    _videoController?.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // FIX (video "diam total" tanpa reaksi apapun, error player 100/101/
-    // 150/154 dari YouTube IFrame API): sebelumnya widget ini langsung
-    // render `YoutubePlayer` tanpa cek status error dari controller —
-    // kalau pemilik video mematikan opsi "Allow embedding" di YouTube
-    // Studio, WebView player berhasil dimuat tapi YouTube sendiri
-    // menolak memutar video-nya (kode error 101/150 = video ini,
-    // 100/154 = video tidak ditemukan/dihapus/private) — dari sisi UI
-    // Flutter, ini kelihatan identik dengan "diam total" karena player
-    // shell-nya tetap ter-render, cuma konten videonya yang ditolak,
-    // TANPA exception yang bisa ditangkap `try/catch` biasa (errornya
-    // dikomunikasikan lewat `postMessage` internal ke `controller.value`,
-    // bukan dilempar sebagai Dart exception).
-    //
-    // Sekarang didengarkan lewat `YoutubeValueBuilder` (widget builder
-    // bawaan package ini, membungkus `controller.stream` secara
-    // internal) — begitu `value.error != YoutubeError.none`, ganti
-    // tampilan jadi pesan yang jelas + tombol buka langsung ke
-    // app/browser YouTube, alih-alih user cuma lihat player kosong yang
-    // kelihatan "nge-hang".
-    return YoutubeValueBuilder(
-      controller: _controller,
-      builder: (context, value) {
-        if (value.error != YoutubeError.none) {
-          final message = switch (value.error) {
-            YoutubeError.notEmbeddable || YoutubeError.sameAsNotEmbeddable =>
-              'Video ini tidak bisa diputar di dalam aplikasi (pemilik video menonaktifkan opsi embed).',
-            YoutubeError.videoNotFound || YoutubeError.cannotFindVideo =>
-              'Video tidak ditemukan — mungkin sudah dihapus atau diset privat oleh pemiliknya.',
-            _ => 'Video tidak bisa diputar di dalam aplikasi.',
-          };
-          return _UnavailableMediaCard(
-            label: message,
-            actionLabel: 'Buka di YouTube',
-            onAction: _openInYoutubeApp,
-          );
+    return VisibilityDetector(
+      key: ValueKey('drive-video-visibility-${widget.fileId}'),
+      onVisibilityChanged: (info) {
+        if (!_playing) return;
+
+        // Lapis 1: grace period 1 detik sejak playback dimulai —
+        // abaikan total, controller masih proses initialize/attach awal
+        // (warisan fix bug loop dari versi WebView, tetap relevan di
+        // sini karena prinsipnya sama: rebuild/attach awal bisa bikin
+        // ukuran widget sempat 0 secara sesaat).
+        final startedAt = _playbackStartedAt;
+        if (startedAt != null &&
+            DateTime.now().difference(startedAt) < const Duration(seconds: 1)) {
+          return;
         }
 
-        // `YoutubePlayer` (iframe) butuh constraint eksplisit, tidak
-        // otomatis 16:9 seperti package lama — dibungkus `AspectRatio`
-        // supaya tidak collapse jadi tinggi 0 di dalam `ListView`.
-        return AspectRatio(
-          aspectRatio: 16 / 9,
-          child: YoutubePlayer(controller: _controller),
-        );
+        if (info.visibleFraction >= 0.05) {
+          // Masih/kembali terlihat cukup -> batalkan rencana stop kalau
+          // ada yang sedang menunggu di lapis 2.
+          _visibilityDebounce?.cancel();
+          return;
+        }
+
+        // Lapis 2: debounce 400ms — baru benar-benar dispose kalau
+        // setelah jeda ini video TETAP di bawah ambang (beneran
+        // ter-scroll keluar, bukan dip sesaat).
+        _visibilityDebounce?.cancel();
+        _visibilityDebounce = Timer(const Duration(milliseconds: 400), () {
+          if (mounted && _playing) _stopPlayback();
+        });
       },
+      // Native player tidak punya masalah toolbar Drive lagi, jadi cukup
+      // `AspectRatio` 16:9 biasa untuk semua state (thumbnail, loading,
+      // error, maupun playing) — tidak perlu lagi hitung tinggi ekstra
+      // seperti versi WebView sebelumnya.
+      child: AspectRatio(
+        aspectRatio: 16 / 9,
+        child: _errorMessage != null
+            ? _UnavailableMediaCard(
+                label: _errorMessage!,
+                actionLabel: 'Buka di Drive',
+                onAction: _openInDriveApp,
+              )
+            : !_playing
+                ? _VideoThumbnailWithPlayButton(
+                    thumbnailUrl: _thumbnailUrl,
+                    onTap: () => _startPlayback(),
+                  )
+                : (_initializing || _chewieController == null)
+                    ? const ColoredBox(
+                        color: Colors.black,
+                        child: Center(
+                          child: CircularProgressIndicator(color: Colors.white),
+                        ),
+                      )
+                    : Chewie(controller: _chewieController!),
+      ),
     );
   }
 }
 
-/// Ekstrak VIDEO_ID (11 karakter) dari berbagai format link YouTube.
-///
-/// FIX (video jadi "tidak tersedia" semua setelah migrasi package):
-/// versi sebelumnya pakai 3 pola regex tetap (`youtu.be/`, `?v=`,
-/// `youtube.com/embed/`) — kurang permisif dibanding `convertUrlToId`
-/// bawaan package lama, sehingga format lain (mis. `/v/ID`, `/shorts/ID`,
-/// atau urutan query param yang beda) gagal ke-parse dan jatuh ke
-/// fallback "Video tidak tersedia" padahal link-nya valid.
-///
-/// Sekarang pakai `Uri.parse()` + baca `queryParameters`/`pathSegments`
-/// langsung, jauh lebih toleran terhadap variasi format & urutan param
-/// dibanding tebak-regex.
-String? _extractYoutubeVideoId(String? url) {
+/// Thumbnail + tombol Play — tampilan awal sebelum player native
+/// di-mount (lihat docstring `_DriveVideoBlockPlayer`).
+class _VideoThumbnailWithPlayButton extends StatelessWidget {
+  const _VideoThumbnailWithPlayButton({
+    required this.thumbnailUrl,
+    required this.onTap,
+  });
+
+  final String thumbnailUrl;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          CachedNetworkImage(
+            imageUrl: thumbnailUrl,
+            fit: BoxFit.cover,
+            placeholder: (context, url) => Container(color: Colors.black12),
+            // Thumbnail publik Drive kadang gagal dimuat (mis. preview
+            // belum sempat di-generate Drive, atau permission "Anyone
+            // with the link" belum aktif) — fallback ke ikon video
+            // generik, TAPI tombol Play tetap ditampilkan (bukan
+            // `_UnavailableMediaCard`), karena thumbnail gagal bukan
+            // berarti video-nya sendiri tidak bisa diputar.
+            errorWidget: (context, url, error) => Container(
+              color: AppColors.ink,
+              child: const Icon(Icons.movie_outlined, color: Colors.white54, size: 40),
+            ),
+          ),
+          Container(color: Colors.black.withValues(alpha: 0.25)),
+          const Center(
+            child: Icon(Icons.play_circle_fill, color: Colors.white, size: 64),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Ekstrak FILE_ID dari berbagai format link Google Drive
+/// (`/file/d/{FILE_ID}/...`, `?id={FILE_ID}` seperti pada `open`/`uc`/
+/// `thumbnail`), sama filosofinya dengan validasi `ValidGoogleDriveLink`
+/// di backend (Rules.md R-CMS-05) — kalau `Uri.tryParse` gagal kenali
+/// host/pathnya, fallback terakhir anggap `url` itu sendiri sudah
+/// berupa FILE_ID mentah.
+String? _extractDriveFileId(String? url) {
   if (url == null || url.trim().isEmpty) return null;
 
   final trimmed = url.trim();
 
-  // Fallback paling akhir: value sudah berupa ID murni 11 karakter
-  // tanpa embel-embel URL sama sekali.
-  bool looksLikeRawId(String s) => RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(s);
+  // FILE_ID Google Drive umumnya 25+ karakter alfanumerik/-/_ — dibuat
+  // longgar (15+) supaya tetap toleran terhadap variasi panjang ID.
+  bool looksLikeRawId(String s) => RegExp(r'^[a-zA-Z0-9_-]{15,}$').hasMatch(s);
 
   final uri = Uri.tryParse(trimmed);
   if (uri == null || uri.host.isEmpty) {
@@ -371,31 +523,25 @@ String? _extractYoutubeVideoId(String? url) {
   }
 
   final host = uri.host.toLowerCase();
-  final segments = uri.pathSegments;
-
-  // youtu.be/{ID}
-  if (host.contains('youtu.be') && segments.isNotEmpty) {
-    final candidate = segments.first;
-    if (looksLikeRawId(candidate)) return candidate;
+  if (!host.contains('drive.google.com') && !host.contains('docs.google.com')) {
+    return looksLikeRawId(trimmed) ? trimmed : null;
   }
 
-  if (host.contains('youtube.com') || host.contains('youtube-nocookie.com')) {
-    // watch?v={ID}  (juga menangkap m.youtube.com, music.youtube.com, dst.)
-    final vParam = uri.queryParameters['v'];
-    if (vParam != null && looksLikeRawId(vParam)) return vParam;
+  final segments = uri.pathSegments;
 
-    // /embed/{ID}, /v/{ID}, /shorts/{ID}, /live/{ID}
-    const prefixedPaths = ['embed', 'v', 'shorts', 'live'];
-    for (var i = 0; i < segments.length - 1; i++) {
-      if (prefixedPaths.contains(segments[i]) &&
-          looksLikeRawId(segments[i + 1])) {
-        return segments[i + 1];
-      }
+  // /file/d/{FILE_ID}/(view|preview|...)
+  for (var i = 0; i < segments.length - 1; i++) {
+    if (segments[i] == 'd' && looksLikeRawId(segments[i + 1])) {
+      return segments[i + 1];
     }
   }
 
-  // Terakhir: coba tiap path segment, siapa tahu link generik/pendek
-  // yang tidak cocok pola di atas tapi salah satu segmennya persis ID.
+  // open?id={FILE_ID}, uc?id={FILE_ID}, thumbnail?id={FILE_ID}
+  final idParam = uri.queryParameters['id'];
+  if (idParam != null && looksLikeRawId(idParam)) return idParam;
+
+  // Terakhir: coba tiap path segment, siapa tahu formatnya di luar pola
+  // di atas tapi salah satu segmennya persis FILE_ID.
   for (final segment in segments) {
     if (looksLikeRawId(segment)) return segment;
   }

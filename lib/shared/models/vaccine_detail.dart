@@ -1,4 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'vaccine_card.dart' show VaccineEra;
 
 part 'vaccine_detail.freezed.dart';
 part 'vaccine_detail.g.dart';
@@ -30,6 +31,11 @@ abstract class VaccineDetail with _$VaccineDetail {
     @JsonKey(name: 'disease_target') required String diseaseTarget,
     @JsonKey(name: 'year_introduced') int? yearIntroduced,
     required String description,
+
+    // Konsisten dengan VaccineCard.eras — dikirim VaccineDetailResource
+    // baru, belum dipakai di UI VaccineDetailScreen saat ini tapi tersedia
+    // kalau nanti mau ditampilkan (mis. chip era di header detail).
+    @Default(<VaccineEra>[]) List<VaccineEra> eras,
   }) = _VaccineDetail;
 
   factory VaccineDetail.fromJson(Map<String, dynamic> json) =>

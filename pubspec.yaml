@@ -24,18 +24,17 @@ dependencies:
   flutter_secure_storage: ^11.0.0
   google_sign_in: ^7.2.0
 
-  # Media (video YouTube, webview untuk kuis Upresenter & PDF Drive embed)
-  # NOTE: `youtube_player_flutter` (9.1.1) diganti `youtube_player_iframe`
-  # karena tombol play tidak merespons sama sekali di WebView Android
-  # versi baru — root cause: package lama pakai JS bridge tersembunyi
-  # (postMessage ke halaman IFrame API) yang mulai bentrok dengan update
-  # Android System WebView terbaru (package lama sudah lama tidak
-  # dimaintain aktif). `youtube_player_iframe` dibangun di atas
-  # `webview_flutter` versi modern secara langsung (bukan trik JS bridge
-  # terpisah), jadi lebih stabil untuk versi WebView sekarang & ke depan.
-  youtube_player_iframe: ^5.2.1
+  # Media
+  # NOTE: video content block sudah pindah dari YouTube -> Google Drive
+  # (WebView) -> native player (`video_player` + `chewie`), lihat
+  # docstring `_DriveVideoBlockPlayer` di `content_block_view.dart`.
+  # `webview_flutter` SEKARANG cuma dipakai untuk preview PDF
+  # (`_PdfPreviewDialog`), bukan lagi untuk video. `youtube_player_iframe`
+  # sudah tidak dipakai sama sekali dan sengaja tidak ditambahkan lagi.
   webview_flutter: ^4.8.0
   url_launcher: ^6.3.0
+  video_player: ^2.9.2
+  chewie: ^1.8.5
 
   # Image (foto tokoh & gambar section dari Google Drive link)
   cached_network_image: ^3.3.1
@@ -45,7 +44,11 @@ dependencies:
   flutter_svg: ^2.0.10+1
   shimmer: ^4.0.0
 
-  # Scroll detection (auto-detect "selesai baca")
+  # Visibility tracking — dulu untuk auto-detect "selesai baca" (scroll
+  # detection, sudah tidak dipakai lagi di alur ini sejak CTA manual,
+  # lihat `section_detail_screen.dart`), sekarang dipakai untuk
+  # dispose WebView player video Drive saat scroll keluar viewport
+  # (`_DriveVideoBlockPlayer` di `content_block_view.dart`).
   visibility_detector: ^0.4.0+2
 
   # Utilities
