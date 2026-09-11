@@ -74,8 +74,25 @@ dev_dependencies:
   freezed: ^4.0.0
   json_serializable: ^6.8.0
 
+  # App icon generator (baca konfigurasi `flutter_launcher_icons` di bawah)
+  flutter_launcher_icons: ^0.14.1
+
 flutter:
   uses-material-design: true
   assets:
     - assets/images/
     - assets/icons/
+
+# Konfigurasi generate app icon dari assets/icons/icon.png
+# Jalankan: dart run flutter_launcher_icons
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icons/icon.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#FFFFFF"
+  web:
+    generate: true
+    image_path: "assets/icons/icon.png"
+    background_color: "#FFFFFF"
+    theme_color: "#FFFFFF"

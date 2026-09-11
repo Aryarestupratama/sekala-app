@@ -3,11 +3,10 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/network/api_exception.dart';
-import '../../../../shared/widgets/wave_clipper.dart';
 import '../providers/auth_providers.dart';
 
-/// Design.md §3.1 + §5.2 — header biru (Sky) dengan wave di bawah, judul
-/// SEKALA, toggle pill Masuk/Daftar, form minimalis rounded.
+/// Design.md §3.1 + §5.2 — header dengan gambar asli (assets/images/login.png),
+/// toggle pill Masuk/Daftar, form minimalis rounded.
 ///
 /// CATATAN WARNA: dipakai hex langsung sesuai Design.md §5.2 (Ink, Sky).
 /// Kalau project sudah punya `AppColors` di `core/theme/`, ganti
@@ -24,7 +23,6 @@ enum _AuthMode { login, register }
 
 // Design.md §5.2 — Ink & Sky. Ganti ke AppColors kalau sudah tersedia.
 const _kInk = Color(0xFF0C0C0C);
-const _kSky = Color(0xFF77DDFA);
 const _kBgLight = Color(0xFFF7F7F8);
 const _kFieldFill = Colors.white;
 const _kHintGrey = Color(0xFF9CA3AF);
@@ -446,45 +444,16 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   }
 }
 
-/// Header biru (Sky) dengan wave di bawah — masih background polos untuk
-/// sekarang. Nanti tinggal tambah `Image`/ilustrasi di dalam Stack ini
-/// (mis. gambar tenaga medis/sejarah) tanpa perlu ubah wave-nya.
+/// Header dengan gambar asli dari assets/images/login.png.
 class _Header extends StatelessWidget {
   const _Header();
 
   @override
   Widget build(BuildContext context) {
-    return ClipPath(
-      clipper: const WaveClipper(),
-      child: Container(
-        width: double.infinity,
-        height: 300,
-        color: _kSky,
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: const Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              'SEKALA',
-              style: TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.w800,
-                color: _kInk,
-                letterSpacing: 1,
-              ),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Jelajahi sejarah kesehatan Indonesia',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 15,
-                color: Colors.black87,
-              ),
-            ),
-          ],
-        ),
-      ),
+    return Image.asset(
+      'assets/images/login.png',
+      width: double.infinity,
+      fit: BoxFit.fitWidth,
     );
   }
 }

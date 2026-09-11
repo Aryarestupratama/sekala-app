@@ -1,6 +1,7 @@
 import '../../../shared/models/era.dart';
 import '../../../shared/models/era_roadmap.dart';
 import '../../../shared/models/section.dart';
+import '../../../shared/models/section_completion_result.dart';
 import '../../../shared/models/year.dart';
 import '../domain/history_repository.dart';
 import 'history_api.dart';
@@ -36,9 +37,6 @@ class HistoryRepositoryImpl implements HistoryRepository {
         .map((json) => Year.fromJson(json as Map<String, dynamic>))
         .toList();
 
-    // meta.completed_years/total_years (Architecture.md §4.7). Fallback ke
-    // hitung manual dari `years` kalau backend belum di-deploy dengan field
-    // ini (fail-safe, bukan bikin app crash gara-gara field baru).
     final meta = raw is Map<String, dynamic>
         ? raw['meta'] as Map<String, dynamic>?
         : null;
@@ -58,7 +56,11 @@ class HistoryRepositoryImpl implements HistoryRepository {
   }
 
   @override
-  Future<void> completeSection(int sectionId) {
-    return _api.completeSection(sectionId);
+  Future<SectionCompletionResult> completeSection(int sectionId) async {
+    // Response complete-section tidak dibungkus `data` (lihat
+    // ProgressController::complete() — langsung response()->json([...])
+    // flat), jadi parse langsung tanpa lewat _asObject().
+    final raw = await _api.completeSection(sectionId);
+    return SectionCompletionResult.fromJson(raw);
   }
 }

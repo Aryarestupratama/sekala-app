@@ -1,5 +1,6 @@
 import '../../../shared/models/era.dart';
 import '../../../shared/models/section.dart';
+import '../../../shared/models/section_completion_result.dart';
 import '../../../shared/models/year.dart';
 import '../../../shared/models/era_roadmap.dart';
 
@@ -20,5 +21,9 @@ abstract class HistoryRepository {
   /// POST /api/sections/{section}/complete — trigger "selesai baca"
   /// (INFO-03, R-PROG-02). WAJIB auth:sanctum + verified, idempotent di
   /// sisi backend (R-PROG-03) jadi aman dipanggil berkali-kali dari client.
-  Future<void> completeSection(int sectionId);
+  ///
+  /// BARU: return `SectionCompletionResult` (sebelumnya void) — dipakai
+  /// buat konsumsi `year_completed` dari backend (auto-redirect ke
+  /// Rangkuman Wabah, lihat SectionCompletionController).
+  Future<SectionCompletionResult> completeSection(int sectionId);
 }

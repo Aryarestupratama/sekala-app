@@ -36,6 +36,21 @@ import '../widgets/content_block_view.dart';
 /// (`section.headerImageUrl`, opsional per section, bisa null). AppBar di
 /// bawah tetap menampilkan `section.title` sebagai label navigasi
 /// (bukan bagian dari "posisi paling atas" konten yang dimaksud revisi).
+///
+/// REVISI (konsumsi `year_completed` dari response complete-section,
+/// backlog progress.md): `_handleCtaTap` sekarang mengecek field
+/// `year_completed` yang dibalikin ProgressController::complete()
+/// (R-PROG-07/08) alih-alih cuma mengandalkan heuristic lokal "section
+/// terakhir by order" buat mutusin kapan ke Rangkuman Wabah. Kalau
+/// backend bilang year ini sudah completed (semua section + kuis year
+/// tsb selesai) di titik ini, redirect dipaksa ke Rangkuman — override
+/// `navigate` bawaan caller (termasuk kalau caller aslinya menuju "Baca
+/// Materi Berikutnya"). Di alur baca maju normal `year_completed` tetap
+/// false di titik ini (kuis baru bisa dikerjakan dari halaman Rangkuman,
+/// sesudah section terakhir), jadi behavior existing untuk kasus umum
+/// TIDAK berubah — field ini menutup gap skenario non-linear (mis. user
+/// balik baca ulang section lama yang belum completed padahal year-nya
+/// sudah completed dari sesi lain).
 class SectionDetailScreen extends ConsumerStatefulWidget {
   const SectionDetailScreen({super.key, required this.sectionId});
 
@@ -81,12 +96,22 @@ class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
   /// pernah tercapai, bikin tombol nyangkut spinning selamanya (bug yang
   /// pernah kejadian: video di section belum selesai loading -> koneksi
   /// lambat -> completion request ikut gagal -> tombol macet).
+  ///
+  /// BARU: `yearId`/`eraSlug` sekarang wajib dioper supaya fungsi ini bisa
+  /// mutusin sendiri redirect ke Rangkuman Wabah berdasarkan
+  /// `year_completed` dari response complete-section (lihat dokumentasi
+  /// class di atas) — override `navigate` bawaan caller kalau backend
+  /// bilang year-nya sudah completed di titik ini.
   Future<void> _handleCtaTap({
     required bool alreadyCompleted,
+    required int yearId,
+    required String eraSlug,
     required VoidCallback navigate,
   }) async {
     if (_navigating) return;
     setState(() => _navigating = true);
+
+    var redirectToSummary = false;
 
     if (!alreadyCompleted) {
       final authStatus = ref.read(authNotifierProvider).status;
@@ -100,9 +125,18 @@ class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
           // Best-effort: tunggu hasilnya supaya state completed konsisten
           // sebelum pindah layar, tapi kegagalan TIDAK menghentikan
           // navigasi — daripada user macet gara-gara satu request gagal.
-          await ref
+          final result = await ref
               .read(sectionCompletionControllerProvider.notifier)
               .complete(_id);
+
+          // BARU — konsumsi `year_completed` dari response backend
+          // (R-PROG-07/08) alih-alih cuma ngandelin heuristic lokal
+          // "section terakhir by order" (`isLastSection` di
+          // `_buildBottomCta`). Backend adalah sumber kebenaran soal
+          // year completed (butuh semua section + kuis year ini
+          // selesai) — kalau true di sini, paksa ke Rangkuman walaupun
+          // caller aslinya mau ke "Baca Materi Berikutnya".
+          redirectToSummary = result?.yearCompleted ?? false;
         } catch (_) {
           // Sengaja diabaikan (silent): kegagalan completion tidak
           // seharusnya menghalangi user lanjut baca. Kalau mau observability,
@@ -113,6 +147,12 @@ class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
 
     if (!mounted) return;
     setState(() => _navigating = false);
+
+    if (redirectToSummary) {
+      context.go('/year/$yearId/summary?era=$eraSlug');
+      return;
+    }
+
     navigate();
   }
 
@@ -220,6 +260,8 @@ class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
             loading: _navigating,
             onTap: () => _handleCtaTap(
               alreadyCompleted: completed,
+              yearId: yearId,
+              eraSlug: eraSlug,
               navigate: () => context.go('/year/$yearId/summary?era=$eraSlug'),
             ),
           );
@@ -232,6 +274,8 @@ class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
           loading: _navigating,
           onTap: () => _handleCtaTap(
             alreadyCompleted: completed,
+            yearId: yearId,
+            eraSlug: eraSlug,
             navigate: () => context.go('/section/${next.id}'),
           ),
         );

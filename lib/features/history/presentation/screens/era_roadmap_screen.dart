@@ -9,8 +9,10 @@ import '../../../../shared/models/era_roadmap.dart';
 import '../../../../shared/models/section_summary.dart';
 import '../../../../shared/models/year.dart';
 import '../providers/history_providers.dart';
+import '../providers/wabah_intro_providers.dart';
 import '../widgets/final_boss_node.dart';
 import '../widgets/roadmap_path_painter.dart';
+import '../widgets/wabah_intro_modal.dart';
 import '../widgets/year_node.dart';
 
 /// GET /api/public/eras/{era:slug}/years — INFO-01.
@@ -200,6 +202,7 @@ class _RoadmapBody extends StatelessWidget {
       slivers: [
         SliverToBoxAdapter(child: _Header(era: era, eraSlug: eraSlug, accent: accent)),
         SliverToBoxAdapter(child: _ProgressCard(era: era, roadmap: roadmap, accent: accent)),
+        const SliverToBoxAdapter(child: _WabahIntroBanner()),
         SliverToBoxAdapter(
           child: years.isEmpty
               ? const Padding(
@@ -293,50 +296,117 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: accent.withOpacity(0.12),
-      padding: EdgeInsets.only(
-        top: MediaQuery.of(context).padding.top + 12,
-        bottom: 20,
-        left: 16,
-        right: 16,
-      ),
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: () => context.pop(),
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white),
-              child: const Icon(Icons.arrow_back, size: 20),
-            ),
+    return Consumer(
+      builder: (context, ref, _) {
+        return Container(
+          color: accent.withOpacity(0.12),
+          padding: EdgeInsets.only(
+            top: MediaQuery.of(context).padding.top + 12,
+            bottom: 20,
+            left: 16,
+            right: 16,
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Flexible(
-                  child: Text(
-                    era?.name ?? eraSlug,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
+          child: Row(
+            children: [
+              GestureDetector(
+                onTap: () => context.pop(),
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white),
+                  child: const Icon(Icons.arrow_back, size: 20),
                 ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(color: accent, borderRadius: BorderRadius.circular(20)),
-                  child: const Text(
-                    'Era',
-                    style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
-                  ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        era?.name ?? eraSlug,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(color: accent, borderRadius: BorderRadius.circular(20)),
+                      child: const Text(
+                        'Era',
+                        style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              // Buka ulang modal "Apa itu Wabah" kapan saja -- pemanggilan
+              // showWabahIntroModal() aman meski konten belum di-publish
+              // admin (wabahIntroProvider akan return null, ditangani di
+              // dalam _WabahIntroSheetContent), jadi tidak perlu guard di
+              // sini.
+              GestureDetector(
+                onTap: () => showWabahIntroModal(context, ref),
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  margin: const EdgeInsets.only(left: 8),
+                  decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white),
+                  child: const Icon(Icons.info_outline, size: 20),
+                ),
+              ),
+            ],
           ),
-        ],
+        );
+      },
+    );
+  }
+}
+
+/// Pintu masuk manual ke konten "Apa itu Wabah" -- muncul di TIAP era
+/// (bukan konten baru per era, cuma banner pengingat yang buka modal
+/// global yang sama, lihat WabahIntro.md brainstorm sebelumnya). Berguna
+/// untuk user yang lupa/melewatkan modal otomatis pertama kali di tab
+/// Informasi Sejarah.
+class _WabahIntroBanner extends ConsumerWidget {
+  const _WabahIntroBanner();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final introAsync = ref.watch(wabahIntroProvider);
+
+    // Belum di-publish admin / gagal fetch -> banner disembunyikan total,
+    // tidak ada apa pun untuk ditampilkan (sama prinsip dengan FinalBossNode
+    // yang sembunyi kalau kuis belum ada).
+    final hasContent = introAsync.valueOrNull != null;
+    if (!hasContent) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: GestureDetector(
+        onTap: () => showWabahIntroModal(context, ref),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            children: const [
+              Icon(Icons.info_outline, size: 18, color: AppColors.textSecondary),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Apa itu wabah?',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+              ),
+              Icon(Icons.chevron_right, size: 18, color: AppColors.textSecondary),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -8,13 +8,39 @@ import '../../../../shared/models/home_progress.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../home/presentation/providers/home_providers.dart';
 import '../providers/history_providers.dart';
+import '../providers/wabah_intro_providers.dart';
+import '../widgets/wabah_intro_modal.dart';
 
 /// GET /api/public/eras — INFO-01 entry point, guest & user login sama-sama
 /// bisa akses (R-GUEST-01). Progress per era (HOME-01) cuma tampil untuk
 /// user login lewat homeSummaryProvider, sama seperti pola di HomeScreen
 /// (guest tidak punya `user_progress` tersimpan — R-PROG-06).
-class EraListScreen extends ConsumerWidget {
+class EraListScreen extends ConsumerStatefulWidget {
   const EraListScreen({super.key});
+
+  @override
+  ConsumerState<EraListScreen> createState() => _EraListScreenState();
+}
+
+class _EraListScreenState extends ConsumerState<EraListScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Auto-show SEKALI saat tab Informasi Sejarah pertama kali dibuka
+    // (INFO intro brainstorm -- lihat riwayat chat pengembangan).
+    // addPostFrameCallback supaya modal tidak dibuka di tengah proses
+    // build pertama widget ini. `wabahIntroSeenProvider.future` di-await
+    // dulu (bukan `.valueOrNull`) karena status "sudah lihat" dari secure
+    // storage butuh 1 async read -- kalau langsung baca valueOrNull di
+    // frame pertama, hasilnya masih null/loading dan modal salah muncul
+    // terus tiap kali layar ini di-rebuild sebelum storage selesai dibaca.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final seen = await ref.read(wabahIntroSeenProvider.future);
+      if (!seen && mounted) {
+        showWabahIntroModal(context, ref);
+      }
+    });
+  }
 
   // Ikon dekoratif watermark per era — murni kosmetik, dipetakan dari slug
   // sama seperti EraAccents.ofSlug (Design.md §5.4).
@@ -36,7 +62,7 @@ class EraListScreen extends ConsumerWidget {
   static bool _isDarkTextOnSlug(String slug) => slug.toLowerCase() != 'kemerdekaan';
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final erasAsync = ref.watch(erasProvider);
     final authState = ref.watch(authNotifierProvider);
     final isGuest = authState.status == AuthStatus.guest;
