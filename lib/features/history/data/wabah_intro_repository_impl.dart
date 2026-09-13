@@ -12,7 +12,4 @@ class WabahIntroRepositoryImpl implements WabahIntroRepository {
     if (json == null) return null;
     return WabahIntro.fromJson(json);
   }
-
-  @override
-  Future<void> markSeen() => _api.markSeen();
 }

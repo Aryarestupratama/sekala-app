@@ -30,7 +30,7 @@ import 'package:sekala_app/features/card/presentation/providers/card_providers.d
 /// user login terverifikasi (guest tidak pernah unlock apapun & endpoint
 /// /cards butuh auth+verified, R-GUEST-02) — supaya guest tidak memicu
 /// request yang bakal 401/403 percuma.
-class MainShell extends ConsumerWidget {
+class MainShell extends ConsumerStatefulWidget {
   const MainShell({super.key, required this.navigationShell});
 
   final StatefulNavigationShell navigationShell;
@@ -47,7 +47,12 @@ class MainShell extends ConsumerWidget {
   // angka yang sama — hindari magic number `2` ditulis ulang di dua tempat.
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MainShell> createState() => _MainShellState();
+}
+
+class _MainShellState extends ConsumerState<MainShell> {
+  @override
+  Widget build(BuildContext context) {
     final authState = ref.watch(authNotifierProvider);
     final isVerifiedUser = authState.status == AuthStatus.authenticated;
 
@@ -63,23 +68,24 @@ class MainShell extends ConsumerWidget {
     // dilihat user" vs "aku di-rebuild diam-diam di background karena
     // IndexedStack" — lihat catatan lengkap di active_tab_provider.dart.
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       final tabNotifier = ref.read(activeTabIndexProvider.notifier);
-      if (tabNotifier.state != navigationShell.currentIndex) {
-        tabNotifier.state = navigationShell.currentIndex;
+      if (tabNotifier.state != widget.navigationShell.currentIndex) {
+        tabNotifier.state = widget.navigationShell.currentIndex;
       }
     });
 
     return Scaffold(
-      body: navigationShell,
+      body: widget.navigationShell,
       bottomNavigationBar: _BottomNavBar(
-        selectedIndex: navigationShell.currentIndex,
-        items: _items,
+        selectedIndex: widget.navigationShell.currentIndex,
+        items: MainShell._items,
         badgeIndex: unseenCount > 0 ? koleksiTabIndex : null,
         onDestinationSelected: (index) {
-          navigationShell.goBranch(
+          widget.navigationShell.goBranch(
             index,
             // Balik ke root tab kalau tab yang sama di-tap lagi.
-            initialLocation: index == navigationShell.currentIndex,
+            initialLocation: index == widget.navigationShell.currentIndex,
           );
         },
       ),

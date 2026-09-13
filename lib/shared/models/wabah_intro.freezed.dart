@@ -17,7 +17,6 @@ T _$identity<T>(T value) => value;
 mixin _$WabahIntro {
   @JsonKey(name: 'image_url')
   String? get imageUrl;
-  String? get caption;
 
   /// Create a copy of WabahIntro
   /// with the given fields replaced by the non-null parameter values.
@@ -35,17 +34,16 @@ mixin _$WabahIntro {
         (other.runtimeType == runtimeType &&
             other is WabahIntro &&
             (identical(other.imageUrl, imageUrl) ||
-                other.imageUrl == imageUrl) &&
-            (identical(other.caption, caption) || other.caption == caption));
+                other.imageUrl == imageUrl));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, imageUrl, caption);
+  int get hashCode => Object.hash(runtimeType, imageUrl);
 
   @override
   String toString() {
-    return 'WabahIntro(imageUrl: $imageUrl, caption: $caption)';
+    return 'WabahIntro(imageUrl: $imageUrl)';
   }
 }
 
@@ -55,7 +53,7 @@ abstract mixin class $WabahIntroCopyWith<$Res> {
           WabahIntro value, $Res Function(WabahIntro) _then) =
       _$WabahIntroCopyWithImpl;
   @useResult
-  $Res call({@JsonKey(name: 'image_url') String? imageUrl, String? caption});
+  $Res call({@JsonKey(name: 'image_url') String? imageUrl});
 }
 
 /// @nodoc
@@ -71,16 +69,11 @@ class _$WabahIntroCopyWithImpl<$Res> implements $WabahIntroCopyWith<$Res> {
   @override
   $Res call({
     Object? imageUrl = freezed,
-    Object? caption = freezed,
   }) {
     return _then(WabahIntro(
       imageUrl: freezed == imageUrl
           ? _self.imageUrl
           : imageUrl // ignore: cast_nullable_to_non_nullable
-              as String?,
-      caption: freezed == caption
-          ? _self.caption
-          : caption // ignore: cast_nullable_to_non_nullable
               as String?,
     ));
   }
@@ -179,15 +172,13 @@ extension WabahIntroPatterns on WabahIntro {
 
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>(
-    TResult Function(
-            @JsonKey(name: 'image_url') String? imageUrl, String? caption)?
-        $default, {
+    TResult Function(@JsonKey(name: 'image_url') String? imageUrl)? $default, {
     required TResult orElse(),
   }) {
     final _that = this;
     switch (_that) {
       case _WabahIntro() when $default != null:
-        return $default(_that.imageUrl, _that.caption);
+        return $default(_that.imageUrl);
       case _:
         return orElse();
     }
@@ -208,14 +199,12 @@ extension WabahIntroPatterns on WabahIntro {
 
   @optionalTypeArgs
   TResult when<TResult extends Object?>(
-    TResult Function(
-            @JsonKey(name: 'image_url') String? imageUrl, String? caption)
-        $default,
+    TResult Function(@JsonKey(name: 'image_url') String? imageUrl) $default,
   ) {
     final _that = this;
     switch (_that) {
       case _WabahIntro():
-        return $default(_that.imageUrl, _that.caption);
+        return $default(_that.imageUrl);
       case _:
         throw StateError('Unexpected subclass');
     }
@@ -235,14 +224,12 @@ extension WabahIntroPatterns on WabahIntro {
 
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>(
-    TResult? Function(
-            @JsonKey(name: 'image_url') String? imageUrl, String? caption)?
-        $default,
+    TResult? Function(@JsonKey(name: 'image_url') String? imageUrl)? $default,
   ) {
     final _that = this;
     switch (_that) {
       case _WabahIntro() when $default != null:
-        return $default(_that.imageUrl, _that.caption);
+        return $default(_that.imageUrl);
       case _:
         return null;
     }
@@ -252,15 +239,13 @@ extension WabahIntroPatterns on WabahIntro {
 /// @nodoc
 @JsonSerializable()
 class _WabahIntro implements WabahIntro {
-  const _WabahIntro({@JsonKey(name: 'image_url') this.imageUrl, this.caption});
+  const _WabahIntro({@JsonKey(name: 'image_url') this.imageUrl});
   factory _WabahIntro.fromJson(Map<String, dynamic> json) =>
       _$WabahIntroFromJson(json);
 
   @override
   @JsonKey(name: 'image_url')
   final String? imageUrl;
-  @override
-  final String? caption;
 
   /// Create a copy of WabahIntro
   /// with the given fields replaced by the non-null parameter values.
@@ -283,17 +268,16 @@ class _WabahIntro implements WabahIntro {
         (other.runtimeType == runtimeType &&
             other is _WabahIntro &&
             (identical(other.imageUrl, imageUrl) ||
-                other.imageUrl == imageUrl) &&
-            (identical(other.caption, caption) || other.caption == caption));
+                other.imageUrl == imageUrl));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, imageUrl, caption);
+  int get hashCode => Object.hash(runtimeType, imageUrl);
 
   @override
   String toString() {
-    return 'WabahIntro(imageUrl: $imageUrl, caption: $caption)';
+    return 'WabahIntro(imageUrl: $imageUrl)';
   }
 }
 
@@ -305,7 +289,7 @@ abstract mixin class _$WabahIntroCopyWith<$Res>
       __$WabahIntroCopyWithImpl;
   @override
   @useResult
-  $Res call({@JsonKey(name: 'image_url') String? imageUrl, String? caption});
+  $Res call({@JsonKey(name: 'image_url') String? imageUrl});
 }
 
 /// @nodoc
@@ -321,16 +305,11 @@ class __$WabahIntroCopyWithImpl<$Res> implements _$WabahIntroCopyWith<$Res> {
   @pragma('vm:prefer-inline')
   $Res call({
     Object? imageUrl = freezed,
-    Object? caption = freezed,
   }) {
     return _then(_WabahIntro(
       imageUrl: freezed == imageUrl
           ? _self.imageUrl
           : imageUrl // ignore: cast_nullable_to_non_nullable
-              as String?,
-      caption: freezed == caption
-          ? _self.caption
-          : caption // ignore: cast_nullable_to_non_nullable
               as String?,
     ));
   }

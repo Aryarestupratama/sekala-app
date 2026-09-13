@@ -1,0 +1,296 @@
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:showcaseview/showcaseview.dart';
+
+import 'tutorial_keys.dart';
+
+/// Satu "langkah" tur = 1 screen/tab, berisi showcase key apa saja yang
+/// mau disorot berurutan di screen tsb sebelum lanjut ke langkah berikutnya.
+///
+/// - [branchIndex] : index tab bottom-nav yang harus aktif untuk step ini
+///   (lihat `MainShell._items` -- 0 Home, 1 Informasi, 2 Koleksi, 3 Profil).
+///   Null kalau step ini tidak butuh pindah tab (misal masih di dalam tab
+///   yang sama, cuma beda route hasil push).
+/// - [pushRoute] : route tambahan yang perlu di-push SETELAH pindah tab,
+///   dipakai untuk masuk ke Roadmap Era (bukan tab, tapi push di dalam
+///   branch "Informasi"). Null kalau step ini ada di root tab saja.
+class TutorialStep {
+  const TutorialStep({
+    this.branchIndex,
+    this.pushRoute,
+    this.readyKey,
+    required this.keys,
+  });
+
+  final int? branchIndex;
+  final String? pushRoute;
+
+  /// GlobalKey PENANDA SIAP (bukan Showcase) -- dicek via `.currentContext`
+  /// buat mastiin widget target beneran udah ke-render (misal nunggu fetch
+  /// API selesai) SEBELUM manggil startShowCase(). Null kalau screen-nya
+  /// statis/tidak nunggu API (Home, Profil) -- delay singkat aja cukup.
+  final GlobalKey? readyKey;
+  final List<GlobalKey> keys;
+}
+
+/// Kunci SharedPreferences untuk status "sudah pernah lihat tutorial".
+/// Beda namespace dari fitur "Apa itu Wabah" lama -- ini level "pernah
+/// buka aplikasi", bukan per-fitur.
+const _prefsKeyHasSeenTutorial = 'has_seen_onboarding_tutorial';
+
+class TutorialTourController {
+  TutorialTourController._();
+
+  /// Urutan tur -- SEPAKAT: Home (CTA) -> Informasi Sejarah (kartu era)
+  /// -> Roadmap (node tahun + ikon info) -> Koleksi Vaksin (tile pertama)
+  /// -> Profil (menu Bantuan).
+  ///
+  /// CATATAN implementasi Roadmap: dari tab "Informasi" (branchIndex 1),
+  /// kita push ke roadmap era yang SUDAH ADA datanya (year > 0) supaya ada
+  /// konten nyata untuk disorot -- kalau push ke era yang year-nya masih
+  /// kosong, layar cuma nampilin "Belum ada konten di masa ini." dan node
+  /// tahun yang mau disorot tidak akan pernah muncul (GlobalKey tidak
+  /// pernah attach), bikin tur macet diam-diam tanpa error apapun.
+  ///
+  /// PENTING: per data seed saat ini, cuma era 'modern' yang punya tahun
+  /// (total: 2) -- 'kolonial' & 'kemerdekaan' masih total: 0. GANTI slug
+  /// ini balik ke 'kolonial' begitu era itu sudah diisi data tahun oleh
+  /// admin (urutan tur idealnya memang dari era pertama).
+  static final List<TutorialStep> _steps = [
+    TutorialStep(branchIndex: 0, keys: [TutorialKeys.homeCtaButton]),
+    TutorialStep(
+      branchIndex: 1,
+      readyKey: TutorialKeys.eraExploreCardReady,
+      keys: [TutorialKeys.eraExploreCard],
+    ),
+    TutorialStep(
+      branchIndex: 1,
+      pushRoute: '/history/modern',
+      readyKey: TutorialKeys.roadmapReady,
+      keys: [TutorialKeys.roadmapYearNode, TutorialKeys.roadmapInfoIcon],
+    ),
+    TutorialStep(
+      branchIndex: 2,
+      readyKey: TutorialKeys.vaccineListReady,
+      keys: [TutorialKeys.vaccineTileFirst],
+    ),
+    TutorialStep(branchIndex: 3, keys: [TutorialKeys.profileHelpMenuTile]),
+  ];
+
+  static int _currentStepIndex = 0;
+
+  // "Nomor tiket" tur yang sedang aktif. Tiap `start()` menaikkan angka ini
+  // -- kalau ada tur LAMA yang masih jalan (mis. auto-start yang masih
+  // nunggu widget mounted) terus user memicu tur BARU (misal manual dari
+  // Bantuan & Dukungan) SEBELUM yang lama selesai, tur lama harus langsung
+  // membatalkan diri begitu sadar `_runId` sudah berubah -- supaya tidak
+  // ada 2 tur jalan bersamaan berebut `_activeContext`/`_currentStepIndex`
+  // yang sama (race condition ini yang bikin app hang/crash sebelumnya).
+  static int _runId = 0;
+
+  // Context layar yang valid (descendant dari navigationShell -- misal
+  // context dari HomeScreen atau HelpSupportScreen) untuk dipakai SELURUH
+  // rangkaian tur, termasuk dari callback onFinish di MainShell yang TIDAK
+  // bisa dipakai langsung (context MainShell sendiri ada DI LUAR
+  // navigationShell, bukan di dalamnya -- StatefulNavigationShell.of()
+  // akan gagal kalau dipanggil pakai context itu). Karena branch
+  // IndexedStack di StatefulNavigationShell tidak pernah di-dispose
+  // selagi tab lain aktif, context ini tetap valid sepanjang aplikasi
+  // berjalan, tidak perlu di-refresh tiap step.
+  static BuildContext? _activeContext;
+
+  /// Dipanggil dari HomeScreen (BUKAN MainShell -- lihat catatan
+  /// `_activeContext` di atas) setelah frame pertama, cuma jalan kalau
+  /// user belum pernah lihat tutorial sama sekali.
+  static Future<void> maybeAutoStart(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    final hasSeen = prefs.getBool(_prefsKeyHasSeenTutorial) ?? false;
+    if (hasSeen) return;
+    if (!context.mounted) return;
+    start(context);
+  }
+
+  /// Dipanggil manual dari Bantuan & Dukungan ("Lihat Tutorial Aplikasi")
+  /// maupun oleh [maybeAutoStart]. [context] WAJIB context dari dalam salah
+  /// satu layar tab (Home/Informasi/Koleksi/Profil atau layar yang di-push
+  /// di dalamnya) -- context dari MainShell sendiri TIDAK valid.
+  ///
+  /// Memanggil ini SELALU membatalkan tur lain yang mungkin masih berjalan
+  /// (lihat catatan `_runId`).
+  static void start(BuildContext context) {
+    _runId++;
+    final myRunId = _runId;
+    debugPrint('[Tutorial] start() dipanggil (runId=$myRunId) dengan context=$context');
+    _activeContext = context;
+    _currentStepIndex = 0;
+    _goToStep(myRunId, _steps[_currentStepIndex]);
+  }
+
+  static Future<void> _goToStep(int runId, TutorialStep step) async {
+    if (runId != _runId) {
+      debugPrint('[Tutorial] (runId=$runId) BERHENTI: sudah digantikan tur baru (runId=$_runId)');
+      return;
+    }
+
+    final context = _activeContext;
+    debugPrint('[Tutorial] (runId=$runId) _goToStep dipanggil, stepIndex=$_currentStepIndex, '
+        'context=$context, mounted=${context?.mounted}');
+    if (context == null || !context.mounted) {
+      debugPrint('[Tutorial] (runId=$runId) BERHENTI: context null/tidak mounted');
+      return;
+    }
+
+    if (step.branchIndex != null) {
+      final shell = StatefulNavigationShell.of(context);
+      debugPrint('[Tutorial] (runId=$runId) currentIndex=${shell.currentIndex}, target=${step.branchIndex}');
+      // SELALU pakai initialLocation:true -- bukan cuma kalau currentIndex
+      // beda. Ini reset branch tujuan balik ke ROOT screen-nya (misal
+      // ProfileScreen), bukan cuma pindah tab sambil tetap nyangkut di
+      // route yang di-push sebelumnya (misal HelpSupportScreen kalau tur
+      // dimulai dari situ). Tanpa ini, step Profil di akhir tur bisa
+      // nampilin HelpSupportScreen yang masih ketumpuk di atas, bukan
+      // ProfileScreen yang jadi target Showcase.
+      shell.goBranch(step.branchIndex!, initialLocation: true);
+      debugPrint('[Tutorial] (runId=$runId) goBranch(${step.branchIndex}, initialLocation: true) dipanggil');
+    }
+
+    if (step.pushRoute != null) {
+      // Tunggu 1 frame supaya goBranch di atas selesai settle dulu sebelum
+      // push route baru di branch yang baru aktif.
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      if (runId != _runId || !context.mounted) {
+        debugPrint('[Tutorial] (runId=$runId) BERHENTI: dibatalkan/unmount setelah delay push');
+        return;
+      }
+      context.push(step.pushRoute!);
+      debugPrint('[Tutorial] (runId=$runId) push(${step.pushRoute}) dipanggil');
+    }
+
+    // Kalau step ini punya readyKey (layar yang nunggu fetch API dulu),
+    // tunggu SAMPAI BENERAN siap (polling `.currentContext`, reliable
+    // karena readyKey pakai KeyedSubtree biasa, BUKAN Showcase -- lihat
+    // catatan panjang di tutorial_keys.dart & bawah). Kalau tidak ada
+    // readyKey (Home/Profil, statis/tidak nunggu API), langsung lanjut.
+    if (step.readyKey != null) {
+      debugPrint('[Tutorial] (runId=$runId) nunggu readyKey: ${step.readyKey}');
+      final ready = await _waitForKeyMounted(runId, step.readyKey!);
+      debugPrint('[Tutorial] (runId=$runId) hasil nunggu readyKey: $ready');
+      if (runId != _runId || !context.mounted) return;
+      if (!ready) {
+        debugPrint('[Tutorial] (runId=$runId) BERHENTI: timeout nunggu readyKey, tur dianggap selesai');
+        _markSeen();
+        return;
+      }
+    }
+
+    // PENTING (revisi setelah investigasi panjang): SEBELUMNYA di sini kita
+    // polling `key.currentContext != null` LANGSUNG di key Showcase-nya.
+    // Ternyata itu salah asumsi -- terbukti dari test isolasi, GlobalKey
+    // yang dibungkus `Showcase` (package showcaseview v5.1.0) TIDAK PERNAH
+    // expose `.currentContext` lewat mekanisme Key Flutter standar (beda
+    // dari widget biasa seperti KeyedSubtree yang normal nempel). Makanya
+    // sekarang kesiapan dicek lewat `readyKey` terpisah (di atas), baru di
+    // sini kita COBA PANGGIL startShowCase() beberapa kali (jaga-jaga) buat
+    // Showcase key yang sebenarnya.
+    debugPrint('[Tutorial] (runId=$runId) mulai coba startShowCase (retry): ${step.keys}');
+    final success = await _tryStartShowCaseWithRetry(runId, step.keys);
+    if (runId != _runId) {
+      debugPrint('[Tutorial] (runId=$runId) BERHENTI: dibatalkan tur baru selagi retry');
+      return;
+    }
+    if (!context.mounted) {
+      debugPrint('[Tutorial] (runId=$runId) BERHENTI: context unmount setelah retry');
+      return;
+    }
+    if (!success) {
+      // Timeout -- data API kemungkinan gagal/lama sekali, atau target
+      // memang tidak pernah muncul. Daripada macet selamanya, tur
+      // dianggap selesai sampai sini supaya user tidak "terjebak".
+      debugPrint('[Tutorial] (runId=$runId) BERHENTI: timeout retry startShowCase, tur dianggap selesai');
+      _markSeen();
+      return;
+    }
+    debugPrint('[Tutorial] (runId=$runId) startShowCase() sukses untuk step $_currentStepIndex');
+  }
+
+  /// Polling tiap 100ms sampai [key] (KeyedSubtree biasa, BUKAN Showcase)
+  /// punya `.currentContext` (artinya widget target beneran udah selesai
+  /// di-build -- misal setelah fetch API selesai), maksimal ~8 detik
+  /// sebelum dianggap timeout.
+  static Future<bool> _waitForKeyMounted(
+    int runId,
+    GlobalKey key, {
+    int maxAttempts = 80,
+  }) async {
+    var attempts = 0;
+    while (attempts < maxAttempts) {
+      if (runId != _runId) return false;
+      if (key.currentContext != null) return true;
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      attempts++;
+    }
+    return false;
+  }
+
+  /// Coba panggil `ShowcaseView.get().startShowCase(keys)` berulang tiap
+  /// 200ms sampai TIDAK error, maksimal ~8 detik sebelum dianggap timeout.
+  /// Ini lapisan jaga-jaga TAMBAHAN di atas `readyKey` (kalau step-nya
+  /// punya readyKey, widget target seharusnya sudah pasti siap di titik
+  /// ini; retry di sini cuma buffer ekstra buat step tanpa readyKey).
+  static Future<bool> _tryStartShowCaseWithRetry(
+    int runId,
+    List<GlobalKey> keys, {
+    int maxAttempts = 40,
+  }) async {
+    var attempts = 0;
+    while (attempts < maxAttempts) {
+      if (runId != _runId) return false;
+      // PENTING: delay DULU sebelum nyoba, baru attempt -- bukan attempt
+      // dulu baru delay kalau gagal. ShowcaseView.get().startShowCase()
+      // ternyata TIDAK melempar error walau key targetnya belum ke-render
+      // (cuma diam-diam nggak nampilin apa-apa), jadi kalau attempt
+      // pertama dilakukan instan (0ms) tanpa delay, hasilnya selalu
+      // "sukses" palsu padahal widgetnya (apalagi yang nunggu data API
+      // kayak era list/roadmap) belum tentu udah kebentuk.
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+      attempts++;
+      try {
+        ShowcaseView.get().startShowCase(keys);
+        return true;
+      } catch (_) {
+        // Target belum siap -- coba lagi setelah delay berikutnya.
+      }
+    }
+    return false;
+  }
+
+  /// Dipasang sebagai `onFinish` callback di `ShowcaseView.register()`
+  /// (main.dart) -- terpanggil otomatis tiap kali seluruh key dalam 1 step
+  /// selesai ditampilkan (tooltip terakhir ditutup). Pakai `_activeContext`
+  /// yang tersimpan untuk navigasi (goBranch/push) ke step berikutnya.
+  static void onStepFinished() {
+    final runId = _runId;
+    final context = _activeContext;
+    if (context == null || !context.mounted) return;
+
+    // Kalau step yang barusan selesai sempat push route (Roadmap), balik
+    // dulu sebelum lanjut ke step berikutnya supaya tidak menumpuk history.
+    final finishedStep = _steps[_currentStepIndex];
+    if (finishedStep.pushRoute != null && context.canPop()) {
+      context.pop();
+    }
+
+    _currentStepIndex++;
+    if (_currentStepIndex >= _steps.length) {
+      _markSeen();
+      return;
+    }
+    _goToStep(runId, _steps[_currentStepIndex]);
+  }
+
+  static Future<void> _markSeen() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_prefsKeyHasSeenTutorial, true);
+  }
+}

@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:showcaseview/showcaseview.dart';
 
 import '../../../../core/router/auth_state.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/models/home_progress.dart';
+import '../../../onboarding/tutorial_keys.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../home/presentation/providers/home_providers.dart';
 import '../providers/history_providers.dart';
-import '../providers/wabah_intro_providers.dart';
-import '../widgets/wabah_intro_modal.dart';
 
 /// GET /api/public/eras — INFO-01 entry point, guest & user login sama-sama
 /// bisa akses (R-GUEST-01). Progress per era (HOME-01) cuma tampil untuk
@@ -23,25 +23,6 @@ class EraListScreen extends ConsumerStatefulWidget {
 }
 
 class _EraListScreenState extends ConsumerState<EraListScreen> {
-  @override
-  void initState() {
-    super.initState();
-    // Auto-show SEKALI saat tab Informasi Sejarah pertama kali dibuka
-    // (INFO intro brainstorm -- lihat riwayat chat pengembangan).
-    // addPostFrameCallback supaya modal tidak dibuka di tengah proses
-    // build pertama widget ini. `wabahIntroSeenProvider.future` di-await
-    // dulu (bukan `.valueOrNull`) karena status "sudah lihat" dari secure
-    // storage butuh 1 async read -- kalau langsung baca valueOrNull di
-    // frame pertama, hasilnya masih null/loading dan modal salah muncul
-    // terus tiap kali layar ini di-rebuild sebelum storage selesai dibaca.
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final seen = await ref.read(wabahIntroSeenProvider.future);
-      if (!seen && mounted) {
-        showWabahIntroModal(context, ref);
-      }
-    });
-  }
-
   // Ikon dekoratif watermark per era — murni kosmetik, dipetakan dari slug
   // sama seperti EraAccents.ofSlug (Design.md §5.4).
   static IconData _decorIconOfSlug(String slug) {
@@ -97,9 +78,14 @@ class _EraListScreenState extends ConsumerState<EraListScreen> {
               ref.invalidate(erasProvider);
               ref.invalidate(homeSummaryProvider);
             },
-            child: ListView(
+            // Sama seperti home_screen.dart: SingleChildScrollView+Column,
+            // BUKAN ListView, supaya semua children (termasuk Showcase
+            // eraExploreCard) langsung ke-mount tanpa perlu di-scroll dulu.
+            child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
-              children: [
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
                 Text(
                   'Informasi Sejarah',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
@@ -149,17 +135,42 @@ class _EraListScreenState extends ConsumerState<EraListScreen> {
                 ),
                 const SizedBox(height: 12),
                 for (final era in eras) ...[
-                  _EraExploreCard(
-                    name: era.name,
-                    description: era.description ?? '',
-                    accent: EraAccents.ofSlug(era.slug),
-                    decorIcon: _decorIconOfSlug(era.slug),
-                    darkText: _isDarkTextOnSlug(era.slug),
-                    onTap: () => context.go('/history/${era.slug}'),
-                  ),
+                  if (era == eras.first)
+                    // KeyedSubtree luar (eraExploreCardReady) murni buat
+                    // penanda "siap" yang reliable dicek dari
+                    // TutorialTourController -- lihat catatan di
+                    // tutorial_keys.dart. Showcase di dalamnya tetap yang
+                    // beneran dipakai buat highlight tur.
+                    KeyedSubtree(
+                      key: TutorialKeys.eraExploreCardReady,
+                      child: Showcase(
+                        key: TutorialKeys.eraExploreCard,
+                        title: 'Jelajahi Masa',
+                        description:
+                            'Ketuk salah satu masa untuk melihat roadmap tahun-tahun wabahnya.',
+                        child: _EraExploreCard(
+                          name: era.name,
+                          description: era.description ?? '',
+                          accent: EraAccents.ofSlug(era.slug),
+                          decorIcon: _decorIconOfSlug(era.slug),
+                          darkText: _isDarkTextOnSlug(era.slug),
+                          onTap: () => context.go('/history/${era.slug}'),
+                        ),
+                      ),
+                    )
+                  else
+                    _EraExploreCard(
+                      name: era.name,
+                      description: era.description ?? '',
+                      accent: EraAccents.ofSlug(era.slug),
+                      decorIcon: _decorIconOfSlug(era.slug),
+                      darkText: _isDarkTextOnSlug(era.slug),
+                      onTap: () => context.go('/history/${era.slug}'),
+                    ),
                   if (era != eras.last) const SizedBox(height: 16),
                 ],
               ],
+              ),
             ),
           ),
           loading: () => const Center(child: CircularProgressIndicator()),

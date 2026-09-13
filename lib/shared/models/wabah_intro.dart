@@ -12,7 +12,6 @@ part 'wabah_intro.g.dart';
 abstract class WabahIntro with _$WabahIntro {
   const factory WabahIntro({
     @JsonKey(name: 'image_url') String? imageUrl,
-    String? caption,
   }) = _WabahIntro;
 
   factory WabahIntro.fromJson(Map<String, dynamic> json) =>

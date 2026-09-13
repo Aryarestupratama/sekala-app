@@ -5,10 +5,11 @@ import '../../../core/network/api_result.dart';
 /// bisa panggil (Architecture.md §4.4 prinsip guest, diperluas ke konten
 /// onboarding ini).
 ///
-/// PATCH /api/wabah-intro/seen — auth:sanctum saja (bukan verified), hanya
-/// dipanggil untuk user login. Guest TIDAK PERNAH memanggil endpoint ini
-/// (status "sudah lihat" untuk guest murni local flag, lihat
-/// wabah_intro_providers.dart).
+/// CATATAN: dulu ada juga `PATCH /api/wabah-intro/seen` (+ method
+/// `markSeen()` di sini), tapi endpoint itu sudah dihapus dari backend
+/// bersamaan dengan penghapusan seluruh logic "sudah lihat" (INTRO-01
+/// dihapus, auto-show tidak ada lagi). Jangan tambahkan lagi kecuali
+/// fitur auto-show benar-benar dihidupkan kembali.
 class WabahIntroApi {
   WabahIntroApi(this._dio);
   final Dio _dio;
@@ -21,13 +22,6 @@ class WabahIntroApi {
       final response = await _dio.get('/public/wabah-intro');
       final data = response.data as Map<String, dynamic>;
       return data['data'] as Map<String, dynamic>?;
-    });
-  }
-
-  Future<void> markSeen() {
-    return unwrapApiCall(() async {
-      await _dio.patch('/wabah-intro/seen');
-      return null;
     });
   }
 }

@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:showcaseview/showcaseview.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../auth/presentation/widgets/email_verification_banner.dart';
+import '../../../onboarding/tutorial_keys.dart';
 import 'change_password_screen.dart';
+import 'help_support_screen.dart';
 
 // CATATAN: kedua provider di bawah sudah dikonfirmasi ke file asli
 // project (home_providers.dart & card_providers.dart) — bukan tebakan lagi.
@@ -104,9 +107,15 @@ class ProfileScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(title: const Text('Profil')),
-      body: ListView(
+      // Sama seperti home_screen.dart & era_list_screen.dart:
+      // SingleChildScrollView+Column, BUKAN ListView, supaya menu "Bantuan
+      // & Dukungan" (target Showcase step 4 tutorial) langsung ke-mount
+      // tanpa perlu di-scroll dulu.
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
-        children: [
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
           const EmailVerificationBanner(),
           userAsync.when(
             data: (user) {
@@ -249,10 +258,18 @@ class ProfileScreen extends ConsumerWidget {
                   onTap: () => _showComingSoon(context, 'Tentang SEKALA'),
                 ),
                 const Divider(height: 1),
-                _MenuTile(
-                  icon: Icons.help_outline,
-                  label: 'Bantuan & Dukungan',
-                  onTap: () => _showComingSoon(context, 'Bantuan & Dukungan'),
+                Showcase(
+                  key: TutorialKeys.profileHelpMenuTile,
+                  title: 'Butuh Bantuan?',
+                  description:
+                      'Tonton ulang tutorial ini kapan saja, atau baca panduan belajar di sini.',
+                  child: _MenuTile(
+                    icon: Icons.help_outline,
+                    label: 'Bantuan & Dukungan',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const HelpSupportScreen()),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -275,6 +292,7 @@ class ProfileScreen extends ConsumerWidget {
             ),
           ),
         ],
+        ),
       ),
     );
   }

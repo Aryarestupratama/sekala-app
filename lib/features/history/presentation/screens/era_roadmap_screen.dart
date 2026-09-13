@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:showcaseview/showcaseview.dart';
 // NOTE: sesuaikan path import ini kalau lokasi app_colors.dart di project
 // Anda beda (diasumsikan lib/core/theme/app_colors.dart).
 import '../../../../core/theme/app_colors.dart';
@@ -8,8 +9,8 @@ import '../../../../shared/models/era.dart';
 import '../../../../shared/models/era_roadmap.dart';
 import '../../../../shared/models/section_summary.dart';
 import '../../../../shared/models/year.dart';
+import '../../../onboarding/tutorial_keys.dart';
 import '../providers/history_providers.dart';
-import '../providers/wabah_intro_providers.dart';
 import '../widgets/final_boss_node.dart';
 import '../widgets/roadmap_path_painter.dart';
 import '../widgets/wabah_intro_modal.dart';
@@ -202,7 +203,6 @@ class _RoadmapBody extends StatelessWidget {
       slivers: [
         SliverToBoxAdapter(child: _Header(era: era, eraSlug: eraSlug, accent: accent)),
         SliverToBoxAdapter(child: _ProgressCard(era: era, roadmap: roadmap, accent: accent)),
-        const SliverToBoxAdapter(child: _WabahIntroBanner()),
         SliverToBoxAdapter(
           child: years.isEmpty
               ? const Padding(
@@ -242,20 +242,44 @@ class _RoadmapBody extends StatelessWidget {
                               left: points[i].dx - 110,
                               width: 220,
                               child: Center(
-                                child: YearNode(
-                                  year: years[i],
-                                  state: stateOf(years[i]),
-                                  accent: accent,
-                                  nodeX: points[i].dx,
-                                  screenWidth: width,
-                                  onTap: () {
-                                    if (stateOf(years[i]) == YearNodeState.locked) {
-                                      onTapLocked();
-                                    } else {
-                                      onTapUnlocked(years[i]);
-                                    }
-                                  },
-                                ),
+                                child: i == 0
+                                    ? KeyedSubtree(
+                                        key: TutorialKeys.roadmapReady,
+                                        child: Showcase(
+                                          key: TutorialKeys.roadmapYearNode,
+                                          title: 'Node Tahun',
+                                          description:
+                                              'Tiap tahun berisi beberapa bagian bacaan yang harus dibaca berurutan. Ketuk untuk mulai membaca.',
+                                          child: YearNode(
+                                            year: years[i],
+                                            state: stateOf(years[i]),
+                                            accent: accent,
+                                            nodeX: points[i].dx,
+                                            screenWidth: width,
+                                            onTap: () {
+                                              if (stateOf(years[i]) == YearNodeState.locked) {
+                                                onTapLocked();
+                                              } else {
+                                                onTapUnlocked(years[i]);
+                                              }
+                                            },
+                                          ),
+                                        ),
+                                      )
+                                    : YearNode(
+                                        year: years[i],
+                                        state: stateOf(years[i]),
+                                        accent: accent,
+                                        nodeX: points[i].dx,
+                                        screenWidth: width,
+                                        onTap: () {
+                                          if (stateOf(years[i]) == YearNodeState.locked) {
+                                            onTapLocked();
+                                          } else {
+                                            onTapUnlocked(years[i]);
+                                          }
+                                        },
+                                      ),
                               ),
                             ),
                           if (hasFinalBoss)
@@ -341,73 +365,32 @@ class _Header extends StatelessWidget {
                   ],
                 ),
               ),
-              // Buka ulang modal "Apa itu Wabah" kapan saja -- pemanggilan
-              // showWabahIntroModal() aman meski konten belum di-publish
-              // admin (wabahIntroProvider akan return null, ditangani di
-              // dalam _WabahIntroSheetContent), jadi tidak perlu guard di
-              // sini.
+              // Satu-satunya entry point ke modal "Apa itu Wabah" (INTRO-02
+              // -- tidak ada lagi auto-show maupun banner per-era).
+              // Pemanggilan showWabahIntroModal() aman meski konten belum
+              // di-publish admin (wabahIntroProvider akan return null,
+              // ditangani di dalam _WabahIntroSheetContent), jadi tidak
+              // perlu guard di sini.
               GestureDetector(
                 onTap: () => showWabahIntroModal(context, ref),
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  margin: const EdgeInsets.only(left: 8),
-                  decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white),
-                  child: const Icon(Icons.info_outline, size: 20),
+                child: Showcase(
+                  key: TutorialKeys.roadmapInfoIcon,
+                  title: 'Apa itu Wabah?',
+                  description:
+                      'Belum familiar dengan istilah wabah? Ketuk ikon ini kapan saja untuk membaca penjelasannya.',
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    margin: const EdgeInsets.only(left: 8),
+                    decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white),
+                    child: const Icon(Icons.info_outline, size: 20),
+                  ),
                 ),
               ),
             ],
           ),
         );
       },
-    );
-  }
-}
-
-/// Pintu masuk manual ke konten "Apa itu Wabah" -- muncul di TIAP era
-/// (bukan konten baru per era, cuma banner pengingat yang buka modal
-/// global yang sama, lihat WabahIntro.md brainstorm sebelumnya). Berguna
-/// untuk user yang lupa/melewatkan modal otomatis pertama kali di tab
-/// Informasi Sejarah.
-class _WabahIntroBanner extends ConsumerWidget {
-  const _WabahIntroBanner();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final introAsync = ref.watch(wabahIntroProvider);
-
-    // Belum di-publish admin / gagal fetch -> banner disembunyikan total,
-    // tidak ada apa pun untuk ditampilkan (sama prinsip dengan FinalBossNode
-    // yang sembunyi kalau kuis belum ada).
-    final hasContent = introAsync.valueOrNull != null;
-    if (!hasContent) return const SizedBox.shrink();
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-      child: GestureDetector(
-        onTap: () => showWabahIntroModal(context, ref),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: Row(
-            children: const [
-              Icon(Icons.info_outline, size: 18, color: AppColors.textSecondary),
-              SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Apa itu wabah?',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                ),
-              ),
-              Icon(Icons.chevron_right, size: 18, color: AppColors.textSecondary),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

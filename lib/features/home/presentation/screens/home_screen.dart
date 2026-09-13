@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:showcaseview/showcaseview.dart';
 
 import '../../../../core/router/auth_state.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/models/home_progress.dart';
+import '../../../onboarding/tutorial_keys.dart';
+import '../../../onboarding/tutorial_tour_controller.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../auth/presentation/widgets/email_verification_banner.dart';
 import '../../../history/presentation/providers/history_providers.dart';
@@ -17,11 +20,37 @@ import '../widgets/recommendation_card.dart';
 /// - erasProvider (publik, sama untuk guest & user) -> 3 kartu masa (HOME-03)
 /// - homeSummaryProvider (null untuk guest) -> progress per era (HOME-01),
 ///   kartu rekomendasi (HOME-02), & ring progress keseluruhan
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  // Guard supaya pengecekan auto-start tutorial cuma jalan sekali seumur
+  // hidup widget ini (tidak berulang tiap kali Home di-rebuild).
+  //
+  // PENTING: pengecekan ini SENGAJA ditaruh di sini (HomeScreen), BUKAN di
+  // MainShell -- context milik MainShell berada DI LUAR `navigationShell`
+  // (bukan di dalamnya), jadi StatefulNavigationShell.of(context) akan
+  // gagal (assertion `shellState != null`) kalau dipanggil dari sana.
+  // Context HomeScreen ini valid karena berada di dalam salah satu branch
+  // navigationShell.
+  bool _didCheckAutoStartTutorial = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _didCheckAutoStartTutorial) return;
+      _didCheckAutoStartTutorial = true;
+      TutorialTourController.maybeAutoStart(context);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final authState = ref.watch(authNotifierProvider);
     final isGuest = authState.status == AuthStatus.guest;
 
@@ -41,148 +70,168 @@ class HomeScreen extends ConsumerWidget {
             ref.invalidate(erasProvider);
             ref.invalidate(homeSummaryProvider);
           },
-          child: ListView(
+          // PENTING: pakai SingleChildScrollView + Column, BUKAN ListView.
+          // ListView (bahkan dengan `children:` list biasa, bukan .builder)
+          // tetap "malas" -- Flutter cuma mem-build widget yang ada di
+          // dalam viewport (sliver-based), widget yang posisinya di bawah
+          // layar (misal tombol CTA ini, yang paling bawah) tidak benar2
+          // di-mount sampai user scroll ke situ. Ini bikin GlobalKey untuk
+          // Showcase tutorial (TutorialKeys.homeCtaButton) tidak pernah
+          // attach kalau isi Home kepanjangan dari layar tanpa di-scroll.
+          // SingleChildScrollView+Column mem-build SELURUH isi sekaligus
+          // (tidak viewport-culled) -- aman untuk Home yang kontennya
+          // pendek/statis begini (bukan feed panjang tak terbatas).
+          child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-            children: [
-              // Login user yang belum verifikasi email lihat banner ini;
-              // guest & user terverifikasi otomatis nggak lihat apa-apa.
-              if (!isGuest) const EmailVerificationBanner(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Login user yang belum verifikasi email lihat banner ini;
+                // guest & user terverifikasi otomatis nggak lihat apa-apa.
+                if (!isGuest) const EmailVerificationBanner(),
 
-              // === Header sapaan (mockup: "Halo, {nama} 👋" + avatar) ===
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Halo, ${isGuest ? 'Tamu' : userName} 👋',
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Yuk lanjut jelajahi sejarah kesehatan Indonesia',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: AppColors.textSecondary,
-                              ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  // Placeholder avatar — user.dart (UserResource) belum
-                  // punya field foto profil sama sekali. Kalau backend
-                  // nanti menambahkannya, ganti child ini ke
-                  // NetworkImage(user.photoUrl) di dalam CircleAvatar.
-                  CircleAvatar(
-                    radius: 28,
-                    backgroundColor: AppColors.border,
-                    child: const Icon(Icons.person, color: AppColors.textSecondary),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-
-              if (isGuest) GuestInviteCard(onTap: () => context.go('/auth')),
-
-              // === "Lanjutkan Membaca" (HOME-02) — cuma untuk user login
-              // yang sudah pernah baca sesuatu ===
-              if (!isGuest)
-                homeSummaryAsync.maybeWhen(
-                  data: (summary) {
-                    final rec = summary?.recommendation;
-                    if (rec == null) return const SizedBox.shrink();
-
-                    final progressBySlug = <String, EraProgress>{
-                      for (final p in summary?.progressByEra ?? [])
-                        p.era.slug: p,
-                    };
-
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Lanjutkan Membaca',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                        ),
-                        const SizedBox(height: 12),
-                        RecommendationCard(
-                          recommendation: rec,
-                          eraProgress: progressBySlug[rec.era.slug],
-                          onTap: () => context.go('/history/${rec.era.slug}'),
-                        ),
-                      ],
-                    );
-                  },
-                  orElse: () => const SizedBox.shrink(),
-                ),
-
-              // === "Progress Belajarmu" (ring total tahun terbaca) ===
-              if (!isGuest)
-                homeSummaryAsync.maybeWhen(
-                  data: (summary) {
-                    final progressByEra = summary?.progressByEra ?? [];
-                    if (progressByEra.isEmpty) return const SizedBox.shrink();
-
-                    final completed = progressByEra.fold<int>(
-                      0,
-                      (sum, p) => sum + p.completed,
-                    );
-                    final total = progressByEra.fold<int>(
-                      0,
-                      (sum, p) => sum + p.total,
-                    );
-
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 8),
-                        Text(
-                          'Progress Belajarmu',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                        ),
-                        const SizedBox(height: 12),
-                        OverallProgressCard(completed: completed, total: total),
-                        const SizedBox(height: 24),
-                      ],
-                    );
-                  },
-                  orElse: () => const SizedBox.shrink(),
-                ),
-
-              // === CTA "Jelajahi Lebih Lanjut" ===
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.ink,
-                    padding: const EdgeInsets.symmetric(vertical: 18),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(32),
-                    ),
-                  ),
-                  onPressed: () => context.go('/history'),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: const [
-                      Text(
-                        'Jelajahi Lebih Lanjut',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                // === Header sapaan (mockup: "Halo, {nama} 👋" + avatar) ===
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Halo, ${isGuest ? 'Tamu' : userName} 👋',
+                            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Yuk lanjut jelajahi sejarah kesehatan Indonesia',
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: AppColors.textSecondary,
+                                ),
+                          ),
+                        ],
                       ),
-                      SizedBox(width: 8),
-                      Icon(Icons.arrow_forward, size: 18),
-                    ],
+                    ),
+                    const SizedBox(width: 12),
+                    // Placeholder avatar — user.dart (UserResource) belum
+                    // punya field foto profil sama sekali. Kalau backend
+                    // nanti menambahkannya, ganti child ini ke
+                    // NetworkImage(user.photoUrl) di dalam CircleAvatar.
+                    CircleAvatar(
+                      radius: 28,
+                      backgroundColor: AppColors.border,
+                      child: const Icon(Icons.person, color: AppColors.textSecondary),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                if (isGuest) GuestInviteCard(onTap: () => context.go('/auth')),
+
+                // === "Lanjutkan Membaca" (HOME-02) — cuma untuk user login
+                // yang sudah pernah baca sesuatu ===
+                if (!isGuest)
+                  homeSummaryAsync.maybeWhen(
+                    data: (summary) {
+                      final rec = summary?.recommendation;
+                      if (rec == null) return const SizedBox.shrink();
+
+                      final progressBySlug = <String, EraProgress>{
+                        for (final p in summary?.progressByEra ?? [])
+                          p.era.slug: p,
+                      };
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Lanjutkan Membaca',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                          ),
+                          const SizedBox(height: 12),
+                          RecommendationCard(
+                            recommendation: rec,
+                            eraProgress: progressBySlug[rec.era.slug],
+                            onTap: () => context.go('/history/${rec.era.slug}'),
+                          ),
+                        ],
+                      );
+                    },
+                    orElse: () => const SizedBox.shrink(),
+                  ),
+
+                // === "Progress Belajarmu" (ring total tahun terbaca) ===
+                if (!isGuest)
+                  homeSummaryAsync.maybeWhen(
+                    data: (summary) {
+                      final progressByEra = summary?.progressByEra ?? [];
+                      if (progressByEra.isEmpty) return const SizedBox.shrink();
+
+                      final completed = progressByEra.fold<int>(
+                        0,
+                        (sum, p) => sum + p.completed,
+                      );
+                      final total = progressByEra.fold<int>(
+                        0,
+                        (sum, p) => sum + p.total,
+                      );
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 8),
+                          Text(
+                            'Progress Belajarmu',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                          ),
+                          const SizedBox(height: 12),
+                          OverallProgressCard(completed: completed, total: total),
+                          const SizedBox(height: 24),
+                        ],
+                      );
+                    },
+                    orElse: () => const SizedBox.shrink(),
+                  ),
+
+                // === CTA "Jelajahi Lebih Lanjut" ===
+                Showcase(
+                  key: TutorialKeys.homeCtaButton,
+                  title: 'Mulai Jelajahi',
+                  description:
+                      'Tekan tombol ini untuk mulai membaca sejarah kesehatan Indonesia dari masa ke masa.',
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.ink,
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(32),
+                        ),
+                      ),
+                      onPressed: () => context.go('/history'),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          Text(
+                            'Jelajahi Lebih Lanjut',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                          SizedBox(width: 8),
+                          Icon(Icons.arrow_forward, size: 18),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

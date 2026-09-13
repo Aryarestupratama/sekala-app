@@ -7,9 +7,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:showcaseview/showcaseview.dart';
 import '../../../../shared/provider/active_tab_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/models/vaccine_card.dart';
+import '../../../onboarding/tutorial_keys.dart';
 import '../providers/card_providers.dart';
 import '../widgets/vaccine_tile.dart';
 
@@ -292,7 +294,7 @@ class _VaccineListScreenState extends ConsumerState<VaccineListScreen> {
                       delegate: SliverChildBuilderDelegate(
                         (context, index) {
                           final vaccine = filtered[index];
-                          return VaccineTile(
+                          final tile = VaccineTile(
                             vaccine: vaccine,
                             // CARD-02: detail hanya untuk yang sudah unlock —
                             // yang masih siluet dikasih hint doang, bukan
@@ -307,6 +309,27 @@ class _VaccineListScreenState extends ConsumerState<VaccineListScreen> {
                                       ),
                                     ),
                           );
+
+                          // Tile PERTAMA di grid jadi target tur onboarding
+                          // (step "Koleksi Vaksin") -- KeyedSubtree luar
+                          // dipakai sebagai penanda "siap" yang reliable
+                          // dicek TutorialTourController (lihat catatan
+                          // panjang di tutorial_keys.dart soal kenapa key
+                          // di dalam Showcase tidak reliable untuk dicek
+                          // langsung dari luar).
+                          if (index == 0) {
+                            return KeyedSubtree(
+                              key: TutorialKeys.vaccineListReady,
+                              child: Showcase(
+                                key: TutorialKeys.vaccineTileFirst,
+                                title: 'Koleksi Vaksin',
+                                description:
+                                    'Vaksin di sini otomatis terbuka begitu kamu menyelesaikan wabah terkait. Yang masih siluet berarti belum terbuka.',
+                                child: tile,
+                              ),
+                            );
+                          }
+                          return tile;
                         },
                         childCount: filtered.length,
                       ),

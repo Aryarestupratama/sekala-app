@@ -5,21 +5,10 @@ import '../../../../shared/models/wabah_intro.dart';
 import '../providers/wabah_intro_providers.dart';
 
 /// Tampilkan modal ini (bottom sheet) untuk konten "Apa itu Wabah".
-/// Dipanggil dari 2 tempat:
-/// 1. Otomatis sekali saat pertama kali tab Informasi Sejarah dibuka
-///    (lihat catatan di era_list_screen.dart -- belum diwiring di sesi
-///    ini, lihat TODO terpisah).
-/// 2. Manual kapan saja lewat ikon info di header roadmap / banner era
-///    (sudah diwiring di era_roadmap_screen.dart).
-///
-/// `markAsSeen` HANYA dipanggil di sini (bukan di pemanggil) supaya
-/// perilakunya konsisten di mana pun modal ini dibuka dari.
+/// Satu-satunya entry point (INTRO-02): ikon info di header roadmap era
+/// (era_roadmap_screen.dart). Tidak ada lagi auto-show maupun banner
+/// per-era, dan tidak ada lagi konsep "sudah lihat" untuk fitur ini.
 Future<void> showWabahIntroModal(BuildContext context, WidgetRef ref) {
-  // markAsSeen aman dipanggil berkali-kali (WabahIntroSeenNotifier sudah
-  // guard `if (state) return`), jadi dibuka manual lewat ikon info pun
-  // tidak masalah walau sebelumnya sudah pernah "seen".
-  ref.read(wabahIntroSeenProvider.notifier).markAsSeen();
-
   return showModalBottomSheet(
     context: context,
     isScrollControlled: true,
@@ -92,19 +81,15 @@ class _Content extends StatelessWidget {
         if (intro?.imageUrl != null)
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
-            child: Image.network(
-              intro!.imageUrl!,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+            child: AspectRatio(
+              aspectRatio: 5 / 4,
+              child: Image.network(
+                intro!.imageUrl!,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+              ),
             ),
           ),
-        if (intro?.caption != null && intro!.caption!.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          Text(
-            intro!.caption!,
-            style: const TextStyle(fontSize: 14, color: AppColors.textSecondary, height: 1.5),
-          ),
-        ],
         const SizedBox(height: 20),
         SizedBox(
           width: double.infinity,
