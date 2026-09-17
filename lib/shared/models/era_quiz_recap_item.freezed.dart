@@ -18,6 +18,7 @@ mixin _$EraQuizRecapItem {
   @JsonKey(name: 'question_id')
   int get questionId;
   String get question;
+  EraQuizRecapYear? get year;
   List<EraQuizRecapOption> get options;
   @JsonKey(name: 'selected_option_id')
   int? get selectedOptionId;
@@ -47,6 +48,7 @@ mixin _$EraQuizRecapItem {
                 other.questionId == questionId) &&
             (identical(other.question, question) ||
                 other.question == question) &&
+            (identical(other.year, year) || other.year == year) &&
             const DeepCollectionEquality().equals(other.options, options) &&
             (identical(other.selectedOptionId, selectedOptionId) ||
                 other.selectedOptionId == selectedOptionId) &&
@@ -64,6 +66,7 @@ mixin _$EraQuizRecapItem {
       runtimeType,
       questionId,
       question,
+      year,
       const DeepCollectionEquality().hash(options),
       selectedOptionId,
       correctOptionId,
@@ -72,7 +75,7 @@ mixin _$EraQuizRecapItem {
 
   @override
   String toString() {
-    return 'EraQuizRecapItem(questionId: $questionId, question: $question, options: $options, selectedOptionId: $selectedOptionId, correctOptionId: $correctOptionId, isCorrect: $isCorrect, explanation: $explanation)';
+    return 'EraQuizRecapItem(questionId: $questionId, question: $question, year: $year, options: $options, selectedOptionId: $selectedOptionId, correctOptionId: $correctOptionId, isCorrect: $isCorrect, explanation: $explanation)';
   }
 }
 
@@ -85,11 +88,14 @@ abstract mixin class $EraQuizRecapItemCopyWith<$Res> {
   $Res call(
       {@JsonKey(name: 'question_id') int questionId,
       String question,
+      EraQuizRecapYear? year,
       List<EraQuizRecapOption> options,
       @JsonKey(name: 'selected_option_id') int? selectedOptionId,
       @JsonKey(name: 'correct_option_id') int? correctOptionId,
       @JsonKey(name: 'is_correct') bool isCorrect,
       String explanation});
+
+  $EraQuizRecapYearCopyWith<$Res>? get year;
 }
 
 /// @nodoc
@@ -107,6 +113,7 @@ class _$EraQuizRecapItemCopyWithImpl<$Res>
   $Res call({
     Object? questionId = null,
     Object? question = null,
+    Object? year = freezed,
     Object? options = null,
     Object? selectedOptionId = freezed,
     Object? correctOptionId = freezed,
@@ -122,6 +129,10 @@ class _$EraQuizRecapItemCopyWithImpl<$Res>
           ? _self.question
           : question // ignore: cast_nullable_to_non_nullable
               as String,
+      year: freezed == year
+          ? _self.year
+          : year // ignore: cast_nullable_to_non_nullable
+              as EraQuizRecapYear?,
       options: null == options
           ? _self.options
           : options // ignore: cast_nullable_to_non_nullable
@@ -143,6 +154,20 @@ class _$EraQuizRecapItemCopyWithImpl<$Res>
           : explanation // ignore: cast_nullable_to_non_nullable
               as String,
     ));
+  }
+
+  /// Create a copy of EraQuizRecapItem
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $EraQuizRecapYearCopyWith<$Res>? get year {
+    if (_self.year == null) {
+      return null;
+    }
+
+    return $EraQuizRecapYearCopyWith<$Res>(_self.year!, (value) {
+      return _then(_self.copyWith(year: value));
+    });
   }
 }
 
@@ -242,6 +267,7 @@ extension EraQuizRecapItemPatterns on EraQuizRecapItem {
     TResult Function(
             @JsonKey(name: 'question_id') int questionId,
             String question,
+            EraQuizRecapYear? year,
             List<EraQuizRecapOption> options,
             @JsonKey(name: 'selected_option_id') int? selectedOptionId,
             @JsonKey(name: 'correct_option_id') int? correctOptionId,
@@ -256,6 +282,7 @@ extension EraQuizRecapItemPatterns on EraQuizRecapItem {
         return $default(
             _that.questionId,
             _that.question,
+            _that.year,
             _that.options,
             _that.selectedOptionId,
             _that.correctOptionId,
@@ -284,6 +311,7 @@ extension EraQuizRecapItemPatterns on EraQuizRecapItem {
     TResult Function(
             @JsonKey(name: 'question_id') int questionId,
             String question,
+            EraQuizRecapYear? year,
             List<EraQuizRecapOption> options,
             @JsonKey(name: 'selected_option_id') int? selectedOptionId,
             @JsonKey(name: 'correct_option_id') int? correctOptionId,
@@ -297,6 +325,7 @@ extension EraQuizRecapItemPatterns on EraQuizRecapItem {
         return $default(
             _that.questionId,
             _that.question,
+            _that.year,
             _that.options,
             _that.selectedOptionId,
             _that.correctOptionId,
@@ -324,6 +353,7 @@ extension EraQuizRecapItemPatterns on EraQuizRecapItem {
     TResult? Function(
             @JsonKey(name: 'question_id') int questionId,
             String question,
+            EraQuizRecapYear? year,
             List<EraQuizRecapOption> options,
             @JsonKey(name: 'selected_option_id') int? selectedOptionId,
             @JsonKey(name: 'correct_option_id') int? correctOptionId,
@@ -337,6 +367,7 @@ extension EraQuizRecapItemPatterns on EraQuizRecapItem {
         return $default(
             _that.questionId,
             _that.question,
+            _that.year,
             _that.options,
             _that.selectedOptionId,
             _that.correctOptionId,
@@ -354,6 +385,7 @@ class _EraQuizRecapItem implements EraQuizRecapItem {
   const _EraQuizRecapItem(
       {@JsonKey(name: 'question_id') required this.questionId,
       required this.question,
+      this.year,
       List<EraQuizRecapOption> options = const <EraQuizRecapOption>[],
       @JsonKey(name: 'selected_option_id') this.selectedOptionId,
       @JsonKey(name: 'correct_option_id') this.correctOptionId,
@@ -368,6 +400,8 @@ class _EraQuizRecapItem implements EraQuizRecapItem {
   final int questionId;
   @override
   final String question;
+  @override
+  final EraQuizRecapYear? year;
   final List<EraQuizRecapOption> _options;
   @override
   @JsonKey()
@@ -413,6 +447,7 @@ class _EraQuizRecapItem implements EraQuizRecapItem {
                 other.questionId == questionId) &&
             (identical(other.question, question) ||
                 other.question == question) &&
+            (identical(other.year, year) || other.year == year) &&
             const DeepCollectionEquality().equals(other._options, _options) &&
             (identical(other.selectedOptionId, selectedOptionId) ||
                 other.selectedOptionId == selectedOptionId) &&
@@ -430,6 +465,7 @@ class _EraQuizRecapItem implements EraQuizRecapItem {
       runtimeType,
       questionId,
       question,
+      year,
       const DeepCollectionEquality().hash(_options),
       selectedOptionId,
       correctOptionId,
@@ -438,7 +474,7 @@ class _EraQuizRecapItem implements EraQuizRecapItem {
 
   @override
   String toString() {
-    return 'EraQuizRecapItem(questionId: $questionId, question: $question, options: $options, selectedOptionId: $selectedOptionId, correctOptionId: $correctOptionId, isCorrect: $isCorrect, explanation: $explanation)';
+    return 'EraQuizRecapItem(questionId: $questionId, question: $question, year: $year, options: $options, selectedOptionId: $selectedOptionId, correctOptionId: $correctOptionId, isCorrect: $isCorrect, explanation: $explanation)';
   }
 }
 
@@ -453,11 +489,15 @@ abstract mixin class _$EraQuizRecapItemCopyWith<$Res>
   $Res call(
       {@JsonKey(name: 'question_id') int questionId,
       String question,
+      EraQuizRecapYear? year,
       List<EraQuizRecapOption> options,
       @JsonKey(name: 'selected_option_id') int? selectedOptionId,
       @JsonKey(name: 'correct_option_id') int? correctOptionId,
       @JsonKey(name: 'is_correct') bool isCorrect,
       String explanation});
+
+  @override
+  $EraQuizRecapYearCopyWith<$Res>? get year;
 }
 
 /// @nodoc
@@ -475,6 +515,7 @@ class __$EraQuizRecapItemCopyWithImpl<$Res>
   $Res call({
     Object? questionId = null,
     Object? question = null,
+    Object? year = freezed,
     Object? options = null,
     Object? selectedOptionId = freezed,
     Object? correctOptionId = freezed,
@@ -490,6 +531,10 @@ class __$EraQuizRecapItemCopyWithImpl<$Res>
           ? _self.question
           : question // ignore: cast_nullable_to_non_nullable
               as String,
+      year: freezed == year
+          ? _self.year
+          : year // ignore: cast_nullable_to_non_nullable
+              as EraQuizRecapYear?,
       options: null == options
           ? _self._options
           : options // ignore: cast_nullable_to_non_nullable
@@ -511,6 +556,20 @@ class __$EraQuizRecapItemCopyWithImpl<$Res>
           : explanation // ignore: cast_nullable_to_non_nullable
               as String,
     ));
+  }
+
+  /// Create a copy of EraQuizRecapItem
+  /// with the given fields replaced by the non-null parameter values.
+  @override
+  @pragma('vm:prefer-inline')
+  $EraQuizRecapYearCopyWith<$Res>? get year {
+    if (_self.year == null) {
+      return null;
+    }
+
+    return $EraQuizRecapYearCopyWith<$Res>(_self.year!, (value) {
+      return _then(_self.copyWith(year: value));
+    });
   }
 }
 

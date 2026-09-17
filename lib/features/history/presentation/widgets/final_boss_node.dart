@@ -23,14 +23,22 @@ import '../../../era_quiz/presentation/providers/era_quiz_providers.dart';
 /// `eraQuizAttemptStatusProvider` (lewat `fetchResult()`) 404 untuk DUA
 /// kondisi yang tak terbedakan dari backend: "belum pernah attempt" ATAU
 /// "era ini memang tidak punya kuis sumatif ter-publish". Widget ini
-/// menutup gap itu dengan mengecek `eraQuizProvider` (endpoint `show()`)
-/// LEBIH DULU — kalau itu sendiri 404 (quiz tidak ada/belum publish),
-/// node ini disembunyikan total (`SizedBox.shrink()`), BUKAN dianggap
-/// "belum attempted". Konsekuensinya: butuh sampai 2 request tambahan
-/// (`show()` lalu `result()`) tiap kali node ini perlu dirender untuk
-/// era yang unlocked — pertimbangkan cache/optimasi lebih lanjut kalau
-/// roadmap terasa lambat, TAPI jangan hilangkan pengecekan `show()`-nya
-/// karena itu satu-satunya cara yang benar dari source yang ada saat ini.
+/// menutup gap itu dengan mengecek `eraQuizExistsProvider` (endpoint
+/// `show()`, BUKAN lagi `eraQuizProvider` — provider itu sudah dihapus
+/// total karena sekarang khusus dipakai `EraQuizSessionController` untuk
+/// sesi mengerjakan kuis, bukan untuk cek keberadaan) LEBIH DULU — kalau
+/// itu sendiri 404 (quiz tidak ada/belum publish), node ini disembunyikan
+/// total (`SizedBox.shrink()`), BUKAN dianggap "belum attempted".
+/// Error lain (bukan 404) dari kedua provider TIDAK menyembunyikan node
+/// — ditampilkan sebagai versi unattempted apa adanya, supaya gangguan
+/// jaringan sesaat tidak membuat node final-boss hilang total dari
+/// roadmap tanpa penjelasan.
+///
+/// Konsekuensinya: butuh sampai 2 request tambahan (`show()` lalu
+/// `result()`) tiap kali node ini perlu dirender untuk era yang
+/// unlocked — pertimbangkan cache/optimasi lebih lanjut kalau roadmap
+/// terasa lambat, TAPI jangan hilangkan pengecekan `show()`-nya karena
+/// itu satu-satunya cara yang benar dari source yang ada saat ini.
 class FinalBossNode extends ConsumerWidget {
   const FinalBossNode({
     super.key,
@@ -59,11 +67,18 @@ class FinalBossNode extends ConsumerWidget {
       return _LockedFinalBoss(onTap: onTapLocked, nodeX: nodeX, screenWidth: screenWidth);
     }
 
-    final quizAsync = ref.watch(eraQuizProvider(eraId));
+    final quizExistsAsync = ref.watch(eraQuizExistsProvider(eraId));
 
-    return quizAsync.when(
+    return quizExistsAsync.when(
       // Quiz ada & published -> lanjut cek status attempted.
-      data: (_) {
+      data: (exists) {
+        if (!exists) {
+          // era ini memang belum punya kuis sumatif ter-publish —
+          // sembunyikan node sepenuhnya (lihat catatan panjang di atas
+          // kelas ini).
+          return const SizedBox.shrink();
+        }
+
         final attemptedAsync = ref.watch(eraQuizAttemptStatusProvider(eraId));
         return attemptedAsync.when(
           data: (attempted) => attempted
@@ -91,10 +106,14 @@ class FinalBossNode extends ConsumerWidget {
         );
       },
       loading: () => const _LoadingFinalBoss(),
-      // 404 (atau error lain) dari show() -> anggap era ini memang belum
-      // punya kuis sumatif ter-publish, sembunyikan node sepenuhnya
-      // (lihat catatan panjang di atas kelas ini).
-      error: (_, __) => const SizedBox.shrink(),
+      // Error selain 404 dari fetchQuiz() (401/500 dsb, sudah ditangani
+      // rethrow di eraQuizExistsProvider) -> tampilkan unattempted apa
+      // adanya, sama alasan seperti error handling attemptedAsync di atas.
+      error: (_, __) => _UnattemptedFinalBoss(
+        onTap: onTapUnattempted,
+        nodeX: nodeX,
+        screenWidth: screenWidth,
+      ),
     );
   }
 }

@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/network/dio_client.dart';
-import '../../../../shared/models/era_quiz.dart';
+import '../../../../shared/models/era_quiz_start.dart';
 import '../../../../shared/models/era_quiz_recap_response.dart';
 import '../../../../shared/models/era_quiz_result_response.dart';
 import '../../data/era_quiz_api.dart';
@@ -16,27 +16,64 @@ final eraQuizRepositoryProvider = Provider<EraQuizRepository>((ref) {
   return EraQuizRepositoryImpl(ref.watch(eraQuizApiProvider));
 });
 
-/// GET soal kuis sumatif era (ERAQUIZ-01/02). `.family` karena butuh
-/// parameter eraId. Kalau backend menolak (belum semua year completed,
-/// R-ERAQUIZ-02, 403) atau quiz belum di-publish (404), ditangani di
-/// screen (AsyncError biasa) — provider ini murni fetch mentah, sama
-/// pola dengan `quizProvider`.
-final eraQuizProvider =
-    FutureProvider.family.autoDispose<EraQuiz, int>((ref, eraId) {
-  return ref.watch(eraQuizRepositoryProvider).fetchQuiz(eraId);
-});
+/// ⚠️ REVISI PENTING — `eraQuizProvider` (versi lama, plain
+/// `FutureProvider.family.autoDispose<EraQuiz, int>`) DIHAPUS TOTAL dan
+/// diganti `EraQuizSessionController` di bawah. Alasan:
+///
+/// Backend sekarang RANDOM ULANG 20 soal (dari bank formatif, dibagi
+/// proporsional per year) SETIAP `GET .../quiz` dipanggil — bukan lagi
+/// subset tetap dari 1 pool statis. Kalau dipakai lewat plain
+/// `FutureProvider.family.autoDispose`, Riverpod bisa diam-diam
+/// re-fetch & memberi SET SOAL BARU tiap kali provider di-watch ulang
+/// setelah sempat di-dispose (mis. user pindah tab lalu balik lagi di
+/// tengah mengerjakan) — user akan kehilangan konsistensi soal
+/// pertengahan attempt tanpa sadar.
+///
+/// `EraQuizSessionController` memaksa fetch HANYA terjadi 1x per sesi,
+/// eksplisit lewat `start()`, dan hasilnya disimpan di state sampai user
+/// submit atau `clear()` dipanggil (mis. keluar dari screen kuis) — TIDAK
+/// ADA auto-refetch diam-diam.
+class EraQuizSessionController extends StateNotifier<AsyncValue<EraQuizStart?>> {
+  EraQuizSessionController(this._ref) : super(const AsyncData(null));
+  final Ref _ref;
+
+  /// Panggil SEKALI saat user menekan "Mulai Kuis"/"Kerjakan Ulang" di
+  /// layar info (sebelum masuk soal pertama). JANGAN dipanggil ulang di
+  /// tengah sesi mengerjakan (lihat alasan di docblock class ini) — kalau
+  /// screen di-rebuild, baca `state` yang sudah ada, jangan panggil
+  /// `start()` lagi.
+  Future<void> start(int eraId) async {
+    state = const AsyncLoading();
+    try {
+      final data = await _ref.read(eraQuizRepositoryProvider).fetchQuiz(eraId);
+      state = AsyncData(data);
+    } catch (e, st) {
+      state = AsyncError(e, st);
+    }
+  }
+
+  /// Panggil setelah submit berhasil, atau saat user keluar dari alur
+  /// kuis tanpa submit — supaya sesi berikutnya (retake) wajib panggil
+  /// `start()` lagi dan dapat set soal baru yang sengaja di-random ulang.
+  void clear() {
+    state = const AsyncData(null);
+  }
+}
+
+final eraQuizSessionControllerProvider = StateNotifierProvider.autoDispose<
+    EraQuizSessionController, AsyncValue<EraQuizStart?>>(
+  (ref) => EraQuizSessionController(ref),
+);
 
 /// GET hasil skor TANPA submit baru (ERAQUIZ-05) — dipakai saat user tap
 /// ikon "sudah dikerjakan" dari roadmap untuk langsung buka halaman
 /// Hasil dari attempt tersimpan sebelumnya. `result.message` SELALU null
 /// di jalur ini (server memang tidak mengirimnya di endpoint result()) —
-/// UI perlu fallback kalimat sendiri kalau mau tetap menyapa user (lihat
-/// catatan di era_quiz_result_response.dart). Melempar 404
+/// UI perlu fallback kalimat sendiri kalau mau tetap menyapa user.
+/// `result.passingGrade` (BARU) + `result.result.isPassing` (BARU) dipakai
+/// bareng untuk render label "Lulus"/"Belum Lulus". Melempar 404
 /// (`ApiException.statusCode == 404`) kalau belum pernah ada attempt sama
-/// sekali — screen pemanggil provider ini WAJIB sudah tahu status
-/// "attempted" = true sebelumnya (dari `eraQuizAttemptStatusProvider` di
-/// bawah) supaya 404 di sini seharusnya tidak pernah terjadi di alur
-/// normal.
+/// sekali.
 final eraQuizResultProvider = FutureProvider.family
     .autoDispose<EraQuizResultResponse, int>((ref, eraId) {
   return ref.watch(eraQuizRepositoryProvider).fetchResult(eraId);
@@ -45,36 +82,53 @@ final eraQuizResultProvider = FutureProvider.family
 /// GET rekap semua soal (ERAQUIZ-04) — dipanggil dari halaman Hasil
 /// lewat tombol "Lihat Rekapan". Sama seperti result, selalu
 /// merefleksikan attempt TERKINI, dan melempar 404 dengan alasan sama.
+/// Tiap item rekap sekarang BISA membawa `year` (opsional, info tahun
+/// asal soal — konsekuensi soal ditarik dari bank formatif per year).
 final eraQuizRecapProvider = FutureProvider.family
     .autoDispose<EraQuizRecapResponse, int>((ref, eraId) {
   return ref.watch(eraQuizRepositoryProvider).fetchRecap(eraId);
 });
 
-/// BARU — deteksi status "sudah dikerjakan" (ikon final-boss di roadmap:
-/// centang vs merah mencolok, ERAQUIZ-01/05). Controller TIDAK punya
-/// endpoint status eksplisit (lihat catatan panjang di era_quiz.dart) —
-/// cara yang sesuai source saat ini adalah memanggil `GET .../quiz/result`
-/// dan menafsirkan 404 (`NotFoundHttpException` dari
-/// `latestAttemptOrFail()`) sebagai "belum pernah dikerjakan".
+/// BARU — MENGGANTIKAN pemakaian `eraQuizProvider` lama untuk keperluan
+/// CEK KEBERADAAN kuis sumatif (mis. `FinalBossNode` di roadmap, yang
+/// perlu tahu apakah node final-boss ini harus disembunyikan total kalau
+/// era-nya memang belum punya kuis sumatif ter-publish, 404).
 ///
-/// `DioClient._onError` (lihat dio_client.dart) sudah menormalisasi semua
-/// error jadi `ApiException` custom lewat `DioException.error` — jadi `e`
-/// yang ditangkap `catch` di sini seharusnya sudah berupa `ApiException`
-/// langsung (BUKAN `DioException` yang membungkusnya), TAPI ini belum
-/// sempat ditest end-to-end untuk endpoint era quiz khususnya. Kalau
-/// ternyata error yang sampai ke sini masih `DioException`, ganti jadi
-/// `e.error as ApiException?`.
+/// SENGAJA TERPISAH dari `EraQuizSessionController` — controller itu
+/// khusus untuk SESI user benar-benar mengerjakan kuis (state-nya
+/// disimpan & dipakai selama attempt berjalan). Provider ini murni
+/// read-only "ya/tidak ada", hasil fetch-nya DIBUANG begitu dapat
+/// jawaban, tidak disimpan untuk dipakai mengerjakan soal — supaya tidak
+/// mencampur 2 concern yang beda siklus hidup.
 ///
-/// CATATAN DESAIN (perlu didiskusikan ke tim, bukan keputusan teknis
-/// semata): kalau roadmap menampilkan node final-boss, provider ini
-/// berarti 1 request tambahan per era yang sudah unlocked, murni untuk
-/// tahu status ikon. Alternatifnya minta backend menambah field
-/// `era_quiz_attempted` di response roadmap publik
-/// (`GET /public/eras/{era}/years`) supaya tidak perlu request terpisah
-/// — tapi itu perubahan backend, bukan sesuatu yang bisa diperbaiki dari
-/// Flutter saja. Untuk sekarang, panggil provider ini HANYA saat node
-/// final-boss sudah lolos gate unlocked di sisi client (semua year
-/// completed), bukan untuk semua era tanpa syarat.
+/// Konsekuensi yang perlu disadari: karena `fetchQuiz()` (GET .../quiz)
+/// sekarang SELALU random 20 soal tiap dipanggil (lihat catatan di
+/// era_quiz_start.dart), provider ini tetap memicu random tsb — tapi
+/// hasilnya langsung dibuang, jadi TIDAK berdampak ke sesi manapun,
+/// cuma buang-buang kerja komputasi kecil di backend tiap roadmap
+/// dirender untuk era yang unlocked. Kalau ini jadi masalah performa,
+/// solusi jangka panjang adalah backend menambah field status terpisah
+/// di response roadmap publik (dicatat juga di catatan
+/// `eraQuizAttemptStatusProvider` di bawah) — bukan sesuatu yang bisa
+/// dioptimalkan lebih jauh dari Flutter saja tanpa perubahan backend.
+final eraQuizExistsProvider =
+    FutureProvider.family.autoDispose<bool, int>((ref, eraId) async {
+  try {
+    await ref.watch(eraQuizRepositoryProvider).fetchQuiz(eraId);
+    return true;
+  } on ApiException catch (e) {
+    if (e.statusCode == 404) {
+      return false;
+    }
+    rethrow;
+  }
+});
+
+/// Deteksi status "sudah dikerjakan" (ikon final-boss di roadmap: centang
+/// vs merah mencolok, ERAQUIZ-01/05). TIDAK BERUBAH dari versi
+/// sebelumnya — masih pakai 404 dari `fetchResult()` sebagai sinyal
+/// "belum pernah dikerjakan", cuma dipindah supaya konsisten dengan
+/// `eraQuizResultProvider` yang tipenya sudah pakai model baru.
 final eraQuizAttemptStatusProvider =
     FutureProvider.family.autoDispose<bool, int>((ref, eraId) async {
   try {
@@ -89,21 +143,13 @@ final eraQuizAttemptStatusProvider =
 });
 
 /// State submit kuis sumatif era (ERAQUIZ-02/03/04, boleh retake
-/// ERAQUIZ-05/R-ERAQUIZ-08). Dipisah dari `eraQuizProvider` (read) supaya
-/// UI bisa menampilkan loading state khusus pas submit tanpa memicu
-/// refetch soal dari awal — sama pola dengan `QuizSubmitController`.
+/// ERAQUIZ-05/R-ERAQUIZ-08). Dipisah dari `EraQuizSessionController`
+/// (read/soal) supaya UI bisa menampilkan loading state khusus pas submit
+/// tanpa memicu refetch soal.
 ///
-/// BEDA dari `QuizSubmitController` (kuis year): TIDAK ADA invalidate
-/// untuk status year completed/lock tahun berikutnya — kuis sumatif era
-/// TIDAK mempengaruhi R-PROG-07/08 (year completion) maupun sequential
-/// unlock apapun (Architecture.md §4.9 hanya MEMBACA year completion
-/// yang sudah tercapai sebagai syarat gate, satu arah, tidak menulis
-/// balik). Yang di-invalidate di sini murni provider era-quiz sendiri
-/// supaya status "attempted"/skor/rekap konsisten setelah submit atau
-/// retake — kalau suatu saat backend menambah field status attempted di
-/// response roadmap publik (lihat catatan `eraQuizAttemptStatusProvider`
-/// di atas), invalidate provider roadmap terkait perlu ditambahkan di
-/// sini juga.
+/// TIDAK ADA invalidate untuk status year completed/lock tahun
+/// berikutnya — kuis sumatif TIDAK mempengaruhi R-PROG-07/08 sama sekali
+/// (cuma MEMBACA year completion sebagai syarat gate, satu arah).
 class EraQuizSubmitController
     extends StateNotifier<AsyncValue<EraQuizResultResponse?>> {
   EraQuizSubmitController(this._ref) : super(const AsyncData(null));
@@ -122,6 +168,11 @@ class EraQuizSubmitController
       _ref.invalidate(eraQuizResultProvider(eraId));
       _ref.invalidate(eraQuizRecapProvider(eraId));
       _ref.invalidate(eraQuizAttemptStatusProvider(eraId));
+
+      // BARU: bersihkan sesi soal setelah submit berhasil — kalau user
+      // retake nanti, wajib panggil start() lagi dan dapat set soal baru
+      // yang sengaja di-random ulang (bukan reuse soal attempt sebelumnya).
+      _ref.read(eraQuizSessionControllerProvider.notifier).clear();
 
       state = AsyncData(response);
       return response;

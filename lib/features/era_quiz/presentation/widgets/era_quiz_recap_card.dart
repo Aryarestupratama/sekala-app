@@ -49,6 +49,21 @@ class EraQuizRecapCard extends StatelessWidget {
                   style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
                 ),
               ),
+              // BARU (opsional) — label tahun asal soal ini, konsekuensi
+              // dari soal sumatif yang sekarang ditarik dari bank
+              // formatif per year. Null-safe: kalau backend belum/tidak
+              // mengirim `year` (mis. versi API lama), badge ini disembunyikan.
+              if (item.year != null) ...[
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(6)),
+                  child: Text(
+                    'TAHUN ${item.year!.year}',
+                    style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
+                  ),
+                ),
+              ],
               const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),

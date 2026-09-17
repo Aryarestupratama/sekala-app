@@ -26,6 +26,12 @@ mixin _$QuizAnswerCheckResult {
   String get explanation;
   @JsonKey(name: 'quiz_completed')
   bool get quizCompleted;
+  @JsonKey(name: 'final_score')
+  double? get finalScore;
+  @JsonKey(name: 'is_passing')
+  bool? get isPassing;
+  @JsonKey(name: 'passing_grade')
+  int get passingGrade;
   @JsonKey(name: 'newly_unlocked_vaccine_ids')
   List<int> get newlyUnlockedVaccineIds;
 
@@ -57,6 +63,12 @@ mixin _$QuizAnswerCheckResult {
                 other.explanation == explanation) &&
             (identical(other.quizCompleted, quizCompleted) ||
                 other.quizCompleted == quizCompleted) &&
+            (identical(other.finalScore, finalScore) ||
+                other.finalScore == finalScore) &&
+            (identical(other.isPassing, isPassing) ||
+                other.isPassing == isPassing) &&
+            (identical(other.passingGrade, passingGrade) ||
+                other.passingGrade == passingGrade) &&
             const DeepCollectionEquality().equals(
                 other.newlyUnlockedVaccineIds, newlyUnlockedVaccineIds));
   }
@@ -71,11 +83,14 @@ mixin _$QuizAnswerCheckResult {
       isCorrect,
       explanation,
       quizCompleted,
+      finalScore,
+      isPassing,
+      passingGrade,
       const DeepCollectionEquality().hash(newlyUnlockedVaccineIds));
 
   @override
   String toString() {
-    return 'QuizAnswerCheckResult(questionId: $questionId, selectedOptionId: $selectedOptionId, correctOptionId: $correctOptionId, isCorrect: $isCorrect, explanation: $explanation, quizCompleted: $quizCompleted, newlyUnlockedVaccineIds: $newlyUnlockedVaccineIds)';
+    return 'QuizAnswerCheckResult(questionId: $questionId, selectedOptionId: $selectedOptionId, correctOptionId: $correctOptionId, isCorrect: $isCorrect, explanation: $explanation, quizCompleted: $quizCompleted, finalScore: $finalScore, isPassing: $isPassing, passingGrade: $passingGrade, newlyUnlockedVaccineIds: $newlyUnlockedVaccineIds)';
   }
 }
 
@@ -92,6 +107,9 @@ abstract mixin class $QuizAnswerCheckResultCopyWith<$Res> {
       @JsonKey(name: 'is_correct') bool isCorrect,
       String explanation,
       @JsonKey(name: 'quiz_completed') bool quizCompleted,
+      @JsonKey(name: 'final_score') double? finalScore,
+      @JsonKey(name: 'is_passing') bool? isPassing,
+      @JsonKey(name: 'passing_grade') int passingGrade,
       @JsonKey(name: 'newly_unlocked_vaccine_ids')
       List<int> newlyUnlockedVaccineIds});
 }
@@ -115,6 +133,9 @@ class _$QuizAnswerCheckResultCopyWithImpl<$Res>
     Object? isCorrect = null,
     Object? explanation = null,
     Object? quizCompleted = null,
+    Object? finalScore = freezed,
+    Object? isPassing = freezed,
+    Object? passingGrade = null,
     Object? newlyUnlockedVaccineIds = null,
   }) {
     return _then(QuizAnswerCheckResult(
@@ -142,6 +163,18 @@ class _$QuizAnswerCheckResultCopyWithImpl<$Res>
           ? _self.quizCompleted
           : quizCompleted // ignore: cast_nullable_to_non_nullable
               as bool,
+      finalScore: freezed == finalScore
+          ? _self.finalScore
+          : finalScore // ignore: cast_nullable_to_non_nullable
+              as double?,
+      isPassing: freezed == isPassing
+          ? _self.isPassing
+          : isPassing // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      passingGrade: null == passingGrade
+          ? _self.passingGrade
+          : passingGrade // ignore: cast_nullable_to_non_nullable
+              as int,
       newlyUnlockedVaccineIds: null == newlyUnlockedVaccineIds
           ? _self.newlyUnlockedVaccineIds
           : newlyUnlockedVaccineIds // ignore: cast_nullable_to_non_nullable
@@ -250,6 +283,9 @@ extension QuizAnswerCheckResultPatterns on QuizAnswerCheckResult {
             @JsonKey(name: 'is_correct') bool isCorrect,
             String explanation,
             @JsonKey(name: 'quiz_completed') bool quizCompleted,
+            @JsonKey(name: 'final_score') double? finalScore,
+            @JsonKey(name: 'is_passing') bool? isPassing,
+            @JsonKey(name: 'passing_grade') int passingGrade,
             @JsonKey(name: 'newly_unlocked_vaccine_ids')
             List<int> newlyUnlockedVaccineIds)?
         $default, {
@@ -265,6 +301,9 @@ extension QuizAnswerCheckResultPatterns on QuizAnswerCheckResult {
             _that.isCorrect,
             _that.explanation,
             _that.quizCompleted,
+            _that.finalScore,
+            _that.isPassing,
+            _that.passingGrade,
             _that.newlyUnlockedVaccineIds);
       case _:
         return orElse();
@@ -293,6 +332,9 @@ extension QuizAnswerCheckResultPatterns on QuizAnswerCheckResult {
             @JsonKey(name: 'is_correct') bool isCorrect,
             String explanation,
             @JsonKey(name: 'quiz_completed') bool quizCompleted,
+            @JsonKey(name: 'final_score') double? finalScore,
+            @JsonKey(name: 'is_passing') bool? isPassing,
+            @JsonKey(name: 'passing_grade') int passingGrade,
             @JsonKey(name: 'newly_unlocked_vaccine_ids')
             List<int> newlyUnlockedVaccineIds)
         $default,
@@ -307,6 +349,9 @@ extension QuizAnswerCheckResultPatterns on QuizAnswerCheckResult {
             _that.isCorrect,
             _that.explanation,
             _that.quizCompleted,
+            _that.finalScore,
+            _that.isPassing,
+            _that.passingGrade,
             _that.newlyUnlockedVaccineIds);
       case _:
         throw StateError('Unexpected subclass');
@@ -334,6 +379,9 @@ extension QuizAnswerCheckResultPatterns on QuizAnswerCheckResult {
             @JsonKey(name: 'is_correct') bool isCorrect,
             String explanation,
             @JsonKey(name: 'quiz_completed') bool quizCompleted,
+            @JsonKey(name: 'final_score') double? finalScore,
+            @JsonKey(name: 'is_passing') bool? isPassing,
+            @JsonKey(name: 'passing_grade') int passingGrade,
             @JsonKey(name: 'newly_unlocked_vaccine_ids')
             List<int> newlyUnlockedVaccineIds)?
         $default,
@@ -348,6 +396,9 @@ extension QuizAnswerCheckResultPatterns on QuizAnswerCheckResult {
             _that.isCorrect,
             _that.explanation,
             _that.quizCompleted,
+            _that.finalScore,
+            _that.isPassing,
+            _that.passingGrade,
             _that.newlyUnlockedVaccineIds);
       case _:
         return null;
@@ -365,6 +416,9 @@ class _QuizAnswerCheckResult implements QuizAnswerCheckResult {
       @JsonKey(name: 'is_correct') required this.isCorrect,
       required this.explanation,
       @JsonKey(name: 'quiz_completed') this.quizCompleted = false,
+      @JsonKey(name: 'final_score') this.finalScore,
+      @JsonKey(name: 'is_passing') this.isPassing,
+      @JsonKey(name: 'passing_grade') required this.passingGrade,
       @JsonKey(name: 'newly_unlocked_vaccine_ids')
       List<int> newlyUnlockedVaccineIds = const <int>[]})
       : _newlyUnlockedVaccineIds = newlyUnlockedVaccineIds;
@@ -388,6 +442,15 @@ class _QuizAnswerCheckResult implements QuizAnswerCheckResult {
   @override
   @JsonKey(name: 'quiz_completed')
   final bool quizCompleted;
+  @override
+  @JsonKey(name: 'final_score')
+  final double? finalScore;
+  @override
+  @JsonKey(name: 'is_passing')
+  final bool? isPassing;
+  @override
+  @JsonKey(name: 'passing_grade')
+  final int passingGrade;
   final List<int> _newlyUnlockedVaccineIds;
   @override
   @JsonKey(name: 'newly_unlocked_vaccine_ids')
@@ -431,6 +494,12 @@ class _QuizAnswerCheckResult implements QuizAnswerCheckResult {
                 other.explanation == explanation) &&
             (identical(other.quizCompleted, quizCompleted) ||
                 other.quizCompleted == quizCompleted) &&
+            (identical(other.finalScore, finalScore) ||
+                other.finalScore == finalScore) &&
+            (identical(other.isPassing, isPassing) ||
+                other.isPassing == isPassing) &&
+            (identical(other.passingGrade, passingGrade) ||
+                other.passingGrade == passingGrade) &&
             const DeepCollectionEquality().equals(
                 other._newlyUnlockedVaccineIds, _newlyUnlockedVaccineIds));
   }
@@ -445,11 +514,14 @@ class _QuizAnswerCheckResult implements QuizAnswerCheckResult {
       isCorrect,
       explanation,
       quizCompleted,
+      finalScore,
+      isPassing,
+      passingGrade,
       const DeepCollectionEquality().hash(_newlyUnlockedVaccineIds));
 
   @override
   String toString() {
-    return 'QuizAnswerCheckResult(questionId: $questionId, selectedOptionId: $selectedOptionId, correctOptionId: $correctOptionId, isCorrect: $isCorrect, explanation: $explanation, quizCompleted: $quizCompleted, newlyUnlockedVaccineIds: $newlyUnlockedVaccineIds)';
+    return 'QuizAnswerCheckResult(questionId: $questionId, selectedOptionId: $selectedOptionId, correctOptionId: $correctOptionId, isCorrect: $isCorrect, explanation: $explanation, quizCompleted: $quizCompleted, finalScore: $finalScore, isPassing: $isPassing, passingGrade: $passingGrade, newlyUnlockedVaccineIds: $newlyUnlockedVaccineIds)';
   }
 }
 
@@ -468,6 +540,9 @@ abstract mixin class _$QuizAnswerCheckResultCopyWith<$Res>
       @JsonKey(name: 'is_correct') bool isCorrect,
       String explanation,
       @JsonKey(name: 'quiz_completed') bool quizCompleted,
+      @JsonKey(name: 'final_score') double? finalScore,
+      @JsonKey(name: 'is_passing') bool? isPassing,
+      @JsonKey(name: 'passing_grade') int passingGrade,
       @JsonKey(name: 'newly_unlocked_vaccine_ids')
       List<int> newlyUnlockedVaccineIds});
 }
@@ -491,6 +566,9 @@ class __$QuizAnswerCheckResultCopyWithImpl<$Res>
     Object? isCorrect = null,
     Object? explanation = null,
     Object? quizCompleted = null,
+    Object? finalScore = freezed,
+    Object? isPassing = freezed,
+    Object? passingGrade = null,
     Object? newlyUnlockedVaccineIds = null,
   }) {
     return _then(_QuizAnswerCheckResult(
@@ -518,6 +596,18 @@ class __$QuizAnswerCheckResultCopyWithImpl<$Res>
           ? _self.quizCompleted
           : quizCompleted // ignore: cast_nullable_to_non_nullable
               as bool,
+      finalScore: freezed == finalScore
+          ? _self.finalScore
+          : finalScore // ignore: cast_nullable_to_non_nullable
+              as double?,
+      isPassing: freezed == isPassing
+          ? _self.isPassing
+          : isPassing // ignore: cast_nullable_to_non_nullable
+              as bool?,
+      passingGrade: null == passingGrade
+          ? _self.passingGrade
+          : passingGrade // ignore: cast_nullable_to_non_nullable
+              as int,
       newlyUnlockedVaccineIds: null == newlyUnlockedVaccineIds
           ? _self._newlyUnlockedVaccineIds
           : newlyUnlockedVaccineIds // ignore: cast_nullable_to_non_nullable

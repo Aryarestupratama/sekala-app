@@ -1,6 +1,6 @@
-import '../../../shared/models/quiz.dart';
+import '../../../shared/models/quiz_show_response.dart';
 import '../../../shared/models/quiz_answer_check_result.dart';
-import '../../../shared/models/quiz_submit_response.dart';
+import '../../../shared/models/quiz_retry_response.dart';
 import '../domain/quiz_repository.dart';
 import 'quiz_api.dart';
 
@@ -18,18 +18,9 @@ class QuizRepositoryImpl implements QuizRepository {
   }
 
   @override
-  Future<Quiz> fetchQuiz(int yearId) async {
+  Future<QuizShowResponse> fetchQuiz(int yearId) async {
     final raw = await _api.getQuiz(yearId);
-    return Quiz.fromJson(_asObject(raw));
-  }
-
-  @override
-  Future<QuizSubmitResponse> submitAttempt(
-    int yearId,
-    Map<int, int?> answersByQuestionId,
-  ) async {
-    final raw = await _api.submitAttempt(yearId, answersByQuestionId);
-    return QuizSubmitResponse.fromJson(_asObject(raw));
+    return QuizShowResponse.fromJson(_asObject(raw));
   }
 
   @override
@@ -40,5 +31,11 @@ class QuizRepositoryImpl implements QuizRepository {
   ) async {
     final raw = await _api.answerQuestion(yearId, questionId, optionId);
     return QuizAnswerCheckResult.fromJson(_asObject(raw));
+  }
+
+  @override
+  Future<QuizRetryResponse> retryQuiz(int yearId) async {
+    final raw = await _api.retryQuiz(yearId);
+    return QuizRetryResponse.fromJson(_asObject(raw));
   }
 }

@@ -18,6 +18,8 @@ mixin _$EraQuizResultResponse {
   String? get message;
   @JsonKey(name: 'completed_at')
   String get completedAt;
+  @JsonKey(name: 'passing_grade')
+  int get passingGrade;
   EraQuizScore get result;
 
   /// Create a copy of EraQuizResultResponse
@@ -39,16 +41,19 @@ mixin _$EraQuizResultResponse {
             (identical(other.message, message) || other.message == message) &&
             (identical(other.completedAt, completedAt) ||
                 other.completedAt == completedAt) &&
+            (identical(other.passingGrade, passingGrade) ||
+                other.passingGrade == passingGrade) &&
             (identical(other.result, result) || other.result == result));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, message, completedAt, result);
+  int get hashCode =>
+      Object.hash(runtimeType, message, completedAt, passingGrade, result);
 
   @override
   String toString() {
-    return 'EraQuizResultResponse(message: $message, completedAt: $completedAt, result: $result)';
+    return 'EraQuizResultResponse(message: $message, completedAt: $completedAt, passingGrade: $passingGrade, result: $result)';
   }
 }
 
@@ -61,6 +66,7 @@ abstract mixin class $EraQuizResultResponseCopyWith<$Res> {
   $Res call(
       {String? message,
       @JsonKey(name: 'completed_at') String completedAt,
+      @JsonKey(name: 'passing_grade') int passingGrade,
       EraQuizScore result});
 
   $EraQuizScoreCopyWith<$Res> get result;
@@ -81,6 +87,7 @@ class _$EraQuizResultResponseCopyWithImpl<$Res>
   $Res call({
     Object? message = freezed,
     Object? completedAt = null,
+    Object? passingGrade = null,
     Object? result = null,
   }) {
     return _then(EraQuizResultResponse(
@@ -92,6 +99,10 @@ class _$EraQuizResultResponseCopyWithImpl<$Res>
           ? _self.completedAt
           : completedAt // ignore: cast_nullable_to_non_nullable
               as String,
+      passingGrade: null == passingGrade
+          ? _self.passingGrade
+          : passingGrade // ignore: cast_nullable_to_non_nullable
+              as int,
       result: null == result
           ? _self.result
           : result // ignore: cast_nullable_to_non_nullable
@@ -206,6 +217,7 @@ extension EraQuizResultResponsePatterns on EraQuizResultResponse {
     TResult Function(
             String? message,
             @JsonKey(name: 'completed_at') String completedAt,
+            @JsonKey(name: 'passing_grade') int passingGrade,
             EraQuizScore result)?
         $default, {
     required TResult orElse(),
@@ -213,7 +225,8 @@ extension EraQuizResultResponsePatterns on EraQuizResultResponse {
     final _that = this;
     switch (_that) {
       case _EraQuizResultResponse() when $default != null:
-        return $default(_that.message, _that.completedAt, _that.result);
+        return $default(
+            _that.message, _that.completedAt, _that.passingGrade, _that.result);
       case _:
         return orElse();
     }
@@ -237,13 +250,15 @@ extension EraQuizResultResponsePatterns on EraQuizResultResponse {
     TResult Function(
             String? message,
             @JsonKey(name: 'completed_at') String completedAt,
+            @JsonKey(name: 'passing_grade') int passingGrade,
             EraQuizScore result)
         $default,
   ) {
     final _that = this;
     switch (_that) {
       case _EraQuizResultResponse():
-        return $default(_that.message, _that.completedAt, _that.result);
+        return $default(
+            _that.message, _that.completedAt, _that.passingGrade, _that.result);
       case _:
         throw StateError('Unexpected subclass');
     }
@@ -266,13 +281,15 @@ extension EraQuizResultResponsePatterns on EraQuizResultResponse {
     TResult? Function(
             String? message,
             @JsonKey(name: 'completed_at') String completedAt,
+            @JsonKey(name: 'passing_grade') int passingGrade,
             EraQuizScore result)?
         $default,
   ) {
     final _that = this;
     switch (_that) {
       case _EraQuizResultResponse() when $default != null:
-        return $default(_that.message, _that.completedAt, _that.result);
+        return $default(
+            _that.message, _that.completedAt, _that.passingGrade, _that.result);
       case _:
         return null;
     }
@@ -285,6 +302,7 @@ class _EraQuizResultResponse implements EraQuizResultResponse {
   const _EraQuizResultResponse(
       {this.message,
       @JsonKey(name: 'completed_at') required this.completedAt,
+      @JsonKey(name: 'passing_grade') required this.passingGrade,
       required this.result});
   factory _EraQuizResultResponse.fromJson(Map<String, dynamic> json) =>
       _$EraQuizResultResponseFromJson(json);
@@ -294,6 +312,9 @@ class _EraQuizResultResponse implements EraQuizResultResponse {
   @override
   @JsonKey(name: 'completed_at')
   final String completedAt;
+  @override
+  @JsonKey(name: 'passing_grade')
+  final int passingGrade;
   @override
   final EraQuizScore result;
 
@@ -321,16 +342,19 @@ class _EraQuizResultResponse implements EraQuizResultResponse {
             (identical(other.message, message) || other.message == message) &&
             (identical(other.completedAt, completedAt) ||
                 other.completedAt == completedAt) &&
+            (identical(other.passingGrade, passingGrade) ||
+                other.passingGrade == passingGrade) &&
             (identical(other.result, result) || other.result == result));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, message, completedAt, result);
+  int get hashCode =>
+      Object.hash(runtimeType, message, completedAt, passingGrade, result);
 
   @override
   String toString() {
-    return 'EraQuizResultResponse(message: $message, completedAt: $completedAt, result: $result)';
+    return 'EraQuizResultResponse(message: $message, completedAt: $completedAt, passingGrade: $passingGrade, result: $result)';
   }
 }
 
@@ -345,6 +369,7 @@ abstract mixin class _$EraQuizResultResponseCopyWith<$Res>
   $Res call(
       {String? message,
       @JsonKey(name: 'completed_at') String completedAt,
+      @JsonKey(name: 'passing_grade') int passingGrade,
       EraQuizScore result});
 
   @override
@@ -366,6 +391,7 @@ class __$EraQuizResultResponseCopyWithImpl<$Res>
   $Res call({
     Object? message = freezed,
     Object? completedAt = null,
+    Object? passingGrade = null,
     Object? result = null,
   }) {
     return _then(_EraQuizResultResponse(
@@ -377,6 +403,10 @@ class __$EraQuizResultResponseCopyWithImpl<$Res>
           ? _self.completedAt
           : completedAt // ignore: cast_nullable_to_non_nullable
               as String,
+      passingGrade: null == passingGrade
+          ? _self.passingGrade
+          : passingGrade // ignore: cast_nullable_to_non_nullable
+              as int,
       result: null == result
           ? _self.result
           : result // ignore: cast_nullable_to_non_nullable

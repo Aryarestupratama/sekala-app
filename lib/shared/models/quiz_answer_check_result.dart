@@ -3,12 +3,8 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 part 'quiz_answer_check_result.freezed.dart';
 part 'quiz_answer_check_result.g.dart';
 
-/// DIKONFIRMASI ke `UserQuizController::answerQuestion()` (endpoint BARU
-/// `POST /api/years/{year}/quiz/questions/{question}/answer`) — dipakai
-/// untuk skema kuis "instan per soal" (BEDA dari `QuizAnswerFeedback` lama
-/// yang dipakai alur submit-sekaligus-di-akhir + replay).
-///
-/// Shape response:
+/// DIKONFIRMASI ke `UserQuizController::answerQuestion()` — shape BARU
+/// (kuis formatif kini berskor + passing grade 75%):
 /// ```json
 /// {
 ///   "question_id": 12,
@@ -17,31 +13,26 @@ part 'quiz_answer_check_result.g.dart';
 ///   "is_correct": false,
 ///   "explanation": "...",
 ///   "quiz_completed": false,
+///   "final_score": null,
+///   "is_passing": null,
+///   "passing_grade": 75,
 ///   "newly_unlocked_vaccine_ids": []
 /// }
 /// ```
 ///
-/// BEDA PENTING dari `QuizAnswerFeedback`: endpoint ini SENGAJA mengirim
-/// `correct_option_id` — karena PRD.md QUIZ-03 / Rules.md R-QUIZ-04 memang
-/// mensyaratkan opsi yang benar ikut di-highlight ke user saat jawaban
-/// salah. Ini aman (tidak lagi "bocor jawaban sebelum menjawab") karena
-/// endpoint ini baru dipanggil SETELAH user benar-benar memilih opsi untuk
-/// soal itu — bukan dikirim di awal lewat GET quiz (lihat
-/// quiz_question_option.dart, yang tetap tidak membawa `is_correct`).
+/// Feedback instan per-soal (question_id/selected_option_id/
+/// correct_option_id/is_correct/explanation) TIDAK berubah dari versi
+/// sebelumnya — tetap tampil segera setelah user menjawab.
 ///
-/// `correctOptionId` tetap nullable sebagai jaring pengaman kalau suatu
-/// saat ada soal published tanpa opsi `is_correct` (seharusnya tidak
-/// mungkin lolos R-QUIZ-07, tapi backend defensifnya pakai `?->id`).
+/// BARU: `finalScore`/`isPassing` HANYA terisi kalau `quizCompleted ==
+/// true` (soal ini adalah soal TERAKHIR yang belum terjawab) — di soal
+/// sebelum itu, keduanya selalu null. `passingGrade` (75) SELALU terisi
+/// (bukan cuma saat completed) supaya Flutter bisa tampilkan referensi
+/// tanpa perlu simpan ulang dari `QuizShowResponse` sebelumnya.
 ///
-/// `quizCompleted` — true kalau jawaban ini adalah jawaban soal TERAKHIR
-/// yang belum terjawab di kuis ini (attempt baru saja ditandai selesai di
-/// backend, R-PROG-07/08 langsung dicek ulang saat itu juga). Flutter
-/// pakai flag ini untuk mengganti label tombol "Lanjut" -> "Selesai" dan
-/// memicu alur `_finish()` (banner unlock vaksin dsb).
-///
-/// `newlyUnlockedVaccineIds` cuma terisi kalau `quizCompleted == true`
-/// (soal-soal sebelumnya selalu array kosong, karena unlock vaksin baru
-/// dicek saat quiz benar-benar selesai).
+/// Kalau `quizCompleted == true && isPassing == false`: year BELUM
+/// completed (vaksin TIDAK unlock — `newlyUnlockedVaccineIds` kosong),
+/// dan user perlu memanggil `POST .../quiz/retry` untuk mencoba lagi.
 @freezed
 abstract class QuizAnswerCheckResult with _$QuizAnswerCheckResult {
   const factory QuizAnswerCheckResult({
@@ -51,6 +42,9 @@ abstract class QuizAnswerCheckResult with _$QuizAnswerCheckResult {
     @JsonKey(name: 'is_correct') required bool isCorrect,
     required String explanation,
     @JsonKey(name: 'quiz_completed') @Default(false) bool quizCompleted,
+    @JsonKey(name: 'final_score') double? finalScore,
+    @JsonKey(name: 'is_passing') bool? isPassing,
+    @JsonKey(name: 'passing_grade') required int passingGrade,
     @JsonKey(name: 'newly_unlocked_vaccine_ids')
     @Default(<int>[])
     List<int> newlyUnlockedVaccineIds,

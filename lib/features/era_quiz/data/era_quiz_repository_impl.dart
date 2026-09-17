@@ -1,4 +1,4 @@
-import '../../../shared/models/era_quiz.dart';
+import '../../../shared/models/era_quiz_start.dart';
 import '../../../shared/models/era_quiz_recap_response.dart';
 import '../../../shared/models/era_quiz_result_response.dart';
 import '../domain/era_quiz_repository.dart';
@@ -21,9 +21,9 @@ class EraQuizRepositoryImpl implements EraQuizRepository {
   }
 
   @override
-  Future<EraQuiz> fetchQuiz(int eraId) async {
+  Future<EraQuizStart> fetchQuiz(int eraId) async {
     final raw = await _api.getQuiz(eraId);
-    return EraQuiz.fromJson(_asObject(raw));
+    return EraQuizStart.fromJson(_asObject(raw));
   }
 
   @override

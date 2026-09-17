@@ -29,6 +29,12 @@ class EraQuizApi {
   EraQuizApi(this._dio);
   final Dio _dio;
 
+  /// REVISI BESAR: response sekarang shape `EraQuizStart`
+  /// ({ era_quiz_id, passing_grade, question_count, questions }) — BUKAN
+  /// lagi objek EraQuiz lama (id/era_id/is_published). Soal ditarik
+  /// otomatis dari bank FORMATIF tiap year dalam era ini, di-random ULANG
+  /// setiap endpoint ini dipanggil — lihat catatan penting di
+  /// era_quiz_start.dart soal kapan boleh/tidak boleh panggil ulang.
   Future<dynamic> getQuiz(int eraId) {
     return unwrapApiCall(() async {
       final response = await _dio.get('/eras/$eraId/quiz');
@@ -37,14 +43,14 @@ class EraQuizApi {
   }
 
   /// Submit SEKALIGUS (bukan progresif per-soal seperti kuis year,
-  /// Architecture.md §4.9) — body wajib berisi jawaban SEMUA soal.
-  /// DIKONFIRMASI ke `StoreEraQuizAttemptRequest.php`: format body
-  /// persis pola `QuizApi.submitAttempt()` — object map
-  /// `{ "<question_id>": <option_id> }`. Backend memvalidasi setiap soal
-  /// WAJIB terjawab (`answers.*` required, beda dari kuis year yang
-  /// boleh partial) — TIDAK ADA entry yang boleh diskip di map ini,
-  /// pastikan UI sudah menjamin semua soal terjawab sebelum method ini
-  /// dipanggil (tombol Submit baru aktif di soal terakhir, ERAQUIZ-02).
+  /// Architecture.md §4.9) — body wajib berisi jawaban SEMUA soal yang
+  /// DITAMPILKAN (tepat EraQuiz::ATTEMPT_QUESTION_COUNT, 20 — bukan lagi
+  /// "semua soal di pool", karena pool sekarang ditarik dari bank
+  /// formatif dan didistribusikan per year, bukan bank sumatif sendiri).
+  /// `<question_id>` di body ini adalah id `quiz_questions` (formatif),
+  /// BUKAN id `era_quiz_questions` (tabel itu sudah dihapus total) — tapi
+  /// dari sisi Flutter tidak ada bedanya, tinggal pakai `id` dari
+  /// `EraQuizQuestion` yang didapat dari response `getQuiz()` apa adanya.
   Future<dynamic> submitAttempt(
     int eraId,
     Map<int, int> answersByQuestionId,

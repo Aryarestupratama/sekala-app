@@ -4,12 +4,14 @@ import 'era_quiz_question_option.dart';
 part 'era_quiz_question.freezed.dart';
 part 'era_quiz_question.g.dart';
 
-/// Mengacu Schema.md §2.15 `era_quiz_questions`.
-///
-/// TIDAK ADA batas jumlah maksimal (beda dari `QuizQuestion` kuis year
-/// yang dibatasi 5 soal di aplikasi, R-QUIZ-07) — R-ERAQUIZ-06. Jangan
-/// tambahkan validasi client-side apapun soal jumlah maksimal soal untuk
-/// model/screen kuis sumatif era.
+/// Mengacu shape JSON yang dikirim `UserEraQuizController::show()` — TIDAK
+/// LAGI mengacu tabel `era_quiz_questions` (tabel itu sudah DIHAPUS TOTAL
+/// dari database). Soal sekarang berasal dari `quiz_questions` (bank
+/// FORMATIF milik tiap year dalam era ini), ditarik & didistribusikan
+/// proporsional sampai total EraQuiz::ATTEMPT_QUESTION_COUNT (20) — BUKAN
+/// lagi "tanpa batas maksimal" seperti versi sebelumnya (R-ERAQUIZ-06
+/// LAMA sudah tidak berlaku). Shape field (id/order/question/options)
+/// TIDAK berubah, jadi model ini tetap valid dipakai apa adanya.
 ///
 /// `explanationCorrect`/`explanationIncorrect` TIDAK ikut di model ini
 /// (murni internal backend untuk membentuk `explanation` di recap,

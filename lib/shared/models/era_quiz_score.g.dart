@@ -8,14 +8,18 @@ part of 'era_quiz_score.dart';
 
 _EraQuizScore _$EraQuizScoreFromJson(Map<String, dynamic> json) =>
     _EraQuizScore(
-      correct: (json['correct'] as num).toInt(),
       total: (json['total'] as num).toInt(),
-      percentage: (json['percentage'] as num).toDouble(),
+      correct: (json['correct'] as num).toInt(),
+      incorrect: (json['incorrect'] as num).toInt(),
+      percentage: (json['percentage'] as num).toInt(),
+      isPassing: json['is_passing'] as bool,
     );
 
 Map<String, dynamic> _$EraQuizScoreToJson(_EraQuizScore instance) =>
     <String, dynamic>{
-      'correct': instance.correct,
       'total': instance.total,
+      'correct': instance.correct,
+      'incorrect': instance.incorrect,
       'percentage': instance.percentage,
+      'is_passing': instance.isPassing,
     };

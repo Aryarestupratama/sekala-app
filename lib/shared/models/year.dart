@@ -1,6 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'section_summary.dart';
 import 'vaccine_card.dart';
+import 'year_summary_status.dart';
 
 part 'year.freezed.dart';
 part 'year.g.dart';
@@ -10,23 +11,28 @@ part 'year.g.dart';
 /// Year Unlock (Rules.md §4.2, R-YEAR-02–05), bukan cuma lock per section
 /// seperti versi sebelumnya.
 ///
-/// PERUBAHAN (revisi Rangkuman Wabah jadi Infografis + Quote + Referensi,
-/// baru):
-/// - `summary` (String? teks) DIHAPUS TOTAL — rangkuman wabah sekarang
-///   berupa infografis (gambar), bukan teks. Diganti `summaryImageUrl`.
-/// - `summaryImageUrl` (BARU) — sudah di-resolve backend ke direct-view
-///   URL (`years.summary_image`, accessor
-///   `Year::getResolvedSummaryImageUrlAttribute()`), null kalau admin
-///   belum mengisi. Wajib terisi sebelum quiz year ini bisa di-publish
-///   (R-QUIZ-05), tapi TIDAK wajib sebelum section-section-nya publish.
-/// - `quoteText` (BARU) — 1 teks kutipan per wabah, null kalau belum
-///   diisi admin. Tampil di halaman yang sama dengan rangkuman.
-/// - `references` (BARU) — list teks referensi (mis. daftar pustaka),
-///   selalu berupa List (default `[]`, BUKAN null) supaya UI aman iterasi
-///   tanpa null-check.
-/// - Urutan tampil di halaman Rangkuman Wabah (Design.md §3.3.4):
-///   `summaryImageUrl` -> `quoteText` -> `references` -> tombol "Kerjakan
-///   Kuis".
+/// PERUBAHAN (revisi Rangkuman Interaktif, terbaru — menggantikan revisi
+/// "Rangkuman jadi Infografis" sebelumnya):
+/// - `summaryImageUrl` (String?, infografis statis) DIHAPUS TOTAL —
+///   Rangkuman wabah sekarang widget interaktif 7 poin correct-statement
+///   (PRD.md §4.3bis SUM-01–06), bukan lagi 1 gambar.
+/// - `yearSummary` (BARU) — objek RINGKAS `{id, isPublished}`, cuma
+///   nunjukin status tersedia/publish (catatan: model `Year` ini TIDAK
+///   punya field `quiz` — status publish kuis diambil terpisah lewat
+///   `quizProvider`, bukan dari sini). Isi 7 poinnya diambil terpisah
+///   lewat `year_summary_providers.dart` (`GET /years/{year}/summary`) —
+///   opsinya perlu diacak ulang tiap attempt dimulai, tidak cocok
+///   di-embed statis di sini.
+/// - `yearSummaryCompleted` (BARU) — status rangkuman SUDAH diselesaikan
+///   user yang sedang login (SUM-05/06), dipakai buat: (1) tentukan
+///   tombol "Kerjakan Kuis" boleh aktif atau belum, (2) tentukan
+///   YearSummaryScreen langsung mulai widget 7 poin kosong atau
+///   tampilkan pilihan "Lihat Rangkuman"/"Kerjakan Ulang" duluan. Selalu
+///   false untuk guest.
+/// - `quoteText` & `references` TIDAK berubah dari revisi sebelumnya.
+/// - Urutan tampil di halaman Rangkuman Wabah (Design.md §3.3.4 revisi):
+///   widget 7 poin (atau "Rangkuman Lengkap" kalau `yearSummaryCompleted`
+///   true) -> `quoteText` -> `references` -> tombol "Kerjakan Kuis".
 @freezed
 abstract class Year with _$Year {
   const factory Year({
@@ -34,11 +40,13 @@ abstract class Year with _$Year {
     required int year,
     required String title,
 
-    @JsonKey(name: 'summary_image_url') String? summaryImageUrl,
     @JsonKey(name: 'quote_text') String? quoteText,
     @JsonKey(name: 'references', defaultValue: <String>[])
     @Default(<String>[])
     List<String> references,
+
+    @JsonKey(name: 'year_summary') YearSummaryStatus? yearSummary,
+    @JsonKey(name: 'year_summary_completed') @Default(false) bool yearSummaryCompleted,
 
     @JsonKey(name: 'published_sections_count') int? publishedSectionsCount,
 

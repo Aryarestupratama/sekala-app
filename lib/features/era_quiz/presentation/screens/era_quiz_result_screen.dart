@@ -20,10 +20,13 @@ import '../providers/era_quiz_providers.dart';
 /// `EraQuizResultResponse.message` SELALU null lewat jalur GET result()
 /// ini (server memang tidak mengirimnya di endpoint itu, cuma di
 /// submitAttempt() — lihat era_quiz_result_response.dart) — jadi dibuat
-/// kalimat fallback lokal di sini yang formatnya SAMA PERSIS dengan
-/// template backend (`"Selamat! Kamu sudah menyelesaikan kuis sumatif
-/// era {$era->name}."`, dikonfirmasi ke `UserEraQuizController::submitAttempt()`)
-/// supaya user tidak melihat bedanya sama sekali antara dua jalur ini.
+/// kalimat fallback lokal di sini, disesuaikan lulus/tidak
+/// (`score.isPassing`, BARU).
+///
+/// BARU: `response.passingGrade` (int, selalu 75 saat ini) +
+/// `score.isPassing` dipakai untuk label "Lulus"/"Belum Lulus" di bawah
+/// skor — sebelumnya halaman ini cuma menampilkan skor tanpa status
+/// lulus/tidak sama sekali.
 class EraQuizResultScreen extends ConsumerWidget {
   const EraQuizResultScreen({super.key, required this.eraId});
 
@@ -65,10 +68,12 @@ class EraQuizResultScreen extends ConsumerWidget {
           ),
           data: (response) {
             final score = response.result;
-            final wrong = score.total - score.correct;
-            final percent = score.percentage.round();
+            final wrong = score.incorrect;
+            final percent = score.percentage; // sudah int dari backend, tidak perlu .round() lagi
             final message = response.message ??
-                'Selamat! Kamu sudah menyelesaikan kuis sumatif era $eraName.';
+                (score.isPassing
+                    ? 'Selamat! Kamu sudah menyelesaikan kuis sumatif era $eraName.'
+                    : 'Kamu sudah menyelesaikan kuis sumatif era $eraName. Yuk coba lagi untuk hasil lebih baik!');
 
             return Column(
               children: [
@@ -154,6 +159,39 @@ class EraQuizResultScreen extends ConsumerWidget {
                                     Text(
                                       '$percent% Terjawab Tepat',
                                       style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: accent),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              // BARU — label lulus/tidak lulus (ERAQUIZ-03
+                              // revisi: dulu cuma skor, sekarang ada status
+                              // lulus/tidak berdasarkan passing grade).
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: (score.isPassing ? AppColors.success : AppColors.coral)
+                                      .withOpacity(0.12),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      score.isPassing ? Icons.emoji_events : Icons.refresh,
+                                      size: 14,
+                                      color: score.isPassing ? AppColors.success : AppColors.coral,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      score.isPassing
+                                          ? 'Lulus'
+                                          : 'Belum Lulus · min. ${response.passingGrade}%',
+                                      style: TextStyle(
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.bold,
+                                        color: score.isPassing ? AppColors.success : AppColors.coral,
+                                      ),
                                     ),
                                   ],
                                 ),

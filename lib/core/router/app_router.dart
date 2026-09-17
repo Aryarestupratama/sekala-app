@@ -10,7 +10,7 @@ import '../../features/home/presentation/screens/home_screen.dart';
 import '../../features/history/presentation/screens/era_list_screen.dart';
 import '../../features/history/presentation/screens/era_roadmap_screen.dart';
 import '../../features/history/presentation/screens/section_detail_screen.dart';
-import '../../features/history/presentation/screens/year_summary_screen.dart';
+import '../../features/year_summary/presentation/screens/year_summary_screen.dart';
 import '../../features/quiz/presentation/screens/quiz_screen.dart';
 import '../../features/era_quiz/presentation/screens/era_quiz_screen.dart';
 import '../../features/era_quiz/presentation/screens/era_quiz_result_screen.dart';

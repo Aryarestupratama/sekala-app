@@ -1,5 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'era_quiz_recap_option.dart';
+import 'era_quiz_recap_year.dart';
 
 part 'era_quiz_recap_item.freezed.dart';
 part 'era_quiz_recap_item.g.dart';
@@ -10,6 +11,7 @@ part 'era_quiz_recap_item.g.dart';
 /// {
 ///   "question_id": 12,
 ///   "question": "...",
+///   "year": { "id": 3, "year": 1974 },
 ///   "options": [ { "id": 45, "option_text": "..." }, ... ],
 ///   "selected_option_id": 45,
 ///   "correct_option_id": 46,
@@ -17,6 +19,10 @@ part 'era_quiz_recap_item.g.dart';
 ///   "explanation": "..."
 /// }
 /// ```
+///
+/// BARU: `year` (nullable) — info tahun asal soal ini (konsekuensi dari
+/// revisi "soal sumatif ditarik dari bank formatif per year", lihat
+/// `EraQuizRecapYear`). Opsional dipakai di UI atau tidak.
 ///
 /// KOREKSI dari asumsi versi sebelumnya: opsi TIDAK membawa `is_correct`
 /// masing-masing — sebaliknya `correctOptionId` di level item ini yang
@@ -40,6 +46,7 @@ abstract class EraQuizRecapItem with _$EraQuizRecapItem {
   const factory EraQuizRecapItem({
     @JsonKey(name: 'question_id') required int questionId,
     required String question,
+    EraQuizRecapYear? year,
     @Default(<EraQuizRecapOption>[]) List<EraQuizRecapOption> options,
     @JsonKey(name: 'selected_option_id') int? selectedOptionId,
     @JsonKey(name: 'correct_option_id') int? correctOptionId,

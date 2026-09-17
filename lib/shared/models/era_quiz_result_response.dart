@@ -11,7 +11,8 @@ part 'era_quiz_result_response.g.dart';
 /// {
 ///   "message": "Selamat! Kamu sudah menyelesaikan kuis sumatif era ...",
 ///   "completed_at": "...",
-///   "result": { "correct": 7, "total": 10, "percentage": 70.0 }
+///   "passing_grade": 75,
+///   "result": { "total": 20, "correct": 15, "incorrect": 5, "percentage": 75, "is_passing": true }
 /// }
 /// ```
 ///
@@ -19,16 +20,16 @@ part 'era_quiz_result_response.g.dart';
 /// ```json
 /// {
 ///   "completed_at": "...",
+///   "passing_grade": 75,
 ///   "result": { ... }
 /// }
 /// ```
 /// — TIDAK ada `message` di endpoint ini (controller tidak mengirimnya),
-/// makanya `message` di model ini nullable. UI: kalau `message == null`
-/// (mis. user tap ikon "sudah dikerjakan" dari roadmap, buka Hasil lewat
-/// endpoint result() bukan submitAttempt()), Flutter perlu fallback ke
-/// kalimat template sendiri atau cukup tampilkan skor tanpa kalimat
-/// selamat — putuskan sesuai desain (Design.md belum dicek untuk detail
-/// ini).
+/// makanya `message` di model ini nullable. `passingGrade` (BARU) SELALU
+/// ada di kedua endpoint — dipakai bareng `result.isPassing`
+/// (`EraQuizScore.isPassing`) untuk render label "Lulus"/"Belum Lulus"
+/// di halaman Hasil, tanpa perlu simpan ulang dari `EraQuizStart`
+/// sebelumnya.
 ///
 /// PENTING: skor SELALU dihitung on-the-fly dari attempt TERKINI
 /// (R-ERAQUIZ-05) setiap endpoint ini dipanggil — retake mengubah angka
@@ -38,6 +39,7 @@ abstract class EraQuizResultResponse with _$EraQuizResultResponse {
   const factory EraQuizResultResponse({
     String? message,
     @JsonKey(name: 'completed_at') required String completedAt,
+    @JsonKey(name: 'passing_grade') required int passingGrade,
     required EraQuizScore result,
   }) = _EraQuizResultResponse;
 

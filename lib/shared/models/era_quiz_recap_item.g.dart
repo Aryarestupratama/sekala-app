@@ -10,6 +10,9 @@ _EraQuizRecapItem _$EraQuizRecapItemFromJson(Map<String, dynamic> json) =>
     _EraQuizRecapItem(
       questionId: (json['question_id'] as num).toInt(),
       question: json['question'] as String,
+      year: json['year'] == null
+          ? null
+          : EraQuizRecapYear.fromJson(json['year'] as Map<String, dynamic>),
       options: (json['options'] as List<dynamic>?)
               ?.map(
                   (e) => EraQuizRecapOption.fromJson(e as Map<String, dynamic>))
@@ -25,6 +28,7 @@ Map<String, dynamic> _$EraQuizRecapItemToJson(_EraQuizRecapItem instance) =>
     <String, dynamic>{
       'question_id': instance.questionId,
       'question': instance.question,
+      'year': instance.year,
       'options': instance.options,
       'selected_option_id': instance.selectedOptionId,
       'correct_option_id': instance.correctOptionId,

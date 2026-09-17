@@ -15,6 +15,9 @@ _QuizAnswerCheckResult _$QuizAnswerCheckResultFromJson(
       isCorrect: json['is_correct'] as bool,
       explanation: json['explanation'] as String,
       quizCompleted: json['quiz_completed'] as bool? ?? false,
+      finalScore: (json['final_score'] as num?)?.toDouble(),
+      isPassing: json['is_passing'] as bool?,
+      passingGrade: (json['passing_grade'] as num).toInt(),
       newlyUnlockedVaccineIds:
           (json['newly_unlocked_vaccine_ids'] as List<dynamic>?)
                   ?.map((e) => (e as num).toInt())
@@ -31,5 +34,8 @@ Map<String, dynamic> _$QuizAnswerCheckResultToJson(
       'is_correct': instance.isCorrect,
       'explanation': instance.explanation,
       'quiz_completed': instance.quizCompleted,
+      'final_score': instance.finalScore,
+      'is_passing': instance.isPassing,
+      'passing_grade': instance.passingGrade,
       'newly_unlocked_vaccine_ids': instance.newlyUnlockedVaccineIds,
     };

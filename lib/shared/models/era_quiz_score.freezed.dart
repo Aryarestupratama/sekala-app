@@ -15,9 +15,12 @@ T _$identity<T>(T value) => value;
 
 /// @nodoc
 mixin _$EraQuizScore {
-  int get correct;
   int get total;
-  double get percentage;
+  int get correct;
+  int get incorrect;
+  int get percentage;
+  @JsonKey(name: 'is_passing')
+  bool get isPassing;
 
   /// Create a copy of EraQuizScore
   /// with the given fields replaced by the non-null parameter values.
@@ -35,19 +38,24 @@ mixin _$EraQuizScore {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is EraQuizScore &&
-            (identical(other.correct, correct) || other.correct == correct) &&
             (identical(other.total, total) || other.total == total) &&
+            (identical(other.correct, correct) || other.correct == correct) &&
+            (identical(other.incorrect, incorrect) ||
+                other.incorrect == incorrect) &&
             (identical(other.percentage, percentage) ||
-                other.percentage == percentage));
+                other.percentage == percentage) &&
+            (identical(other.isPassing, isPassing) ||
+                other.isPassing == isPassing));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, correct, total, percentage);
+  int get hashCode => Object.hash(
+      runtimeType, total, correct, incorrect, percentage, isPassing);
 
   @override
   String toString() {
-    return 'EraQuizScore(correct: $correct, total: $total, percentage: $percentage)';
+    return 'EraQuizScore(total: $total, correct: $correct, incorrect: $incorrect, percentage: $percentage, isPassing: $isPassing)';
   }
 }
 
@@ -57,7 +65,12 @@ abstract mixin class $EraQuizScoreCopyWith<$Res> {
           EraQuizScore value, $Res Function(EraQuizScore) _then) =
       _$EraQuizScoreCopyWithImpl;
   @useResult
-  $Res call({int correct, int total, double percentage});
+  $Res call(
+      {int total,
+      int correct,
+      int incorrect,
+      int percentage,
+      @JsonKey(name: 'is_passing') bool isPassing});
 }
 
 /// @nodoc
@@ -72,23 +85,33 @@ class _$EraQuizScoreCopyWithImpl<$Res> implements $EraQuizScoreCopyWith<$Res> {
   @pragma('vm:prefer-inline')
   @override
   $Res call({
-    Object? correct = null,
     Object? total = null,
+    Object? correct = null,
+    Object? incorrect = null,
     Object? percentage = null,
+    Object? isPassing = null,
   }) {
     return _then(EraQuizScore(
-      correct: null == correct
-          ? _self.correct
-          : correct // ignore: cast_nullable_to_non_nullable
-              as int,
       total: null == total
           ? _self.total
           : total // ignore: cast_nullable_to_non_nullable
               as int,
+      correct: null == correct
+          ? _self.correct
+          : correct // ignore: cast_nullable_to_non_nullable
+              as int,
+      incorrect: null == incorrect
+          ? _self.incorrect
+          : incorrect // ignore: cast_nullable_to_non_nullable
+              as int,
       percentage: null == percentage
           ? _self.percentage
           : percentage // ignore: cast_nullable_to_non_nullable
-              as double,
+              as int,
+      isPassing: null == isPassing
+          ? _self.isPassing
+          : isPassing // ignore: cast_nullable_to_non_nullable
+              as bool,
     ));
   }
 }
@@ -186,13 +209,16 @@ extension EraQuizScorePatterns on EraQuizScore {
 
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>(
-    TResult Function(int correct, int total, double percentage)? $default, {
+    TResult Function(int total, int correct, int incorrect, int percentage,
+            @JsonKey(name: 'is_passing') bool isPassing)?
+        $default, {
     required TResult orElse(),
   }) {
     final _that = this;
     switch (_that) {
       case _EraQuizScore() when $default != null:
-        return $default(_that.correct, _that.total, _that.percentage);
+        return $default(_that.total, _that.correct, _that.incorrect,
+            _that.percentage, _that.isPassing);
       case _:
         return orElse();
     }
@@ -213,12 +239,15 @@ extension EraQuizScorePatterns on EraQuizScore {
 
   @optionalTypeArgs
   TResult when<TResult extends Object?>(
-    TResult Function(int correct, int total, double percentage) $default,
+    TResult Function(int total, int correct, int incorrect, int percentage,
+            @JsonKey(name: 'is_passing') bool isPassing)
+        $default,
   ) {
     final _that = this;
     switch (_that) {
       case _EraQuizScore():
-        return $default(_that.correct, _that.total, _that.percentage);
+        return $default(_that.total, _that.correct, _that.incorrect,
+            _that.percentage, _that.isPassing);
       case _:
         throw StateError('Unexpected subclass');
     }
@@ -238,12 +267,15 @@ extension EraQuizScorePatterns on EraQuizScore {
 
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>(
-    TResult? Function(int correct, int total, double percentage)? $default,
+    TResult? Function(int total, int correct, int incorrect, int percentage,
+            @JsonKey(name: 'is_passing') bool isPassing)?
+        $default,
   ) {
     final _that = this;
     switch (_that) {
       case _EraQuizScore() when $default != null:
-        return $default(_that.correct, _that.total, _that.percentage);
+        return $default(_that.total, _that.correct, _that.incorrect,
+            _that.percentage, _that.isPassing);
       case _:
         return null;
     }
@@ -254,16 +286,25 @@ extension EraQuizScorePatterns on EraQuizScore {
 @JsonSerializable()
 class _EraQuizScore implements EraQuizScore {
   const _EraQuizScore(
-      {required this.correct, required this.total, required this.percentage});
+      {required this.total,
+      required this.correct,
+      required this.incorrect,
+      required this.percentage,
+      @JsonKey(name: 'is_passing') required this.isPassing});
   factory _EraQuizScore.fromJson(Map<String, dynamic> json) =>
       _$EraQuizScoreFromJson(json);
 
   @override
-  final int correct;
-  @override
   final int total;
   @override
-  final double percentage;
+  final int correct;
+  @override
+  final int incorrect;
+  @override
+  final int percentage;
+  @override
+  @JsonKey(name: 'is_passing')
+  final bool isPassing;
 
   /// Create a copy of EraQuizScore
   /// with the given fields replaced by the non-null parameter values.
@@ -285,19 +326,24 @@ class _EraQuizScore implements EraQuizScore {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is _EraQuizScore &&
-            (identical(other.correct, correct) || other.correct == correct) &&
             (identical(other.total, total) || other.total == total) &&
+            (identical(other.correct, correct) || other.correct == correct) &&
+            (identical(other.incorrect, incorrect) ||
+                other.incorrect == incorrect) &&
             (identical(other.percentage, percentage) ||
-                other.percentage == percentage));
+                other.percentage == percentage) &&
+            (identical(other.isPassing, isPassing) ||
+                other.isPassing == isPassing));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, correct, total, percentage);
+  int get hashCode => Object.hash(
+      runtimeType, total, correct, incorrect, percentage, isPassing);
 
   @override
   String toString() {
-    return 'EraQuizScore(correct: $correct, total: $total, percentage: $percentage)';
+    return 'EraQuizScore(total: $total, correct: $correct, incorrect: $incorrect, percentage: $percentage, isPassing: $isPassing)';
   }
 }
 
@@ -309,7 +355,12 @@ abstract mixin class _$EraQuizScoreCopyWith<$Res>
       __$EraQuizScoreCopyWithImpl;
   @override
   @useResult
-  $Res call({int correct, int total, double percentage});
+  $Res call(
+      {int total,
+      int correct,
+      int incorrect,
+      int percentage,
+      @JsonKey(name: 'is_passing') bool isPassing});
 }
 
 /// @nodoc
@@ -325,23 +376,33 @@ class __$EraQuizScoreCopyWithImpl<$Res>
   @override
   @pragma('vm:prefer-inline')
   $Res call({
-    Object? correct = null,
     Object? total = null,
+    Object? correct = null,
+    Object? incorrect = null,
     Object? percentage = null,
+    Object? isPassing = null,
   }) {
     return _then(_EraQuizScore(
-      correct: null == correct
-          ? _self.correct
-          : correct // ignore: cast_nullable_to_non_nullable
-              as int,
       total: null == total
           ? _self.total
           : total // ignore: cast_nullable_to_non_nullable
               as int,
+      correct: null == correct
+          ? _self.correct
+          : correct // ignore: cast_nullable_to_non_nullable
+              as int,
+      incorrect: null == incorrect
+          ? _self.incorrect
+          : incorrect // ignore: cast_nullable_to_non_nullable
+              as int,
       percentage: null == percentage
           ? _self.percentage
           : percentage // ignore: cast_nullable_to_non_nullable
-              as double,
+              as int,
+      isPassing: null == isPassing
+          ? _self.isPassing
+          : isPassing // ignore: cast_nullable_to_non_nullable
+              as bool,
     ));
   }
 }

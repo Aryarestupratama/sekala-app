@@ -7,28 +7,29 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/models/quiz.dart';
 import '../../../../shared/models/quiz_answer_check_result.dart';
 import '../../../../shared/models/quiz_question.dart';
+import '../../../../shared/models/quiz_question_option.dart';
+import '../../../../shared/models/quiz_show_response.dart';
 import '../../../card/presentation/providers/card_providers.dart';
 import '../providers/quiz_providers.dart';
 
 /// Halaman Kuis in-app (Design.md §3.3 poin 5, mockup referensi Image 3).
 ///
-/// SKEMA BARU — "instan per soal" (menggantikan pola submit-di-akhir +
-/// replay yang lama):
-/// 1. User tap 1 opsi -> LANGSUNG panggil
-///    `POST /quiz/questions/{id}/answer` (QuizAnswerController.answer()).
-/// 2. Begitu response balik: opsi yang dipilih diwarnai hijau/coral sesuai
-///    benar/salah; kalau salah, opsi yang BENAR (dari `correctOptionId`)
-///    ikut di-highlight hijau juga (PRD.md QUIZ-03 / Rules.md R-QUIZ-04 —
-///    beda dari model `QuizAnswerFeedback` lama yang sengaja tidak
-///    membawa opsi benar). Teks `explanation` tampil di BOX TERPISAH di
-///    atas tombol "Lanjut" (bukan menyatu di dalam opsi seperti versi
-///    lama) supaya tidak terasa "aneh" saat digabung ke tile opsi.
-/// 3. Tombol berubah jadi "Lanjut" (atau "Selesai" kalau ini soal
-///    terakhir & `quizCompleted == true` dari response) -> pindah ke
-///    soal berikutnya, reset state jawaban lokal.
-/// 4. TIDAK ADA lagi fase replay/submit terpisah di akhir — backend
-///    sudah progresif menyimpan tiap jawaban & otomatis menandai attempt
-///    selesai begitu soal terakhir dijawab (lihat quiz_providers.dart).
+/// REVISI BESAR (kuis formatif kini berskor + passing grade 75% + boleh
+/// retake, menggantikan filosofi lama "tanpa skor"):
+/// 1. Endpoint `GET .../quiz` sekarang membungkus quiz dalam
+///    `QuizShowResponse` (passing_grade/question_count/attempt_status/
+///    latest_score). Layar SEKARANG WAJIB menampilkan info passing grade
+///    ke user SEBELUM masuk soal pertama (`_QuizIntro`) — tidak boleh
+///    langsung lompat ke soal pertama seperti versi lama.
+/// 2. Skema jawab per soal ("instan") TIDAK berubah: user tap 1 opsi ->
+///    `POST /quiz/questions/{id}/answer`, feedback instan tampil.
+/// 3. BARU: begitu soal TERAKHIR dijawab (`quizCompleted == true`),
+///    response membawa `finalScore`/`isPassing`. Kalau `isPassing ==
+///    false`, TIDAK langsung `_finish()` seperti versi lama — tampilkan
+///    `_FailedResultView` dengan opsi "Kerjakan Ulang" (panggil
+///    `POST .../quiz/retry` dulu) sebelum bisa menjawab lagi. Kalau
+///    `isPassing == true`, alur `_finish()` (unlock vaksin dsb) SAMA
+///    seperti sebelumnya.
 class QuizScreen extends ConsumerWidget {
   const QuizScreen({
     super.key,
@@ -53,12 +54,12 @@ class QuizScreen extends ConsumerWidget {
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: quizAsync.when(
-          data: (quiz) {
-            if (!quiz.isPublished || quiz.questions.isEmpty) {
-              return const _QuizUnavailable();
+          data: (response) {
+            if (!response.quiz.isPublished || response.quiz.questions.isEmpty) {
+              return _QuizUnavailable(eraSlug: eraSlug);
             }
-            return _QuizBody(
-              quiz: quiz,
+            return _QuizFlow(
+              response: response,
               yearId: yearId,
               eraSlug: eraSlug,
               yearTitle: yearTitle,
@@ -79,8 +80,26 @@ class QuizScreen extends ConsumerWidget {
   }
 }
 
+/// BARU (fix bug: tombol "Kembali" tidak berbuat apa-apa) — halaman kuis
+/// ini bisa dibuka dengan `context.push()` (ada history untuk di-pop) ATAU
+/// `context.go()`/deep link (TIDAK ada history sama sekali). Pakai
+/// `Navigator.maybePop()`/`context.pop()` polos di kasus kedua bikin
+/// tombol "Kembali" kelihatan macet (tidak melakukan apa-apa). Helper ini
+/// selalu punya fallback yang jelas: pop kalau bisa, kalau tidak baru
+/// pindah ke roadmap era via `context.go()`.
+void _safeBack(BuildContext context, String eraSlug) {
+  if (context.canPop()) {
+    context.pop();
+  } else {
+    context.go('/history/$eraSlug');
+  }
+}
+
+
 class _QuizUnavailable extends StatelessWidget {
-  const _QuizUnavailable();
+  const _QuizUnavailable({required this.eraSlug});
+
+  final String eraSlug;
 
   @override
   Widget build(BuildContext context) {
@@ -98,7 +117,314 @@ class _QuizUnavailable extends StatelessWidget {
               style: TextStyle(color: AppColors.textSecondary),
             ),
             const SizedBox(height: 16),
-            TextButton(onPressed: () => context.pop(), child: const Text('Kembali')),
+            TextButton(onPressed: () => _safeBack(context, eraSlug), child: const Text('Kembali')),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// BARU — pengatur transisi Intro (info passing grade) -> Body (soal-soal)
+/// -> FailedResult (kalau gagal, sebelum retry). Dipisah dari `_QuizBody`
+/// lama supaya `_QuizBody` tetap fokus di logic jawab-per-soal.
+class _QuizFlow extends ConsumerStatefulWidget {
+  const _QuizFlow({
+    required this.response,
+    required this.yearId,
+    required this.eraSlug,
+    this.yearTitle,
+  });
+
+  final QuizShowResponse response;
+  final int yearId;
+  final String eraSlug;
+  final String? yearTitle;
+
+  @override
+  ConsumerState<_QuizFlow> createState() => _QuizFlowState();
+}
+
+class _QuizFlowState extends ConsumerState<_QuizFlow> {
+  /// Kalau user sudah menekan "Mulai"/"Lanjutkan"/"Kerjakan Ulang" di
+  /// layar intro, kita masuk ke `_QuizBody`. Kalau `attempt_status ==
+  /// passed` (sudah lulus sebelumnya), TIDAK PERNAH masuk ke sini —
+  /// intro-nya sendiri sudah final (lihat `_QuizIntro`).
+  bool _entered = false;
+
+  /// Diset true setelah soal terakhir dijawab TAPI gagal (isPassing ==
+  /// false) — dipakai untuk render `_FailedResultView` alih-alih
+  /// `_QuizBody`.
+  bool _showFailedResult = false;
+  double? _failedScore;
+
+  Future<void> _startOrRetry() async {
+    if (widget.response.failed) {
+      // R-QUIZ-08: attempt yang gagal wajib di-retry dulu (reset ke
+      // kosong) sebelum boleh menjawab lagi.
+      final retried = await ref.read(quizRetryControllerProvider.notifier).retry(widget.yearId);
+      if (retried == null || !mounted) return; // gagal retry (mis. 422 sudah lulus) — biarkan error tampil di intro
+    }
+    setState(() {
+      _entered = true;
+      _showFailedResult = false;
+    });
+  }
+
+  void _onFailed(double score) {
+    setState(() {
+      _showFailedResult = true;
+      _failedScore = score;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.response.passed) {
+      // Sudah lulus sebelumnya — tampilkan ringkasan final, TIDAK ada
+      // jalan untuk menjawab lagi (backend juga menolak retry kalau
+      // sudah lulus).
+      return _QuizIntro(
+        response: widget.response,
+        yearTitle: widget.yearTitle,
+        eraSlug: widget.eraSlug,
+        onPrimaryPressed: null, // tidak ada aksi, sudah final
+      );
+    }
+
+    if (_showFailedResult && _failedScore != null) {
+      return _FailedResultView(
+        score: _failedScore!,
+        passingGrade: widget.response.passingGrade,
+        isRetrying: ref.watch(quizRetryControllerProvider).isLoading,
+        onRetry: () async {
+          final retried = await ref.read(quizRetryControllerProvider.notifier).retry(widget.yearId);
+          if (retried != null && mounted) {
+            setState(() {
+              _entered = true;
+              _showFailedResult = false;
+              _failedScore = null;
+            });
+          }
+        },
+        onExit: () => _safeBack(context, widget.eraSlug),
+      );
+    }
+
+    if (!_entered) {
+      final retryState = ref.watch(quizRetryControllerProvider);
+      return _QuizIntro(
+        response: widget.response,
+        yearTitle: widget.yearTitle,
+        eraSlug: widget.eraSlug,
+        isLoading: retryState.isLoading,
+        errorText: retryState.hasError
+            ? 'Gagal memulai ulang kuis: ${retryState.error}'
+            : null,
+        onPrimaryPressed: _startOrRetry,
+      );
+    }
+
+    return _QuizBody(
+      quiz: widget.response.quiz,
+      yearId: widget.yearId,
+      eraSlug: widget.eraSlug,
+      yearTitle: widget.yearTitle,
+      onFailed: _onFailed,
+    );
+  }
+}
+
+/// BARU — layar info SEBELUM soal pertama: nama kuis, jumlah soal,
+/// passing grade 75%, dan status attempt terkini (belum pernah/lanjut/
+/// gagal/lulus). Requirement baru: "minimum passing grade ditampilkan
+/// sebelum masuk halaman quiz" — berlaku untuk kuis formatif MAUPUN
+/// sumatif (lihat era_quiz_screen.dart untuk versi sumatif).
+class _QuizIntro extends StatelessWidget {
+  const _QuizIntro({
+    required this.response,
+    required this.yearTitle,
+    required this.eraSlug,
+    this.isLoading = false,
+    this.errorText,
+    required this.onPrimaryPressed,
+  });
+
+  final QuizShowResponse response;
+  final String? yearTitle;
+  final String eraSlug;
+  final bool isLoading;
+  final String? errorText;
+
+  /// Null kalau tidak ada aksi (mis. sudah lulus, tinggal ditampilkan).
+  final VoidCallback? onPrimaryPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final String primaryLabel = switch (response.attemptStatus) {
+      'failed' => 'Kerjakan Ulang',
+      'in_progress' => 'Lanjutkan',
+      _ => 'Mulai Kuis',
+    };
+
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              response.passed ? Icons.emoji_events : Icons.quiz_outlined,
+              size: 44,
+              color: response.passed ? AppColors.success : AppColors.ink,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              yearTitle == null ? 'Kuis' : 'Kuis · $yearTitle',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 19),
+            ),
+            const SizedBox(height: 12),
+            _InfoRow(label: 'Jumlah soal', value: '${response.questionCount} soal'),
+            const SizedBox(height: 4),
+            _InfoRow(label: 'Nilai minimum kelulusan', value: '${response.passingGrade}%'),
+            if (response.latestScore != null) ...[
+              const SizedBox(height: 4),
+              _InfoRow(
+                label: response.passed ? 'Skor kamu' : 'Skor terakhir',
+                value: '${response.latestScore!.round()}%',
+                valueColor: response.passed ? AppColors.success : AppColors.coral,
+              ),
+            ],
+            const SizedBox(height: 20),
+            if (errorText != null) ...[
+              Text(errorText!, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.coral, fontSize: 12.5)),
+              const SizedBox(height: 12),
+            ],
+            if (onPrimaryPressed != null)
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: isLoading ? null : onPrimaryPressed,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.ink,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                  ),
+                  child: isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : Text(primaryLabel, style: const TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              )
+            else
+              const Text(
+                'Kamu sudah lulus kuis ini.',
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+              ),
+            const SizedBox(height: 12),
+            // FIX (bug: tombol "Kembali" di layar sudah lulus tidak
+            // bereaksi sama sekali) — dulu pakai _safeBack() yang coba
+            // context.pop() dulu kalau canPop() true. Ternyata di layar
+            // intro ini, canPop() bisa saja true tapi pop()-nya sendiri
+            // jadi no-op (tidak melakukan apa-apa, tergantung struktur
+            // router). Karena semantik "kembali" di sini cuma perlu balik
+            // ke roadmap (bukan presisi pop ke layar sebelumnya), langsung
+            // context.go() saja tanpa coba pop() dulu — selalu pasti jalan.
+            TextButton(
+              onPressed: () => context.go('/history/$eraSlug'),
+              child: const Text('Kembali'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  const _InfoRow({required this.label, required this.value, this.valueColor});
+
+  final String label;
+  final String value;
+  final Color? valueColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text('$label: ', style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+        Text(
+          value,
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: valueColor ?? AppColors.ink),
+        ),
+      ],
+    );
+  }
+}
+
+/// BARU — tampil begitu soal terakhir dijawab TAPI skor < passing grade.
+/// Beda dari alur lama yang langsung `_finish()` tanpa syarat lulus.
+class _FailedResultView extends StatelessWidget {
+  const _FailedResultView({
+    required this.score,
+    required this.passingGrade,
+    required this.isRetrying,
+    required this.onRetry,
+    required this.onExit,
+  });
+
+  final double score;
+  final int passingGrade;
+  final bool isRetrying;
+  final VoidCallback onRetry;
+  final VoidCallback onExit;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.refresh, size: 44, color: AppColors.coral),
+            const SizedBox(height: 16),
+            const Text(
+              'Belum Lulus',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 19),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Skor kamu ${score.round()}%, minimal $passingGrade% untuk lulus. Yuk coba lagi!',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: AppColors.textSecondary, fontSize: 13.5),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: isRetrying ? null : onRetry,
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.ink,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                ),
+                child: isRetrying
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Text('Kerjakan Ulang', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextButton(onPressed: onExit, child: const Text('Keluar dari kuis')),
           ],
         ),
       ),
@@ -111,6 +437,7 @@ class _QuizBody extends ConsumerStatefulWidget {
     required this.quiz,
     required this.yearId,
     required this.eraSlug,
+    required this.onFailed,
     this.yearTitle,
   });
 
@@ -119,12 +446,26 @@ class _QuizBody extends ConsumerStatefulWidget {
   final String eraSlug;
   final String? yearTitle;
 
+  /// BARU — dipanggil begitu soal terakhir dijawab TAPI isPassing ==
+  /// false, membawa skor akhir. Parent (`_QuizFlow`) yang menampilkan
+  /// `_FailedResultView`, `_QuizBody` sendiri tidak tahu apa-apa soal
+  /// retry (separation of concerns, sama pola dengan `onFinished`
+  /// implisit lewat context.go() untuk kasus lulus).
+  final void Function(double score) onFailed;
+
   @override
   ConsumerState<_QuizBody> createState() => _QuizBodyState();
 }
 
 class _QuizBodyState extends ConsumerState<_QuizBody> {
   late final List<QuizQuestion> _questions;
+
+  /// BARU — urutan opsi diacak SEKALI per soal (bukan tiap render, biar
+  /// tidak "lompat-lompat" posisinya tiap kali user pilih jawaban/rebuild)
+  /// dan di-cache per question.id supaya konsisten selama sesi mengerjakan
+  /// berlangsung.
+  late final Map<int, List<QuizQuestionOption>> _shuffledOptionsByQuestionId;
+
   int _index = 0;
 
   /// Jawaban yang dipilih untuk soal yang SEDANG AKTIF (bukan riwayat
@@ -141,7 +482,14 @@ class _QuizBodyState extends ConsumerState<_QuizBody> {
   @override
   void initState() {
     super.initState();
-    _questions = [...widget.quiz.questions]..sort((a, b) => a.order.compareTo(b.order));
+    // BARU: urutan soal & opsi diacak — supaya tiap user dapat urutan
+    // beda (bukan lagi urut `order` tetap 1-10). Diacak SEKALI di sini
+    // (bukan di build()), supaya tidak berubah-ubah selama sesi
+    // mengerjakan berlangsung.
+    _questions = [...widget.quiz.questions]..shuffle();
+    _shuffledOptionsByQuestionId = {
+      for (final q in _questions) q.id: [...q.options]..shuffle(),
+    };
   }
 
   QuizQuestion get _currentQuestion => _questions[_index];
@@ -197,7 +545,14 @@ class _QuizBodyState extends ConsumerState<_QuizBody> {
     if (!_isAnswered) return; // guard, tombol harusnya disabled
 
     if (_result!.quizCompleted) {
-      _finish();
+      // BARU: cek lulus/tidak sebelum _finish(). isPassing null cuma
+      // kalau quizCompleted false (tidak mungkin sampai sini), jadi aman
+      // pakai `== true` sebagai guard eksplisit.
+      if (_result!.isPassing == true) {
+        _finish();
+      } else {
+        widget.onFailed(_result!.finalScore ?? 0);
+      }
       return;
     }
 
@@ -215,13 +570,11 @@ class _QuizBodyState extends ConsumerState<_QuizBody> {
   }
 
   void _finish() {
-    // R-QUIZ-04: tanpa skor/status lulus — cuma konfirmasi selesai.
-    // Kalau ada vaksin baru terbuka, tampilkan banner kecil di atas
-    // (Design.md §3.3 poin 6) via root Overlay — dipasang SEBELUM
-    // navigate supaya tetap hidup lintas halaman (QuizScreen sendiri
-    // bakal di-dispose begitu context.go() dipanggil). Detail animasi
-    // reveal per-vaksin (locked->unlocked) baru terjadi nanti di halaman
-    // Koleksi Vaksin (vaccine_list_screen.dart), bukan di sini.
+    // R-QUIZ-09: LULUS (skor >= 75%) — year completed, vaksin (kalau ada)
+    // otomatis ter-unlock. Kalau ada vaksin baru terbuka, tampilkan
+    // banner kecil di atas (Design.md §3.3 poin 6) via root Overlay —
+    // dipasang SEBELUM navigate supaya tetap hidup lintas halaman
+    // (QuizScreen sendiri bakal di-dispose begitu context.go() dipanggil).
     if (_newlyUnlockedVaccineIds.isNotEmpty) {
       ref.invalidate(cardListProvider);
       _showVaccineUnlockBanner(context, _newlyUnlockedVaccineIds.length);
@@ -231,13 +584,13 @@ class _QuizBodyState extends ConsumerState<_QuizBody> {
 
     context.go('/history/${widget.eraSlug}');
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Kuis selesai dikerjakan!')),
+      const SnackBar(content: Text('Selamat, kamu lulus kuis ini!')),
     );
   }
 
   void _confirmExit() {
     if (_selectedOptionId == null && _index == 0) {
-      context.pop();
+      _safeBack(context, widget.eraSlug);
       return;
     }
     showDialog<void>(
@@ -245,14 +598,17 @@ class _QuizBodyState extends ConsumerState<_QuizBody> {
       builder: (context) => AlertDialog(
         title: const Text('Keluar dari kuis?'),
         content: const Text(
-          'Jawaban yang sudah kamu isi tersimpan, tapi kuis belum ditandai selesai sampai seluruh soal dijawab.',
+          'Jawaban yang sudah kamu isi tersimpan, tapi kuis belum ditandai selesai sampai seluruh soal dijawab dan lulus.',
         ),
         actions: [
+          // Ini menutup DIALOG (bukan keluar kuis) — showDialog() selalu
+          // mendorong route baru, jadi context.pop() di sini aman tanpa
+          // perlu _safeBack.
           TextButton(onPressed: () => context.pop(), child: const Text('Batal')),
           TextButton(
             onPressed: () {
               context.pop(); // tutup dialog
-              context.pop(); // keluar kuis
+              _safeBack(context, widget.eraSlug); // keluar kuis, dengan fallback
             },
             child: const Text('Keluar'),
           ),
@@ -341,8 +697,7 @@ class _QuizBodyState extends ConsumerState<_QuizBody> {
                 ),
               ),
               const SizedBox(height: 20),
-              for (final option in [...(_currentQuestion.options)]
-                ..sort((a, b) => a.order.compareTo(b.order)))
+              for (final option in _shuffledOptionsByQuestionId[_currentQuestion.id]!)
                 _OptionTile(
                   label: option.optionText,
                   isSelected: _selectedOptionId == option.id,
@@ -386,65 +741,13 @@ class _QuizBodyState extends ConsumerState<_QuizBody> {
                       child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                     )
                   : Text(
-                      isLastAndCompleted ? 'Selesai' : 'Lanjut',
+                      isLastAndCompleted ? 'Lihat Hasil' : 'Lanjut',
                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                     ),
             ),
           ),
         ),
       ],
-    );
-  }
-}
-
-/// Box keterangan (`explanation_correct`/`explanation_incorrect`,
-/// dipilih server) — SENGAJA dipisah dari `_OptionTile` (bukan menyatu di
-/// dalam opsi seperti versi lama), muncul di atas tombol "Lanjut"/
-/// "Selesai".
-class _ExplanationBox extends StatelessWidget {
-  const _ExplanationBox({required this.isCorrect, required this.explanation});
-
-  final bool isCorrect;
-  final String explanation;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = isCorrect ? AppColors.success : AppColors.coral;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color, width: 1),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            isCorrect ? Icons.check_circle : Icons.info_outline,
-            size: 20,
-            color: color,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  isCorrect ? 'Benar!' : 'Kurang tepat',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: color),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  explanation,
-                  style: const TextStyle(fontSize: 13, height: 1.4, color: AppColors.ink),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -553,6 +856,59 @@ class _Badge extends StatelessWidget {
       child: Text(
         label,
         style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color),
+      ),
+    );
+  }
+}
+
+/// Box keterangan (`explanation_correct`/`explanation_incorrect`,
+/// dipilih server) — SENGAJA dipisah dari `_OptionTile` (bukan menyatu di
+/// dalam opsi), muncul di atas tombol "Lanjut"/"Lihat Hasil". TIDAK
+/// berubah dari versi sebelumnya (sempat tidak ikut tersalin saat
+/// restrukturisasi Intro/FailedResult — sudah diperbaiki di sini).
+class _ExplanationBox extends StatelessWidget {
+  const _ExplanationBox({required this.isCorrect, required this.explanation});
+
+  final bool isCorrect;
+  final String explanation;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isCorrect ? AppColors.success : AppColors.coral;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color, width: 1),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            isCorrect ? Icons.check_circle : Icons.info_outline,
+            size: 20,
+            color: color,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isCorrect ? 'Benar!' : 'Kurang tepat',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: color),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  explanation,
+                  style: const TextStyle(fontSize: 13, height: 1.4, color: AppColors.ink),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

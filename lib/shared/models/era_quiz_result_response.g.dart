@@ -11,6 +11,7 @@ _EraQuizResultResponse _$EraQuizResultResponseFromJson(
     _EraQuizResultResponse(
       message: json['message'] as String?,
       completedAt: json['completed_at'] as String,
+      passingGrade: (json['passing_grade'] as num).toInt(),
       result: EraQuizScore.fromJson(json['result'] as Map<String, dynamic>),
     );
 
@@ -19,5 +20,6 @@ Map<String, dynamic> _$EraQuizResultResponseToJson(
     <String, dynamic>{
       'message': instance.message,
       'completed_at': instance.completedAt,
+      'passing_grade': instance.passingGrade,
       'result': instance.result,
     };
