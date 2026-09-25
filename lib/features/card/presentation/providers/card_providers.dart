@@ -17,7 +17,20 @@ final cardRepositoryProvider = Provider<CardRepository>((ref) {
 /// Rute ini cuma bisa dicapai user login terverifikasi (guard router +
 /// middleware backend), jadi nggak perlu jaga-jaga guest di sini kayak
 /// homeSummaryProvider.
-final cardListProvider = FutureProvider.autoDispose<CardListResponse>((ref) {
+///
+/// BUGFIX: sebelumnya `.autoDispose`. Provider ini SELALU di-watch terus-
+/// menerus oleh `MainShell` (badge titik merah tab Koleksi) sepanjang
+/// sesi login, jadi tidak pernah benar-benar "tidak terpakai" — autoDispose
+/// di sini tidak memberi manfaat apa pun, tapi menciptakan race: saat
+/// `quiz_screen.dart::_finish()` memanggil `ref.invalidate(cardListProvider)`
+/// tepat sebelum `context.go()` menavigasi (membongkar widget tree lama),
+/// ada jendela singkat provider ini bisa kehilangan listener aktif
+/// sebelum sempat refetch, sehingga invalidate "hilang" dan badge/animasi
+/// reveal baru muncul setelah ada trigger watch/invalidate lain (mis.
+/// pull-to-refresh manual di VaccineListScreen). Pola sama dengan bugfix
+/// `caseStudyControllerProvider` sebelumnya — dihapus `.autoDispose`-nya,
+/// provider ini aman hidup selama app berjalan (bukan `.family`).
+final cardListProvider = FutureProvider<CardListResponse>((ref) {
   return ref.watch(cardRepositoryProvider).fetchCards();
 });
 

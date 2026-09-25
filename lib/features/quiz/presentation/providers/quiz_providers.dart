@@ -68,16 +68,38 @@ class QuizAnswerController extends StateNotifier<AsyncValue<QuizAnswerCheckResul
           .answerQuestion(yearId, questionId, optionId);
 
       if (result.quizCompleted) {
-        // Selalu refresh status quiz (attempt_status/latest_score) sendiri
-        // begitu attempt selesai, terlepas lulus/tidak — supaya kalau user
-        // balik ke layar info kuis, statusnya sudah "failed"/"passed" yang
-        // terbaru, bukan cache lama "not_started"/"in_progress".
-        _ref.invalidate(quizProvider(yearId));
+        // BUGFIX: SEBELUMNYA ada `_ref.invalidate(quizProvider(yearId))`
+        // di sini, niatnya cuma supaya attempt_status/latest_score fresh
+        // kalau user balik ke layar info kuis nanti. Efek sampingnya
+        // FATAL — `quizProvider(yearId)` di-watch langsung di
+        // `QuizScreen.build()`, jadi invalidate ini bikin QuizScreen
+        // REBUILD TOTAL di tengah sesi (fetch baru datang duluan sebelum
+        // user sempat tekan tombol "Lihat Hasil"), membentuk `response`
+        // baru dengan `attempt_status: passed` begitu attempt lulus. Di
+        // `_QuizFlow.build()`, `response.passed == true` langsung
+        // mengganti tampilan ke `_QuizIntro` ringkasan "sudah lulus" —
+        // MENGHANCURKAN state `_QuizBodyState` (`_result`,
+        // `_newlyUnlockedVaccineIds`) sebelum `_onPrimaryButtonTap()` /
+        // `_finish()` sempat dipanggil sama sekali. Akibatnya
+        // `ref.invalidate(cardListProvider)` & banner "Vaksin baru
+        // terbuka!" di `_finish()` TIDAK PERNAH jalan — persis gejala
+        // titik merah/animasi Koleksi Vaksin yang cuma muncul kalau user
+        // refresh manual.
+        //
+        // TIDAK PERLU invalidate di sini sama sekali: `quizProvider`
+        // sudah `.autoDispose` — begitu user keluar dari QuizScreen
+        // (lewat `_finish()`/`_safeBack()`), instance-nya otomatis
+        // dibuang, dan kalau kuis ini dibuka lagi nanti, `quizProvider`
+        // fetch ulang dari awal dengan attempt_status yang sudah pasti
+        // terbaru. Jadi dihapus total, bukan dipindah.
 
         if (result.isPassing == true) {
           // R-PROG-07/08: year baru dianggap completed kalau LULUS —
           // invalidate roadmap era supaya status completed/locked tahun
           // berikutnya (R-YEAR-02) & vaksin (R-VAC-01/02) ter-update.
+          // AMAN di sini — `yearsProvider` TIDAK di-watch oleh
+          // `QuizScreen` sendiri, jadi invalidate ini tidak memicu
+          // rebuild/teardown layar kuis yang sedang aktif.
           _ref.invalidate(yearsProvider(eraSlug));
         }
       }
