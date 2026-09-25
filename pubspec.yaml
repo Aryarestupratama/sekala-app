@@ -84,6 +84,7 @@ flutter:
   assets:
     - assets/images/
     - assets/icons/
+    - assets/videos/
 
 # Konfigurasi generate app icon dari assets/icons/icon.png
 # Jalankan: dart run flutter_launcher_icons

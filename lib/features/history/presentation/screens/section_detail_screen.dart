@@ -51,6 +51,16 @@ import '../widgets/content_block_view.dart';
 /// TIDAK berubah — field ini menutup gap skenario non-linear (mis. user
 /// balik baca ulang section lama yang belum completed padahal year-nya
 /// sudah completed dari sesi lain).
+///
+/// BARU (R-CASE, Studi Kasus): section bertipe `case_study` TIDAK punya
+/// `content_blocks` untuk dirender di layar ini sama sekali — kalau
+/// terbuka di sini (lewat deep link Home, tap tahun di roadmap, atau
+/// balik browser ke section 8), layar ini SEGERA redirect ke
+/// `CaseStudyShellScreen` (`/section/:id/case-study`) begitu data section
+/// selesai di-fetch, lihat `_redirectToCaseStudyIfNeeded`. Section
+/// SEBELUM studi kasus (biasanya section 7) juga diberi CTA khusus
+/// "Mulai Studi Kasus" kalau section BERIKUTNYA bertipe `case_study` —
+/// lihat percabangan `next.isCaseStudy` di `_buildBottomCta`.
 class SectionDetailScreen extends ConsumerStatefulWidget {
   const SectionDetailScreen({super.key, required this.sectionId});
 
@@ -63,6 +73,12 @@ class SectionDetailScreen extends ConsumerStatefulWidget {
 
 class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
   bool _navigating = false;
+
+  // Guard supaya `context.go` ke Studi Kasus cuma dipanggil sekali per
+  // instance layar ini, meskipun `sectionAsync` rebuild beberapa kali
+  // (mis. saat provider lain ikut trigger rebuild) sebelum navigasi
+  // benar-benar berpindah keluar dari layar ini.
+  bool _redirectedToCaseStudy = false;
 
   int get _id => int.parse(widget.sectionId);
 
@@ -85,6 +101,24 @@ class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
     return sections;
   }
 
+  /// Section bertipe `case_study` (mis. section 8) tidak punya konten
+  /// untuk dirender di layar ini — redirect otomatis ke shell Studi Kasus
+  /// begitu data section ini datang. `addPostFrameCallback` dipakai
+  /// supaya navigasi tidak terjadi di tengah `build()` (side effect saat
+  /// build memicu warning/undefined behavior di Flutter).
+  void _redirectToCaseStudyIfNeeded(Section section) {
+    if (!section.isCaseStudy || _redirectedToCaseStudy) return;
+    _redirectedToCaseStudy = true;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.go(
+        '/section/$_id/case-study'
+        '?era=${section.year.era.slug}&year=${section.year.id}',
+      );
+    });
+  }
+
   /// Dipanggil saat tombol CTA ditekan. Tandai completion dulu (kalau
   /// belum) baru navigate — completion best-effort, tidak mem-block
   /// navigasi kalau gagal (mis. guest, belum verified, atau hiccup
@@ -101,7 +135,10 @@ class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
   /// mutusin sendiri redirect ke Rangkuman Wabah berdasarkan
   /// `year_completed` dari response complete-section (lihat dokumentasi
   /// class di atas) — override `navigate` bawaan caller kalau backend
-  /// bilang year-nya sudah completed di titik ini.
+  /// bilang year-nya sudah completed di titik ini. Dipakai juga untuk CTA
+  /// "Mulai Studi Kasus" (section berikutnya `case_study`) — completion
+  /// section SAAT INI tetap ditandai seperti biasa sebelum masuk studi
+  /// kasus, `navigate` yang beda tujuannya saja.
   Future<void> _handleCtaTap({
     required bool alreadyCompleted,
     required int yearId,
@@ -268,6 +305,26 @@ class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
         }
 
         final next = ordered[currentIndex + 1];
+
+        // BARU (R-CASE): section berikutnya adalah Studi Kasus — CTA beda
+        // label/ikon & tujuan navigasi, tapi completion section SAAT INI
+        // tetap ditandai seperti biasa lewat `_handleCtaTap` yang sama.
+        if (next.isCaseStudy) {
+          return _CtaButton(
+            label: 'Mulai Studi Kasus',
+            icon: Icons.psychology_alt_outlined,
+            loading: _navigating,
+            onTap: () => _handleCtaTap(
+              alreadyCompleted: completed,
+              yearId: yearId,
+              eraSlug: eraSlug,
+              navigate: () => context.go(
+                '/section/${next.id}/case-study?era=$eraSlug&year=$yearId',
+              ),
+            ),
+          );
+        }
+
         return _CtaButton(
           label: 'Baca Materi Berikutnya',
           icon: Icons.arrow_forward,
@@ -306,23 +363,33 @@ class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(sectionAsync.valueOrNull?.title ?? 'Memuat...')),
       body: sectionAsync.when(
-        data: (section) => Stack(
-          children: [
-            _buildContent(context, section),
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: SafeArea(
-                top: false,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: _buildBottomCta(context, section),
+        data: (section) {
+          if (section.isCaseStudy) {
+            _redirectToCaseStudyIfNeeded(section);
+            // Layar sementara sampai redirect di atas berpindah keluar
+            // dari route ini — section case_study tidak punya konten
+            // untuk dirender di sini sama sekali.
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          return Stack(
+            children: [
+              _buildContent(context, section),
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: SafeArea(
+                  top: false,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: _buildBottomCta(context, section),
+                  ),
                 ),
               ),
-            ),
-          ],
-        ),
+            ],
+          );
+        },
         loading: () => const Center(child: CircularProgressIndicator()),
         // 404 (section draft/belum publish, R-CMS-01) juga bakal muncul
         // di sini sebagai pesan error generik lewat ApiException.message.

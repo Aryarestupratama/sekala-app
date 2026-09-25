@@ -13,6 +13,7 @@ _SectionSummary _$SectionSummaryFromJson(Map<String, dynamic> json) =>
       order: (json['order'] as num?)?.toInt() ?? 0,
       locked: json['locked'] as bool? ?? true,
       completed: json['completed'] as bool? ?? false,
+      type: json['type'] as String? ?? kSectionTypeReading,
     );
 
 Map<String, dynamic> _$SectionSummaryToJson(_SectionSummary instance) =>
@@ -22,4 +23,5 @@ Map<String, dynamic> _$SectionSummaryToJson(_SectionSummary instance) =>
       'order': instance.order,
       'locked': instance.locked,
       'completed': instance.completed,
+      'type': instance.type,
     };

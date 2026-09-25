@@ -1,44 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/pressable_scale.dart';
 import '../../../era_quiz/presentation/providers/era_quiz_providers.dart';
 
 /// Node "final boss" (ERAQUIZ-01) — dirender sebagai node TERAKHIR di
 /// roadmap era, setelah seluruh node tahun. 3 kemungkinan visual:
 ///
-/// - `locked` (belum semua year completed, R-ERAQUIZ-02): lingkaran abu +
-///   gembok, sama gaya `_LockedNode` di year_node.dart, tapi lebih besar
-///   supaya tetap terasa "mencolok" sebagai puncak perjalanan meski
-///   masih terkunci.
-/// - unlocked + belum attempted: lingkaran MERAH besar mencolok (ERAQUIZ-01
-///   eksplisit minta ini beda dari node tahun biasa) dengan ikon mahkota/
-///   petir (`Icons.local_fire_department` dipakai sementara — ganti kalau
-///   Design.md punya ikon spesifik yang belum saya lihat).
-/// - unlocked + sudah attempted: lingkaran warna era + checkmark (mirip
-///   `_CompletedNode` tahun), tap membuka halaman Hasil langsung dari
-///   attempt tersimpan (bukan mengerjakan ulang — retake ada tombol
-///   terpisah di halaman Hasil sendiri, ERAQUIZ-05).
+/// - `locked`: lingkaran abu + gembok.
+/// - unlocked + belum attempted: lingkaran MERAH besar mencolok, dengan
+///   cincin glow yang berdenyut di belakangnya (ERAQUIZ-01 minta ikon ini
+///   tampil "besar/mencolok" beda dari node tahun biasa — denyut ini
+///   memperkuat itu tanpa perlu warna baru).
+/// - unlocked + sudah attempted: lingkaran warna era + checkmark, tap
+///   membuka halaman Hasil dari attempt tersimpan.
 ///
-/// CATATAN PENTING (gap yang perlu diketahui sebelum dipakai production):
-/// `eraQuizAttemptStatusProvider` (lewat `fetchResult()`) 404 untuk DUA
-/// kondisi yang tak terbedakan dari backend: "belum pernah attempt" ATAU
-/// "era ini memang tidak punya kuis sumatif ter-publish". Widget ini
-/// menutup gap itu dengan mengecek `eraQuizExistsProvider` (endpoint
-/// `show()`, BUKAN lagi `eraQuizProvider` — provider itu sudah dihapus
-/// total karena sekarang khusus dipakai `EraQuizSessionController` untuk
-/// sesi mengerjakan kuis, bukan untuk cek keberadaan) LEBIH DULU — kalau
-/// itu sendiri 404 (quiz tidak ada/belum publish), node ini disembunyikan
-/// total (`SizedBox.shrink()`), BUKAN dianggap "belum attempted".
-/// Error lain (bukan 404) dari kedua provider TIDAK menyembunyikan node
-/// — ditampilkan sebagai versi unattempted apa adanya, supaya gangguan
-/// jaringan sesaat tidak membuat node final-boss hilang total dari
-/// roadmap tanpa penjelasan.
+/// CATATAN GAP (belum berubah dari versi sebelumnya — masih relevan):
+/// `eraQuizAttemptStatusProvider` 404 untuk DUA kondisi tak terbedakan:
+/// "belum pernah attempt" ATAU "era ini tidak punya kuis published".
+/// Widget ini menutup gap itu dengan cek `eraQuizExistsProvider` LEBIH
+/// DULU — kalau itu sendiri 404, node disembunyikan total
+/// (`SizedBox.shrink()`). Error lain (bukan 404) TIDAK menyembunyikan
+/// node — ditampilkan sebagai versi unattempted apa adanya.
 ///
-/// Konsekuensinya: butuh sampai 2 request tambahan (`show()` lalu
-/// `result()`) tiap kali node ini perlu dirender untuk era yang
-/// unlocked — pertimbangkan cache/optimasi lebih lanjut kalau roadmap
-/// terasa lambat, TAPI jangan hilangkan pengecekan `show()`-nya karena
-/// itu satu-satunya cara yang benar dari source yang ada saat ini.
+/// REDESIGN: `withOpacity` -> `withValues(alpha:)`, seluruh tap target
+/// dibungkus [PressableScale], dan versi unattempted mendapat cincin
+/// glow berdenyut (lihat `_PulsingGlow`).
 class FinalBossNode extends ConsumerWidget {
   const FinalBossNode({
     super.key,
@@ -70,12 +57,8 @@ class FinalBossNode extends ConsumerWidget {
     final quizExistsAsync = ref.watch(eraQuizExistsProvider(eraId));
 
     return quizExistsAsync.when(
-      // Quiz ada & published -> lanjut cek status attempted.
       data: (exists) {
         if (!exists) {
-          // era ini memang belum punya kuis sumatif ter-publish —
-          // sembunyikan node sepenuhnya (lihat catatan panjang di atas
-          // kelas ini).
           return const SizedBox.shrink();
         }
 
@@ -94,10 +77,6 @@ class FinalBossNode extends ConsumerWidget {
                   screenWidth: screenWidth,
                 ),
           loading: () => const _LoadingFinalBoss(),
-          // Kalau ternyata error di sini BUKAN 404 (mis. 401/500), tampilkan
-          // versi unattempted apa adanya supaya node tidak hilang total dari
-          // roadmap tanpa penjelasan — tap akan mencoba fetch lagi & error
-          // aslinya akan muncul di layar kuis (AsyncError biasa di sana).
           error: (_, __) => _UnattemptedFinalBoss(
             onTap: onTapUnattempted,
             nodeX: nodeX,
@@ -106,9 +85,6 @@ class FinalBossNode extends ConsumerWidget {
         );
       },
       loading: () => const _LoadingFinalBoss(),
-      // Error selain 404 dari fetchQuiz() (401/500 dsb, sudah ditangani
-      // rethrow di eraQuizExistsProvider) -> tampilkan unattempted apa
-      // adanya, sama alasan seperti error handling attemptedAsync di atas.
       error: (_, __) => _UnattemptedFinalBoss(
         onTap: onTapUnattempted,
         nodeX: nodeX,
@@ -140,9 +116,8 @@ class _LockedFinalBoss extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return PressableScale(
       onTap: onTap,
-      behavior: HitTestBehavior.opaque,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -154,7 +129,7 @@ class _LockedFinalBoss extends StatelessWidget {
               color: AppColors.border,
             ),
             alignment: Alignment.center,
-            child: const Icon(Icons.lock, size: 28, color: AppColors.textDisabled),
+            child: const Icon(Icons.lock_rounded, size: 28, color: AppColors.textDisabled),
           ),
           const SizedBox(height: 8),
           Container(
@@ -183,10 +158,10 @@ class _LockedFinalBoss extends StatelessWidget {
   }
 }
 
-/// Belum dikerjakan sama sekali — SENGAJA dibuat paling mencolok
-/// (merah + ikon besar + shadow tebal) karena ERAQUIZ-01 minta ikon ini
-/// tampil "besar/mencolok" beda dari node tahun biasa.
-class _UnattemptedFinalBoss extends StatelessWidget {
+/// Belum dikerjakan sama sekali — SENGAJA dibuat paling mencolok (merah +
+/// ikon besar + shadow tebal + cincin glow berdenyut) karena ERAQUIZ-01
+/// minta node ini tampil beda dari node tahun biasa.
+class _UnattemptedFinalBoss extends StatefulWidget {
   const _UnattemptedFinalBoss({required this.onTap, this.nodeX, this.screenWidth});
 
   final VoidCallback onTap;
@@ -196,30 +171,71 @@ class _UnattemptedFinalBoss extends StatelessWidget {
   static const _red = Color(0xFFE53935);
 
   @override
+  State<_UnattemptedFinalBoss> createState() => _UnattemptedFinalBossState();
+}
+
+class _UnattemptedFinalBossState extends State<_UnattemptedFinalBoss>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1700),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
+    const red = _UnattemptedFinalBoss._red;
+
+    return PressableScale(
+      onTap: widget.onTap,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 96,
-            height: 96,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: _red,
-              boxShadow: [
-                BoxShadow(color: _red.withOpacity(0.45), blurRadius: 20, offset: const Offset(0, 6)),
+          SizedBox(
+            width: 130,
+            height: 130,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                AnimatedBuilder(
+                  animation: _controller,
+                  builder: (context, _) {
+                    final t = Curves.easeOut.transform(_controller.value);
+                    return Opacity(
+                      opacity: (1 - t) * 0.45,
+                      child: Container(
+                        width: 96 + 34 * t,
+                        height: 96 + 34 * t,
+                        decoration: const BoxDecoration(shape: BoxShape.circle, color: red),
+                      ),
+                    );
+                  },
+                ),
+                Container(
+                  width: 96,
+                  height: 96,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: red,
+                    boxShadow: [
+                      BoxShadow(color: red.withValues(alpha: 0.45), blurRadius: 20, offset: const Offset(0, 6)),
+                    ],
+                    border: Border.all(color: Colors.white, width: 3),
+                  ),
+                  alignment: Alignment.center,
+                  // TODO: ganti ikon kalau Design.md menetapkan ikon final-boss
+                  // yang spesifik — ini placeholder sementara.
+                  child: const Icon(Icons.local_fire_department_rounded, size: 40, color: Colors.white),
+                ),
               ],
-              border: Border.all(color: Colors.white, width: 3),
             ),
-            alignment: Alignment.center,
-            // TODO: ganti ikon kalau Design.md menetapkan ikon final-boss
-            // yang spesifik — ini placeholder sementara.
-            child: const Icon(Icons.local_fire_department, size: 40, color: Colors.white),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           Container(
             constraints: const BoxConstraints(maxWidth: 170),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -251,9 +267,8 @@ class _UnattemptedFinalBoss extends StatelessWidget {
   }
 }
 
-/// Sudah pernah dikerjakan (permanen, R-ERAQUIZ-09 — independen dari
-/// retake berikutnya). Tap membuka halaman Hasil dari attempt tersimpan
-/// terakhir (bukan mengerjakan ulang otomatis).
+/// Sudah pernah dikerjakan (permanen, R-ERAQUIZ-09). Tap membuka halaman
+/// Hasil dari attempt tersimpan terakhir (bukan mengerjakan ulang).
 class _AttemptedFinalBoss extends StatelessWidget {
   const _AttemptedFinalBoss({
     required this.accent,
@@ -269,9 +284,8 @@ class _AttemptedFinalBoss extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return PressableScale(
       onTap: onTap,
-      behavior: HitTestBehavior.opaque,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -285,11 +299,11 @@ class _AttemptedFinalBoss extends StatelessWidget {
                   shape: BoxShape.circle,
                   color: accent,
                   boxShadow: [
-                    BoxShadow(color: accent.withOpacity(0.35), blurRadius: 12, offset: const Offset(0, 4)),
+                    BoxShadow(color: accent.withValues(alpha: 0.35), blurRadius: 12, offset: const Offset(0, 4)),
                   ],
                 ),
                 alignment: Alignment.center,
-                child: const Icon(Icons.emoji_events, size: 34, color: Colors.white),
+                child: const Icon(Icons.emoji_events_rounded, size: 34, color: Colors.white),
               ),
               Positioned(
                 top: -4,
@@ -302,7 +316,7 @@ class _AttemptedFinalBoss extends StatelessWidget {
                     color: AppColors.success,
                     border: Border.fromBorderSide(BorderSide(color: Colors.white, width: 2)),
                   ),
-                  child: const Icon(Icons.check, size: 13, color: Colors.white),
+                  child: const Icon(Icons.check_rounded, size: 13, color: Colors.white),
                 ),
               ),
             ],

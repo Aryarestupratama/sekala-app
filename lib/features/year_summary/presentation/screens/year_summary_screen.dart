@@ -7,6 +7,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/models/year.dart';
 import '../../../../shared/models/year_summary_attempt.dart';
 import '../../../../shared/models/year_summary_point.dart';
+import '../../../../shared/widgets/pressable_scale.dart';
 import '../../../history/presentation/providers/history_providers.dart';
 import '../providers/year_summary_providers.dart';
 
@@ -68,7 +69,12 @@ class YearSummaryScreen extends ConsumerWidget {
     // jadi State lokal (`_justSubmitted`) tetap hidup.
     Widget body;
     if (yearAsync.hasValue && yearAsync.value == null) {
-      body = const Center(child: Text('Data tahun tidak ditemukan.'));
+      body = const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Text('Data tahun tidak ditemukan.', style: TextStyle(color: AppColors.textSecondary)),
+        ),
+      );
     } else if (yearAsync.hasValue && attemptAsync.hasValue) {
       body = _SummaryScreenBody(
         year: yearAsync.value!,
@@ -77,7 +83,23 @@ class YearSummaryScreen extends ConsumerWidget {
         accent: accent,
       );
     } else if (yearAsync.hasError && !yearAsync.hasValue) {
-      body = Center(child: Text('Gagal memuat data tahun: ${yearAsync.error}'));
+      body = Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.error_outline_rounded, size: 40, color: AppColors.textSecondary.withValues(alpha: 0.6)),
+              const SizedBox(height: 12),
+              Text(
+                'Gagal memuat data tahun: ${yearAsync.error}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: AppColors.textSecondary),
+              ),
+            ],
+          ),
+        ),
+      );
     } else if (attemptAsync.hasError && !attemptAsync.hasValue) {
       // Termasuk kasus 403 (section belum semua completed) atau 404
       // (rangkuman belum published admin) — pesan generik dari
@@ -85,9 +107,17 @@ class YearSummaryScreen extends ConsumerWidget {
       body = Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Text(
-            'Rangkuman belum bisa diakses: ${attemptAsync.error}',
-            textAlign: TextAlign.center,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.lock_outline_rounded, size: 40, color: AppColors.textSecondary.withValues(alpha: 0.6)),
+              const SizedBox(height: 12),
+              Text(
+                'Rangkuman belum bisa diakses: ${attemptAsync.error}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: AppColors.textSecondary),
+              ),
+            ],
           ),
         ),
       );
@@ -95,12 +125,17 @@ class YearSummaryScreen extends ConsumerWidget {
       // Belum pernah punya data sama sekali (initial load) -> baru di sini
       // spinner boleh menggantikan seluruh body, karena belum ada State
       // penting yang bisa hilang.
-      body = const Center(child: CircularProgressIndicator());
+      body = Center(child: CircularProgressIndicator(color: accent));
     }
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Rangkuman')),
+      appBar: AppBar(
+        backgroundColor: AppColors.surface,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        title: const Text('Rangkuman', style: TextStyle(fontWeight: FontWeight.w800)),
+      ),
       body: body,
     );
   }
@@ -216,12 +251,18 @@ class _ChoiceView extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 32, 20, 32),
       children: [
-        Icon(Icons.fact_check_outlined, size: 48, color: accent),
-        const SizedBox(height: 16),
+        Container(
+          width: 88,
+          height: 88,
+          margin: const EdgeInsets.only(bottom: 16),
+          decoration: BoxDecoration(color: accent.withValues(alpha: 0.12), shape: BoxShape.circle),
+          alignment: Alignment.center,
+          child: Icon(Icons.fact_check_rounded, size: 40, color: accent),
+        ),
         const Text(
           'Kamu sudah menyelesaikan rangkuman wabah ini.',
           textAlign: TextAlign.center,
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17),
         ),
         const SizedBox(height: 8),
         const Text(
@@ -230,44 +271,53 @@ class _ChoiceView extends StatelessWidget {
           style: TextStyle(color: AppColors.textSecondary),
         ),
         const SizedBox(height: 28),
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.ink,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-            ),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => Scaffold(
-                  appBar: AppBar(title: const Text('Rangkuman')),
-                  body: _FullSummaryView(
-                    year: year,
-                    eraSlug: eraSlug,
-                    accent: accent,
-                    fullSummary: fullSummary,
-                    isPerfect: isPerfect,
-                    // Tombol Kuis di sini pasti aktif — kalau
-                    // completion tersimpan sudah ada, section pasti
-                    // sudah completed & rangkuman pasti sudah selesai.
-                    quizUnlocked: true,
-                  ),
+        PressableScale(
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => Scaffold(
+                backgroundColor: AppColors.background,
+                appBar: AppBar(
+                  backgroundColor: AppColors.surface,
+                  elevation: 0,
+                  surfaceTintColor: Colors.transparent,
+                  title: const Text('Rangkuman', style: TextStyle(fontWeight: FontWeight.w800)),
+                ),
+                body: _FullSummaryView(
+                  year: year,
+                  eraSlug: eraSlug,
+                  accent: accent,
+                  fullSummary: fullSummary,
+                  isPerfect: isPerfect,
+                  // Tombol Kuis di sini pasti aktif — kalau
+                  // completion tersimpan sudah ada, section pasti
+                  // sudah completed & rangkuman pasti sudah selesai.
+                  quizUnlocked: true,
                 ),
               ),
             ),
-            child: const Text('Lihat Rangkuman', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            decoration: BoxDecoration(color: AppColors.ink, borderRadius: BorderRadius.circular(28)),
+            alignment: Alignment.center,
+            child: const Text(
+              'Lihat Rangkuman',
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            ),
           ),
         ),
         const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton(
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        PressableScale(
+          onTap: onRetake,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(color: AppColors.border, width: 1.5),
             ),
-            onPressed: onRetake,
+            alignment: Alignment.center,
             child: const Text('Kerjakan Ulang', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ),
@@ -441,7 +491,9 @@ class _SummaryAttemptFlowState extends ConsumerState<_SummaryAttemptFlow> {
             children: [
               for (var i = 0; i < total; i++) ...[
                 Expanded(
-                  child: Container(
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 260),
+                    curve: Curves.easeOut,
                     height: 6,
                     decoration: BoxDecoration(
                       color: i <= _index ? widget.accent : AppColors.border,
@@ -513,26 +565,33 @@ class _SummaryAttemptFlowState extends ConsumerState<_SummaryAttemptFlow> {
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-          child: SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: widget.accent,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-              ),
-              onPressed: (!_isAnswered || _isChecking || _isSubmitting) ? null : _onPrimaryButtonTap,
-              child: (_isChecking || _isSubmitting)
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                    )
-                  : Text(
-                      _isLastPoint ? 'Lihat Rangkuman Lengkap' : 'Lanjut',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                    ),
-            ),
+          child: Builder(
+            builder: (context) {
+              final disabled = !_isAnswered || _isChecking || _isSubmitting;
+              final busy = _isChecking || _isSubmitting;
+              return Opacity(
+                opacity: disabled && !busy ? 0.5 : 1.0,
+                child: PressableScale(
+                  onTap: disabled ? null : _onPrimaryButtonTap,
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    decoration: BoxDecoration(color: widget.accent, borderRadius: BorderRadius.circular(28)),
+                    alignment: Alignment.center,
+                    child: busy
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : Text(
+                            _isLastPoint ? 'Lihat Rangkuman Lengkap' : 'Lanjut',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.white),
+                          ),
+                  ),
+                ),
+              );
+            },
           ),
         ),
       ],
@@ -565,12 +624,12 @@ class _SummaryOptionTile extends StatelessWidget {
     if (state == _OptionVisualState.correct) {
       borderColor = AppColors.success;
       bgColor = AppColors.success.withValues(alpha: 0.08);
-      icon = Icons.check_circle;
+      icon = Icons.check_circle_rounded;
       iconColor = AppColors.success;
     } else if (state == _OptionVisualState.wrongSelected) {
       borderColor = AppColors.coral;
       bgColor = AppColors.coral.withValues(alpha: 0.08);
-      icon = Icons.cancel;
+      icon = Icons.cancel_rounded;
       iconColor = AppColors.coral;
     }
 
@@ -719,8 +778,11 @@ class _FullSummaryView extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(18),
               border: Border.all(color: AppColors.border),
+              boxShadow: [
+                BoxShadow(color: AppColors.ink.withValues(alpha: 0.04), blurRadius: 14, offset: const Offset(0, 6)),
+              ],
             ),
             child: Text(
               fullSummary.join(' '),
@@ -734,14 +796,14 @@ class _FullSummaryView extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.border),
+              color: accent.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: accent.withValues(alpha: 0.2)),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.format_quote, color: accent, size: 20),
+                Icon(Icons.format_quote_rounded, color: accent, size: 20),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
@@ -804,18 +866,36 @@ class _FullSummaryView extends StatelessWidget {
             runSpacing: 8,
             children: [
               for (final v in year.vaccines)
-                Chip(label: Text(v.name), backgroundColor: AppColors.surface),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.vaccines_rounded, size: 14, color: AppColors.gamify),
+                      const SizedBox(width: 6),
+                      Text(v.name, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                ),
             ],
           ),
         ],
 
         const SizedBox(height: 40),
         Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
             color: AppColors.surface,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(20),
             border: Border.all(color: AppColors.border),
+            boxShadow: [
+              BoxShadow(color: AppColors.ink.withValues(alpha: 0.04), blurRadius: 14, offset: const Offset(0, 6)),
+            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -832,7 +912,7 @@ class _FullSummaryView extends StatelessWidget {
               const SizedBox(height: 6),
               const Text(
                 'Kerjakan kuis singkat untuk menyelesaikan wabah ini.',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
               ),
               const SizedBox(height: 4),
               const Text(
@@ -840,26 +920,37 @@ class _FullSummaryView extends StatelessWidget {
                 style: TextStyle(fontSize: 12, color: AppColors.textSecondary, fontStyle: FontStyle.italic),
               ),
               const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.ink,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-                  ),
+              Builder(
+                builder: (context) {
                   // SUM-06: quizUnlocked seharusnya SELALU true di titik
                   // ini (rangkuman baru selesai = section pasti sudah
-                  // completed juga) — tetap onPressed null kalau somehow
-                  // false, biar tidak menyesatkan user tap tombol mati.
-                  onPressed: !quizUnlocked
-                      ? null
-                      : () => context.go(
-                            '/year/${year.id}/quiz?era=$eraSlug&title=${Uri.encodeComponent(year.title)}',
-                          ),
-                  icon: const Icon(Icons.edit_note, size: 20),
-                  label: const Text('Kerjakan Kuis', style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
+                  // completed juga) — tetap dibuat non-tappable kalau
+                  // somehow false, biar tidak menyesatkan user tap tombol
+                  // mati.
+                  return Opacity(
+                    opacity: quizUnlocked ? 1.0 : 0.5,
+                    child: PressableScale(
+                      onTap: !quizUnlocked
+                          ? null
+                          : () => context.go(
+                                '/year/${year.id}/quiz?era=$eraSlug&title=${Uri.encodeComponent(year.title)}',
+                              ),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        decoration: BoxDecoration(color: AppColors.ink, borderRadius: BorderRadius.circular(28)),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.edit_note_rounded, size: 20, color: Colors.white),
+                            SizedBox(width: 8),
+                            Text('Kerjakan Kuis', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
               ),
             ],
           ),

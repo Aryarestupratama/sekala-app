@@ -53,10 +53,12 @@ class TutorialTourController {
   /// tahun yang mau disorot tidak akan pernah muncul (GlobalKey tidak
   /// pernah attach), bikin tur macet diam-diam tanpa error apapun.
   ///
-  /// PENTING: per data seed saat ini, cuma era 'modern' yang punya tahun
-  /// (total: 2) -- 'kolonial' & 'kemerdekaan' masih total: 0. GANTI slug
-  /// ini balik ke 'kolonial' begitu era itu sudah diisi data tahun oleh
-  /// admin (urutan tur idealnya memang dari era pertama).
+  /// Push ke era 'kolonial' -- era PERTAMA (paling atas di roadmap Informasi
+  /// Sejarah), sesuai urutan tur yang seharusnya dari awal. Sebelumnya
+  /// sempat diarahkan sementara ke 'modern' karena cuma era itu yang punya
+  /// data tahun (kolonial & kemerdekaan masih total: 0) -- sekarang
+  /// ketiga era sudah punya data (lihat KolonialSeeder.php/
+  /// KemerdekaanSeeder.php), jadi dikembalikan ke 'kolonial'.
   static final List<TutorialStep> _steps = [
     TutorialStep(branchIndex: 0, keys: [TutorialKeys.homeCtaButton]),
     TutorialStep(
@@ -66,7 +68,7 @@ class TutorialTourController {
     ),
     TutorialStep(
       branchIndex: 1,
-      pushRoute: '/history/modern',
+      pushRoute: '/history/kolonial',
       readyKey: TutorialKeys.roadmapReady,
       keys: [TutorialKeys.roadmapYearNode, TutorialKeys.roadmapInfoIcon],
     ),
@@ -178,8 +180,8 @@ class TutorialTourController {
       debugPrint('[Tutorial] (runId=$runId) hasil nunggu readyKey: $ready');
       if (runId != _runId || !context.mounted) return;
       if (!ready) {
-        debugPrint('[Tutorial] (runId=$runId) BERHENTI: timeout nunggu readyKey, tur dianggap selesai');
-        _markSeen();
+        debugPrint('[Tutorial] (runId=$runId) BERHENTI: timeout nunggu readyKey, '
+            'BUKAN ditandai selesai -- auto-start bisa dicoba lagi login berikutnya.');
         return;
       }
     }
@@ -205,10 +207,13 @@ class TutorialTourController {
     }
     if (!success) {
       // Timeout -- data API kemungkinan gagal/lama sekali, atau target
-      // memang tidak pernah muncul. Daripada macet selamanya, tur
-      // dianggap selesai sampai sini supaya user tidak "terjebak".
-      debugPrint('[Tutorial] (runId=$runId) BERHENTI: timeout retry startShowCase, tur dianggap selesai');
-      _markSeen();
+      // memang tidak pernah muncul. Batalkan tanpa menandai `_markSeen()`
+      // -- kalau ini timeout karena API lambat (rawan terjadi persis di
+      // login/registrasi pertama, koneksi masih "dingin"), auto-start
+      // WAJIB bisa dicoba lagi di login berikutnya, bukan langsung
+      // dianggap "user sudah pernah lihat tutorial" padahal belum kelar.
+      debugPrint('[Tutorial] (runId=$runId) BERHENTI: timeout retry startShowCase, '
+          'BUKAN ditandai selesai -- auto-start bisa dicoba lagi login berikutnya.');
       return;
     }
     debugPrint('[Tutorial] (runId=$runId) startShowCase() sukses untuk step $_currentStepIndex');

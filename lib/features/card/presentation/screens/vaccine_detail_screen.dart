@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/pressable_scale.dart';
 import '../providers/card_providers.dart';
 
 /// GET /api/cards/{vaccine} — CARD-02. Cuma bisa diakses kalau vaksin
@@ -12,6 +13,11 @@ import '../providers/card_providers.dart';
 /// (Produsen/Penyakit Target/Tahun Diperkenalkan, Schema.md §2.6).
 /// "Section terkait" di mockup lama DIHAPUS karena VaccineDetail tidak
 /// membawa data itu.
+///
+/// REDESIGN: `withOpacity` -> `withValues(alpha:)`, tombol back/aksi
+/// dibungkus [PressableScale], konten fade-in begitu data siap, dan
+/// error/loading state dirapikan (tetap 404 = "belum terbuka/tidak
+/// ditemukan", R-VAC-01/05 — pesan itu sendiri tidak berubah).
 class VaccineDetailScreen extends ConsumerWidget {
   const VaccineDetailScreen({super.key, required this.vaccineId});
 
@@ -32,20 +38,58 @@ class VaccineDetailScreen extends ConsumerWidget {
               expandedHeight: 300,
               backgroundColor: AppColors.background,
               foregroundColor: Colors.white,
-              title: const Text('Detail Vaksin'),
+              automaticallyImplyLeading: false,
+              leading: Padding(
+                padding: const EdgeInsets.only(left: 12, top: 6),
+                child: PressableScale(
+                  onTap: () => Navigator.of(context).maybePop(),
+                  child: Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.35),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.arrow_back_rounded, size: 20),
+                  ),
+                ),
+              ),
               // Placeholder UI — belum ada fitur bookmark/share di backend,
               // sengaja dibiarkan sebagai tombol non-fungsional dulu sesuai
               // referensi visual; hapus kalau tidak ingin menjanjikan fitur.
               actions: [
-                IconButton(
-                  icon: const Icon(Icons.bookmark_border),
-                  onPressed: null,
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: PressableScale(
+                    onTap: null,
+                    child: Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.35),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.bookmark_border_rounded, size: 19),
+                    ),
+                  ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.ios_share),
-                  onPressed: null,
+                const SizedBox(width: 8),
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: PressableScale(
+                    onTap: null,
+                    child: Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.35),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.ios_share_rounded, size: 18),
+                    ),
+                  ),
                 ),
-                const SizedBox(width: 4),
+                const SizedBox(width: 12),
               ],
               flexibleSpace: FlexibleSpaceBar(
                 background: Stack(
@@ -58,9 +102,17 @@ class VaccineDetailScreen extends ConsumerWidget {
                       )
                     else
                       Container(
-                        color: AppColors.gamify.withValues(alpha: 0.15),
-                        child: const Icon(Icons.vaccines_outlined,
-                            size: 64, color: AppColors.gamify),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              AppColors.gamify.withValues(alpha: 0.22),
+                              AppColors.gamify.withValues(alpha: 0.08),
+                            ],
+                          ),
+                        ),
+                        child: const Icon(Icons.vaccines_outlined, size: 64, color: AppColors.gamify),
                       ),
                     // Scrim supaya tombol back/appbar tetap kebaca di atas foto
                     const DecoratedBox(
@@ -78,82 +130,143 @@ class VaccineDetailScreen extends ConsumerWidget {
               ),
             ),
             SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(vaccine.name, style: Theme.of(context).textTheme.headlineSmall),
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _Chip(
-                          label: vaccine.diseaseTarget,
-                          color: AppColors.gamify,
-                          icon: Icons.coronavirus_outlined,
-                        ),
-                        const _Chip(
-                          label: 'Terbuka',
-                          color: AppColors.success,
-                          icon: Icons.check_circle_outline,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.border),
+              child: _FadeIn(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        vaccine.name,
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
                       ),
-                      child: Column(
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
                         children: [
-                          _InfoRow(
-                            label: 'Produsen',
-                            value: vaccine.manufacturer ?? '-',
+                          _Chip(
+                            label: vaccine.diseaseTarget,
+                            color: AppColors.gamify,
+                            icon: Icons.coronavirus_outlined,
                           ),
-                          const Divider(height: 1, color: AppColors.border),
-                          _InfoRow(
-                            label: 'Penyakit Target',
-                            value: vaccine.diseaseTarget,
-                          ),
-                          const Divider(height: 1, color: AppColors.border),
-                          _InfoRow(
-                            label: 'Tahun Diperkenalkan',
-                            value: vaccine.yearIntroduced?.toString() ?? '-',
-                            isLast: true,
+                          const _Chip(
+                            label: 'Terbuka',
+                            color: AppColors.success,
+                            icon: Icons.check_circle_outline_rounded,
                           ),
                         ],
                       ),
-                    ),
-                    const SizedBox(height: 24),
-                    Text('Peran dalam Sejarah Kesehatan',
-                        style: Theme.of(context).textTheme.titleSmall),
-                    const SizedBox(height: 6),
-                    Text(
-                      vaccine.description,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.5),
-                    ),
-                  ],
+                      const SizedBox(height: 20),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppColors.border),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.ink.withValues(alpha: 0.04),
+                              blurRadius: 14,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            _InfoRow(
+                              label: 'Produsen',
+                              value: vaccine.manufacturer ?? '-',
+                            ),
+                            const Divider(height: 1, color: AppColors.border),
+                            _InfoRow(
+                              label: 'Penyakit Target',
+                              value: vaccine.diseaseTarget,
+                            ),
+                            const Divider(height: 1, color: AppColors.border),
+                            _InfoRow(
+                              label: 'Tahun Diperkenalkan',
+                              value: vaccine.yearIntroduced?.toString() ?? '-',
+                              isLast: true,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        'Peran dalam Sejarah Kesehatan',
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        vaccine.description,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.5),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
           ],
         ),
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => Scaffold(
+          backgroundColor: AppColors.background,
+          appBar: AppBar(backgroundColor: AppColors.background, elevation: 0),
+          body: Center(child: CircularProgressIndicator(color: AppColors.gamify)),
+        ),
         // 404 (belum unlock / vaksin nggak ada, R-VAC-01/05) jatuh ke sini.
         error: (error, _) => Scaffold(
-          appBar: AppBar(),
-          body: const Center(
+          backgroundColor: AppColors.background,
+          appBar: AppBar(backgroundColor: AppColors.background, elevation: 0),
+          body: Center(
             child: Padding(
-              padding: EdgeInsets.all(24),
-              child: Text('Vaksin ini belum terbuka atau tidak ditemukan.'),
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.lock_outline_rounded, size: 44, color: AppColors.textSecondary.withValues(alpha: 0.5)),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Vaksin ini belum terbuka atau tidak ditemukan.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Fade sederhana untuk konten begitu data vaksin siap ditampilkan.
+class _FadeIn extends StatefulWidget {
+  const _FadeIn({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_FadeIn> createState() => _FadeInState();
+}
+
+class _FadeInState extends State<_FadeIn> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 400),
+  )..forward();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: CurvedAnimation(parent: _controller, curve: Curves.easeOut),
+      child: widget.child,
     );
   }
 }

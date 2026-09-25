@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -8,43 +9,41 @@ import 'package:sekala_app/core/theme/app_colors.dart';
 import 'package:sekala_app/features/auth/presentation/providers/auth_providers.dart';
 import 'package:sekala_app/features/card/presentation/providers/card_providers.dart';
 
-/// Bottom nav 4 tab: Home / Informasi / Koleksi / Profil (Design.md §2,
-/// mockup Home terbaru). Dipakai sama untuk user login & guest — kalau
-/// guest tap "Koleksi" atau "Profil", redirect guard di app_router.dart
-/// yang otomatis mengarahkan ke /auth (R-GUEST-03), bukan disembunyikan
-/// di sini, supaya guest tetap tahu fitur itu ada (mendorong registrasi,
-/// sesuai prinsip "ramah untuk guest" di Design.md §1).
+/// Bottom nav 4 tab: Home / Informasi / Koleksi / Profil (Design.md §2).
+/// Dipakai sama untuk user login & guest — guard di app_router.dart yang
+/// mengarahkan guest ke /auth saat tap Koleksi/Profil (R-GUEST-03).
 ///
-/// **Bottom nav custom** (bukan `NavigationBar` bawaan Material 3) —
-/// alasan: butuh kontrol penuh atas 3 hal yang tidak bisa dicapai lewat
-/// styling `NavigationBar` biasa:
-/// 1. Tidak ada pill/background warna di belakang item aktif sama sekali.
-/// 2. Titik indikator kecil di bawah label yang **bergeser** (bukan
-///    fade in/out) mengikuti tab aktif.
-/// 3. Hover khusus (web/desktop): item non-aktif tetap pudar warnanya,
-///    tapi labelnya ikut muncul (pudar juga) selama di-hover.
+/// REDESIGN: nav bar "floating pill" (melayang, rounded, shadow lembut).
+/// - Lingkaran hitam **meluncur** dari tab lama ke tab baru (easeOutBack,
+///   sedikit memantul), ikon aktif jadi putih di atasnya.
+/// - Ikon aktif membesar halus, warna ikon & label berubah smooth.
+/// - Badge coral di tab Koleksi berdenyut (pulse) saat ada vaksin unseen.
+/// - Bar masuk dengan slide-up + fade saat pertama tampil.
+/// - Haptic ringan tiap ganti tab.
 ///
-/// **Badge dot merah** di tab "Koleksi" (baru) — nyala kalau ada vaksin
-/// unlocked yang belum dilihat user (`meta.unseen` dari GET /api/cards,
-/// lihat animasi reveal di vaccine_list_screen.dart). Cuma di-watch untuk
-/// user login terverifikasi (guest tidak pernah unlock apapun & endpoint
-/// /cards butuh auth+verified, R-GUEST-02) — supaya guest tidak memicu
-/// request yang bakal 401/403 percuma.
+/// Logic (auth, badge unseen, sinkron activeTabIndexProvider, goBranch)
+/// TIDAK berubah, murni visual.
 class MainShell extends ConsumerStatefulWidget {
   const MainShell({super.key, required this.navigationShell});
 
   final StatefulNavigationShell navigationShell;
 
   static const _items = [
-    _NavItemData(icon: Icons.home_outlined, activeIcon: Icons.home, label: 'Home'),
-    _NavItemData(icon: Icons.menu_book_outlined, activeIcon: Icons.menu_book, label: 'Informasi'),
-    _NavItemData(icon: Icons.style_outlined, activeIcon: Icons.style, label: 'Koleksi'),
-    _NavItemData(icon: Icons.person_outline, activeIcon: Icons.person, label: 'Profil'),
+    _NavItemData(
+        icon: Icons.home_outlined, activeIcon: Icons.home_rounded, label: 'Home'),
+    _NavItemData(
+        icon: Icons.menu_book_outlined,
+        activeIcon: Icons.menu_book_rounded,
+        label: 'Informasi'),
+    _NavItemData(
+        icon: Icons.style_outlined,
+        activeIcon: Icons.style_rounded,
+        label: 'Koleksi'),
+    _NavItemData(
+        icon: Icons.person_outline_rounded,
+        activeIcon: Icons.person_rounded,
+        label: 'Profil'),
   ];
-
-  // Konstanta index tab "Koleksi" dipusatkan di active_tab_provider.dart
-  // (koleksiTabIndex) supaya MainShell & VaccineListScreen selalu merujuk
-  // angka yang sama — hindari magic number `2` ditulis ulang di dua tempat.
 
   @override
   ConsumerState<MainShell> createState() => _MainShellState();
@@ -52,28 +51,41 @@ class MainShell extends ConsumerStatefulWidget {
 
 class _MainShellState extends ConsumerState<MainShell> {
   @override
+  void initState() {
+    super.initState();
+    _syncActiveTab();
+  }
+
+  @override
+  void didUpdateWidget(covariant MainShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _syncActiveTab();
+  }
+
+  /// Update `activeTabIndexProvider` di luar fase build (post-frame) supaya
+  /// tidak melanggar aturan Riverpod. Dipanggil hanya saat shell dibuat /
+  /// diperbarui, bukan tiap rebuild. Lihat active_tab_provider.dart.
+  void _syncActiveTab() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final tabNotifier = ref.read(activeTabIndexProvider.notifier);
+      final current = widget.navigationShell.currentIndex;
+      if (tabNotifier.state != current) {
+        tabNotifier.state = current;
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authNotifierProvider);
     final isVerifiedUser = authState.status == AuthStatus.authenticated;
 
+    // Badge hanya untuk user login terverifikasi (guest tidak memicu
+    // request /cards yang bakal 401/403, R-GUEST-02).
     final unseenCount = isVerifiedUser
         ? ref.watch(cardListProvider).valueOrNull?.meta.unseen ?? 0
         : 0;
-
-    // Update `activeTabIndexProvider` setiap kali tab aktif berubah — di
-    // luar fase build (post-frame) supaya tidak melanggar aturan Riverpod
-    // "jangan modify provider lain selagi widget tree masih dibangun".
-    // Ini yang dipakai `VaccineListScreen` (dan widget serupa lainnya di
-    // masa depan) untuk membedakan "aku di-rebuild karena tab ini sedang
-    // dilihat user" vs "aku di-rebuild diam-diam di background karena
-    // IndexedStack" — lihat catatan lengkap di active_tab_provider.dart.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final tabNotifier = ref.read(activeTabIndexProvider.notifier);
-      if (tabNotifier.state != widget.navigationShell.currentIndex) {
-        tabNotifier.state = widget.navigationShell.currentIndex;
-      }
-    });
 
     return Scaffold(
       body: widget.navigationShell,
@@ -82,6 +94,9 @@ class _MainShellState extends ConsumerState<MainShell> {
         items: MainShell._items,
         badgeIndex: unseenCount > 0 ? koleksiTabIndex : null,
         onDestinationSelected: (index) {
+          if (index != widget.navigationShell.currentIndex) {
+            HapticFeedback.selectionClick();
+          }
           widget.navigationShell.goBranch(
             index,
             // Balik ke root tab kalau tab yang sama di-tap lagi.
@@ -105,6 +120,9 @@ class _NavItemData {
   final String label;
 }
 
+const _kInk = Color(0xFF0C0C0C);
+const _kInactive = Color(0xFF8A8F98);
+
 class _BottomNavBar extends StatelessWidget {
   const _BottomNavBar({
     required this.selectedIndex,
@@ -117,34 +135,78 @@ class _BottomNavBar extends StatelessWidget {
   final List<_NavItemData> items;
   final ValueChanged<int> onDestinationSelected;
 
-  /// Index item yang perlu dot merah kecil (mis. tab "Koleksi" pas ada
-  /// vaksin belum dilihat). Null = tidak ada badge sama sekali.
+  /// Index item yang perlu badge (mis. Koleksi saat ada vaksin unseen).
   final int? badgeIndex;
 
-  static const double _barHeight = 72;
-  static const double _dotSize = 5;
+  static const double _barHeight = 74;
+  static const double _bubbleSize = 44;
+  static const double _bubbleTop = 8;
+  static const double _hPad = 6;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      elevation: 0,
-      child: DecoratedBox(
-        // Garis tipis di atas, pengganti shadow/elevation — tetap kelihatan
-        // sebagai batas dari konten di atasnya, tapi flat/putih bersih.
-        decoration: const BoxDecoration(
-          border: Border(top: BorderSide(color: Color(0x14000000), width: 1)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: SizedBox(
+    return SafeArea(
+      top: false,
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0, end: 1),
+        duration: const Duration(milliseconds: 600),
+        curve: Curves.easeOutCubic,
+        builder: (context, t, child) {
+          return Opacity(
+            opacity: t,
+            child: Transform.translate(
+              offset: Offset(0, (1 - t) * 40),
+              child: child,
+            ),
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+          child: Container(
             height: _barHeight,
+            padding: const EdgeInsets.symmetric(horizontal: _hPad),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(30),
+              border: Border.all(color: const Color(0x0F000000)),
+              boxShadow: [
+                BoxShadow(
+                  color: _kInk.withValues(alpha: 0.10),
+                  blurRadius: 28,
+                  spreadRadius: 0,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final itemWidth = constraints.maxWidth / items.length;
 
                 return Stack(
                   children: [
+                    // Lingkaran hitam yang meluncur ke tab aktif.
+                    AnimatedPositioned(
+                      duration: const Duration(milliseconds: 380),
+                      curve: Curves.easeOutBack,
+                      left: itemWidth * selectedIndex +
+                          (itemWidth - _bubbleSize) / 2,
+                      top: _bubbleTop,
+                      child: Container(
+                        width: _bubbleSize,
+                        height: _bubbleSize,
+                        decoration: BoxDecoration(
+                          color: _kInk,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: _kInk.withValues(alpha: 0.25),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                     Row(
                       children: List.generate(items.length, (index) {
                         return Expanded(
@@ -156,24 +218,6 @@ class _BottomNavBar extends StatelessWidget {
                           ),
                         );
                       }),
-                    ),
-                    // Titik indikator — cuma satu instance, posisinya
-                    // di-animate tiap kali `selectedIndex` berubah, jadi
-                    // efeknya "geser" dari tab lama ke tab baru, bukan
-                    // muncul/hilang di masing-masing tab.
-                    AnimatedPositioned(
-                      duration: const Duration(milliseconds: 280),
-                      curve: Curves.easeOutCubic,
-                      left: itemWidth * selectedIndex + itemWidth / 2 - (_dotSize / 2),
-                      bottom: 10,
-                      child: Container(
-                        width: _dotSize,
-                        height: _dotSize,
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.black,
-                        ),
-                      ),
                     ),
                   ],
                 );
@@ -206,87 +250,142 @@ class _NavItem extends StatefulWidget {
 class _NavItemState extends State<_NavItem> {
   bool _isHovered = false;
 
-  static const _activeColor = Colors.black;
-  static const _fadedColor = Colors.black38;
+  @override
+  Widget build(BuildContext context) {
+    final isActive = widget.isActive;
+    final iconColor = isActive ? Colors.white : _kInactive;
+    final labelColor = isActive
+        ? _kInk
+        : (_isHovered ? _kInk.withValues(alpha: 0.6) : _kInactive);
+
+    return Semantics(
+      button: true,
+      selected: isActive,
+      label: widget.data.label,
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _isHovered = true),
+        onExit: (_) => setState(() => _isHovered = false),
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          onTap: widget.onTap,
+          behavior: HitTestBehavior.opaque,
+          child: Padding(
+            padding: const EdgeInsets.only(top: _BottomNavBar._bubbleTop),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: _BottomNavBar._bubbleSize,
+                  height: _BottomNavBar._bubbleSize,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    clipBehavior: Clip.none,
+                    children: [
+                      AnimatedScale(
+                        scale: isActive ? 1.08 : 1.0,
+                        duration: const Duration(milliseconds: 260),
+                        curve: Curves.easeOutBack,
+                        child: TweenAnimationBuilder<Color?>(
+                          tween: ColorTween(end: iconColor),
+                          duration: const Duration(milliseconds: 220),
+                          builder: (context, color, _) {
+                            return Icon(
+                              isActive
+                                  ? widget.data.activeIcon
+                                  : widget.data.icon,
+                              color: color,
+                              size: 23,
+                            );
+                          },
+                        ),
+                      ),
+                      if (widget.showBadge)
+                        const Positioned(
+                          top: 6,
+                          right: 6,
+                          child: _PulsingDot(),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 3),
+                AnimatedDefaultTextStyle(
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeOut,
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                    color: labelColor,
+                    letterSpacing: 0.1,
+                  ),
+                  child: Text(widget.data.label),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Dot coral dengan cincin yang berdenyut pelan, menarik perhatian ke tab
+/// Koleksi tanpa terasa mengganggu.
+class _PulsingDot extends StatefulWidget {
+  const _PulsingDot();
+
+  @override
+  State<_PulsingDot> createState() => _PulsingDotState();
+}
+
+class _PulsingDotState extends State<_PulsingDot>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1600),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    // Label tampil kalau item aktif, ATAU kalau non-aktif tapi sedang
-    // di-hover (warnanya tetap pudar, cuma labelnya yang nongol).
-    final showLabel = widget.isActive || _isHovered;
-    final color = widget.isActive ? _activeColor : _fadedColor;
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: widget.onTap,
-        behavior: HitTestBehavior.opaque,
-        child: Padding(
-          padding: const EdgeInsets.only(top: 8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+    return SizedBox(
+      width: 14,
+      height: 14,
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, _) {
+          final t = Curves.easeOut.transform(_controller.value);
+          return Stack(
+            alignment: Alignment.center,
             children: [
-              // Efek zoom halus saat aktif — scale-nya sengaja kecil
-              // (1.0 -> 1.1) + curve easeOutCubic supaya terasa lembut,
-              // bukan "lompat" mendadak.
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  AnimatedScale(
-                    scale: widget.isActive ? 1.1 : 1.0,
-                    duration: const Duration(milliseconds: 220),
-                    curve: Curves.easeOutCubic,
-                    child: Icon(
-                      widget.isActive ? widget.data.activeIcon : widget.data.icon,
-                      color: color,
-                      size: 24,
-                    ),
-                  ),
-                  if (widget.showBadge)
-                    Positioned(
-                      top: -1,
-                      right: -3,
-                      child: AnimatedOpacity(
-                        opacity: widget.showBadge ? 1 : 0,
-                        duration: const Duration(milliseconds: 200),
-                        child: Container(
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: AppColors.coral,
-                            border: Border.all(color: Colors.white, width: 1.5),
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              AnimatedOpacity(
-                // Tetap reserve ruang meski opacity 0 (bukan
-                // conditional-render), supaya tinggi tiap item konsisten
-                // dan tidak ada layout yang "loncat" pas label muncul/hilang.
-                opacity: showLabel ? 1 : 0,
-                duration: const Duration(milliseconds: 180),
-                child: Text(
-                  widget.data.label,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: widget.isActive ? FontWeight.w600 : FontWeight.w400,
-                    color: color,
+              Opacity(
+                opacity: (1 - t) * 0.5,
+                child: Container(
+                  width: 8 + 6 * t,
+                  height: 8 + 6 * t,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.coral,
                   ),
                 ),
               ),
-              // Ruang kosong di bawah label — tempat titik indikator dari
-              // parent `Stack` duduk (dot-nya sendiri dirender terpisah
-              // di `_BottomNavBar`, bukan di sini per-item).
-              const SizedBox(height: 12),
+              Container(
+                width: 9,
+                height: 9,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.coral,
+                  border: Border.all(color: Colors.white, width: 1.5),
+                ),
+              ),
             ],
-          ),
-        ),
+          );
+        },
       ),
     );
   }

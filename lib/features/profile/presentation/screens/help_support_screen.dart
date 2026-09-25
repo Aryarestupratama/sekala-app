@@ -1,38 +1,50 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/widgets/pressable_scale.dart';
 import '../../../onboarding/tutorial_tour_controller.dart';
 import 'panduan_belajar_screen.dart';
 
-/// Isi dari menu "Bantuan & Dukungan" di ProfileScreen — sebelumnya cuma
-/// `_showComingSoon()`. Dua entry:
+/// Isi dari menu "Bantuan & Dukungan" di ProfileScreen. Dua entry:
 /// 1. "Lihat Tutorial Aplikasi" — replay coach mark yang sama dengan yang
 ///    auto-tampil pertama kali buka app (lihat TutorialTourController).
 /// 2. "Panduan Belajar" — teks statis, murni penjelasan cara memakai fitur
 ///    belajar di aplikasi (bukan konten sejarah).
+///
+/// REDESIGN: `ListTile` diganti kartu + [PressableScale] konsisten dengan
+/// menu di ProfileScreen. Urutan `Navigator.pop()` SEBELUM
+/// `TutorialTourController.start()` di menu pertama TIDAK diubah — itu
+/// penting supaya branch Profil tidak nyangkut di layar ini saat tur
+/// sampai ke step terakhir (lihat catatan aslinya).
 class HelpSupportScreen extends StatelessWidget {
   const HelpSupportScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Bantuan & Dukungan')),
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.surface,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        title: const Text('Bantuan & Dukungan', style: TextStyle(fontWeight: FontWeight.w800)),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           Container(
             decoration: BoxDecoration(
               color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(18),
               border: Border.all(color: AppColors.border),
             ),
+            clipBehavior: Clip.antiAlias,
             child: Column(
               children: [
-                ListTile(
-                  leading: const Icon(Icons.play_circle_outline, color: AppColors.ink),
-                  title: const Text('Lihat Tutorial Aplikasi'),
-                  subtitle: const Text('Panduan singkat cara memakai fitur utama'),
-                  trailing: const Icon(Icons.chevron_right, color: AppColors.textDisabled),
+                _HelpTile(
+                  icon: Icons.play_circle_outline_rounded,
+                  title: 'Lihat Tutorial Aplikasi',
+                  subtitle: 'Panduan singkat cara memakai fitur utama',
                   onTap: () {
                     // PENTING: pop dulu keluar dari layar ini SEBELUM
                     // mulai tur. Kalau tidak, branch Profil masih
@@ -47,12 +59,11 @@ class HelpSupportScreen extends StatelessWidget {
                     TutorialTourController.start(context);
                   },
                 ),
-                const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.menu_book_outlined, color: AppColors.ink),
-                  title: const Text('Panduan Belajar'),
-                  subtitle: const Text('Tips memaksimalkan proses belajarmu di SEKALA'),
-                  trailing: const Icon(Icons.chevron_right, color: AppColors.textDisabled),
+                const Divider(height: 1, color: AppColors.border),
+                _HelpTile(
+                  icon: Icons.menu_book_outlined,
+                  title: 'Panduan Belajar',
+                  subtitle: 'Tips memaksimalkan proses belajarmu di SEKALA',
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const PanduanBelajarScreen()),
                   ),
@@ -61,6 +72,55 @@ class HelpSupportScreen extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _HelpTile extends StatelessWidget {
+  const _HelpTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return PressableScale(
+      scale: 0.99,
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(color: AppColors.ink.withValues(alpha: 0.06), shape: BoxShape.circle),
+              alignment: Alignment.center,
+              child: Icon(icon, size: 20, color: AppColors.ink),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5)),
+                  const SizedBox(height: 2),
+                  Text(subtitle, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12.5)),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Icon(Icons.chevron_right_rounded, color: AppColors.textDisabled),
+          ],
+        ),
       ),
     );
   }

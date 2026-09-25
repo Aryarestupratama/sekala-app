@@ -11,6 +11,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/models/content_block.dart';
 import '../../../../shared/models/content_block_type.dart';
+import '../../../../shared/widgets/pressable_scale.dart';
 
 /// Render satu ContentBlock sesuai tipenya (CMS-02, Schema.md §2.5).
 ///
@@ -55,11 +56,14 @@ class ContentBlockView extends StatelessWidget {
                   fit: BoxFit.cover,
                   placeholder: (context, url) => const AspectRatio(
                     aspectRatio: 16 / 9,
-                    child: Center(child: CircularProgressIndicator()),
+                    child: _MediaSkeleton(),
                   ),
-                  errorWidget: (context, url, error) => const AspectRatio(
+                  errorWidget: (context, url, error) => AspectRatio(
                     aspectRatio: 16 / 9,
-                    child: Center(child: Icon(Icons.broken_image_outlined)),
+                    child: Container(
+                      color: AppColors.border.withValues(alpha: 0.3),
+                      child: const Icon(Icons.broken_image_outlined, color: AppColors.textSecondary),
+                    ),
                   ),
                 ),
               ),
@@ -132,16 +136,43 @@ class ContentBlockView extends StatelessWidget {
 
       case ContentBlockType.pdf:
         final pdfUrl = block.resolvedUrl ?? block.content;
-        return Card(
-          margin: const EdgeInsets.symmetric(vertical: 8),
-          child: ListTile(
-            leading: const Icon(Icons.picture_as_pdf_outlined),
-            title: const Text('Buka dokumen PDF'),
-            trailing: const Icon(Icons.open_in_new),
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: PressableScale(
             onTap: () => showDialog<void>(
               context: context,
               barrierDismissible: false,
               builder: (_) => _PdfPreviewDialog(url: pdfUrl),
+            ),
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: AppColors.ink.withValues(alpha: 0.08),
+                      shape: BoxShape.circle,
+                    ),
+                    alignment: Alignment.center,
+                    child: const Icon(Icons.picture_as_pdf_rounded, color: AppColors.ink, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'Buka dokumen PDF',
+                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                    ),
+                  ),
+                  const Icon(Icons.open_in_new_rounded, size: 18, color: AppColors.textSecondary),
+                ],
+              ),
             ),
           ),
         );
@@ -472,7 +503,8 @@ class _VideoThumbnailWithPlayButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return PressableScale(
+      scale: 0.98,
       onTap: onTap,
       child: Stack(
         fit: StackFit.expand,
@@ -480,7 +512,7 @@ class _VideoThumbnailWithPlayButton extends StatelessWidget {
           CachedNetworkImage(
             imageUrl: thumbnailUrl,
             fit: BoxFit.cover,
-            placeholder: (context, url) => Container(color: Colors.black12),
+            placeholder: (context, url) => const _MediaSkeleton(),
             // Thumbnail publik Drive kadang gagal dimuat (mis. preview
             // belum sempat di-generate Drive, atau permission "Anyone
             // with the link" belum aktif) — fallback ke ikon video
@@ -565,34 +597,100 @@ class _UnavailableMediaCard extends StatelessWidget {
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.symmetric(vertical: 8),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: AppColors.border.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.error_outline),
-              const SizedBox(width: 8),
-              Expanded(child: Text(label)),
+              Container(
+                width: 34,
+                height: 34,
+                decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                alignment: Alignment.center,
+                child: const Icon(Icons.error_outline_rounded, size: 18, color: AppColors.textSecondary),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+              ),
             ],
           ),
           if (actionLabel != null && onAction != null) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             Align(
               alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: onAction,
-                icon: const Icon(Icons.open_in_new, size: 18),
-                label: Text(actionLabel!),
+              child: PressableScale(
+                onTap: onAction,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+                  decoration: BoxDecoration(
+                    color: AppColors.ink,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.open_in_new_rounded, size: 15, color: Colors.white),
+                      const SizedBox(width: 6),
+                      Text(
+                        actionLabel!,
+                        style: const TextStyle(color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.w700),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ],
         ],
       ),
+    );
+  }
+}
+
+/// Skeleton berdenyut untuk placeholder media (gambar/video) yang masih
+/// loading — menggantikan spinner polos, murni visual, tidak mengubah
+/// kapan/bagaimana media sebenarnya dimuat.
+class _MediaSkeleton extends StatefulWidget {
+  const _MediaSkeleton();
+
+  @override
+  State<_MediaSkeleton> createState() => _MediaSkeletonState();
+}
+
+class _MediaSkeletonState extends State<_MediaSkeleton> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1000),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        return Container(
+          color: Color.lerp(
+            const Color(0xFFEDEEF0),
+            const Color(0xFFE2E4E7),
+            Curves.easeInOut.transform(_controller.value),
+          ),
+          child: const Center(
+            child: Icon(Icons.image_outlined, color: Color(0xFFC7C9CD), size: 28),
+          ),
+        );
+      },
     );
   }
 }

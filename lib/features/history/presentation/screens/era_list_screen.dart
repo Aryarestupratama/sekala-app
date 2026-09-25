@@ -6,6 +6,7 @@ import 'package:showcaseview/showcaseview.dart';
 import '../../../../core/router/auth_state.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/models/home_progress.dart';
+import '../../../../shared/widgets/pressable_scale.dart';
 import '../../../onboarding/tutorial_keys.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../home/presentation/providers/home_providers.dart';
@@ -15,6 +16,12 @@ import '../providers/history_providers.dart';
 /// bisa akses (R-GUEST-01). Progress per era (HOME-01) cuma tampil untuk
 /// user login lewat homeSummaryProvider, sama seperti pola di HomeScreen
 /// (guest tidak punya `user_progress` tersimpan — R-PROG-06).
+///
+/// REDESIGN: logic/provider/tutorial TIDAK berubah, murni visual + animasi:
+/// 1) entrance fade-up bertahap per section (judul, mini progress, kartu era)
+/// 2) mini progress card: ring kecil menggantikan bar tipis, animasi mengisi
+/// 3) kartu era besar: gradasi diagonal + efek tekan (PressableScale)
+/// 4) `withOpacity` (deprecated) -> `withValues(alpha:)`
 class EraListScreen extends ConsumerStatefulWidget {
   const EraListScreen({super.key});
 
@@ -22,7 +29,32 @@ class EraListScreen extends ConsumerStatefulWidget {
   ConsumerState<EraListScreen> createState() => _EraListScreenState();
 }
 
-class _EraListScreenState extends ConsumerState<EraListScreen> {
+class _EraListScreenState extends ConsumerState<EraListScreen>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _entrance = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 800),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    _entrance.forward();
+  }
+
+  @override
+  void dispose() {
+    _entrance.dispose();
+    super.dispose();
+  }
+
+  Animation<double> _slot(double begin, double end) {
+    return CurvedAnimation(
+      parent: _entrance,
+      curve: Interval(begin, end, curve: Curves.easeOutCubic),
+    );
+  }
+
   // Ikon dekoratif watermark per era — murni kosmetik, dipetakan dari slug
   // sama seperti EraAccents.ofSlug (Design.md §5.4).
   static IconData _decorIconOfSlug(String slug) {
@@ -74,6 +106,7 @@ class _EraListScreenState extends ConsumerState<EraListScreen> {
       body: SafeArea(
         child: erasAsync.when(
           data: (eras) => RefreshIndicator(
+            color: AppColors.ink,
             onRefresh: () async {
               ref.invalidate(erasProvider);
               ref.invalidate(homeSummaryProvider);
@@ -82,106 +115,172 @@ class _EraListScreenState extends ConsumerState<EraListScreen> {
             // BUKAN ListView, supaya semua children (termasuk Showcase
             // eraExploreCard) langsung ke-mount tanpa perlu di-scroll dulu.
             child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                Text(
-                  'Informasi Sejarah',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Pilih masa yang ingin kamu jelajahi',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                ),
-
-                // === Progress per Periode — cuma untuk user login ===
-                if (!isGuest && progressBySlug.isNotEmpty) ...[
-                  const SizedBox(height: 24),
-                  Text(
-                    'Progress per Periode',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
+                  _FadeSlideUp(
+                    animation: _slot(0.0, 0.4),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Informasi Sejarah',
+                          style: Theme.of(context)
+                              .textTheme
+                              .headlineSmall
+                              ?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.3,
+                              ),
                         ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Pilih masa yang ingin kamu jelajahi',
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: AppColors.textSecondary,
+                                  ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // === Progress per Periode — cuma untuk user login ===
+                  if (!isGuest && progressBySlug.isNotEmpty) ...[
+                    const SizedBox(height: 22),
+                    _FadeSlideUp(
+                      animation: _slot(0.1, 0.5),
+                      child: _sectionTitle(context, 'Progress per Periode'),
+                    ),
+                    const SizedBox(height: 12),
+                    _FadeSlideUp(
+                      animation: _slot(0.15, 0.55),
+                      child: Row(
+                        children: [
+                          for (final era in eras) ...[
+                            Expanded(
+                              child: _EraProgressMiniCard(
+                                label: era.name,
+                                accent: EraAccents.ofSlug(era.slug),
+                                progress: progressBySlug[era.slug],
+                              ),
+                            ),
+                            if (era != eras.last) const SizedBox(width: 10),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 26),
+                  _FadeSlideUp(
+                    animation: _slot(0.2, 0.6),
+                    child: _sectionTitle(context, 'Jelajahi Masa'),
                   ),
                   const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      for (final era in eras) ...[
-                        Expanded(
-                          child: _EraProgressMiniCard(
-                            label: era.name,
-                            accent: EraAccents.ofSlug(era.slug),
-                            progress: progressBySlug[era.slug],
-                          ),
-                        ),
-                        if (era != eras.last) const SizedBox(width: 10),
-                      ],
-                    ],
-                  ),
-                ],
-
-                const SizedBox(height: 28),
-                Text(
-                  'Jelajahi Masa',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
+                  for (var i = 0; i < eras.length; i++) ...[
+                    _FadeSlideUp(
+                      animation: _slot(
+                        (0.25 + i * 0.12).clamp(0.0, 0.8),
+                        (0.65 + i * 0.12).clamp(0.2, 1.0),
                       ),
-                ),
-                const SizedBox(height: 12),
-                for (final era in eras) ...[
-                  if (era == eras.first)
-                    // KeyedSubtree luar (eraExploreCardReady) murni buat
-                    // penanda "siap" yang reliable dicek dari
-                    // TutorialTourController -- lihat catatan di
-                    // tutorial_keys.dart. Showcase di dalamnya tetap yang
-                    // beneran dipakai buat highlight tur.
-                    KeyedSubtree(
-                      key: TutorialKeys.eraExploreCardReady,
-                      child: Showcase(
-                        key: TutorialKeys.eraExploreCard,
-                        title: 'Jelajahi Masa',
-                        description:
-                            'Ketuk salah satu masa untuk melihat roadmap tahun-tahun wabahnya.',
-                        child: _EraExploreCard(
-                          name: era.name,
-                          description: era.description ?? '',
-                          accent: EraAccents.ofSlug(era.slug),
-                          decorIcon: _decorIconOfSlug(era.slug),
-                          darkText: _isDarkTextOnSlug(era.slug),
-                          onTap: () => context.go('/history/${era.slug}'),
-                        ),
-                      ),
-                    )
-                  else
-                    _EraExploreCard(
-                      name: era.name,
-                      description: era.description ?? '',
-                      accent: EraAccents.ofSlug(era.slug),
-                      decorIcon: _decorIconOfSlug(era.slug),
-                      darkText: _isDarkTextOnSlug(era.slug),
-                      onTap: () => context.go('/history/${era.slug}'),
+                      child: eras[i] == eras.first
+                          // KeyedSubtree luar (eraExploreCardReady) murni
+                          // penanda "siap" yang reliable dicek dari
+                          // TutorialTourController -- lihat catatan di
+                          // tutorial_keys.dart. Showcase di dalamnya tetap
+                          // yang beneran dipakai buat highlight tur.
+                          ? KeyedSubtree(
+                              key: TutorialKeys.eraExploreCardReady,
+                              child: Showcase(
+                                key: TutorialKeys.eraExploreCard,
+                                title: 'Jelajahi Masa',
+                                description:
+                                    'Ketuk salah satu masa untuk melihat roadmap tahun-tahun wabahnya.',
+                                child: _EraExploreCard(
+                                  name: eras[i].name,
+                                  description: eras[i].description ?? '',
+                                  accent: EraAccents.ofSlug(eras[i].slug),
+                                  decorIcon: _decorIconOfSlug(eras[i].slug),
+                                  darkText: _isDarkTextOnSlug(eras[i].slug),
+                                  onTap: () =>
+                                      context.go('/history/${eras[i].slug}'),
+                                ),
+                              ),
+                            )
+                          : _EraExploreCard(
+                              name: eras[i].name,
+                              description: eras[i].description ?? '',
+                              accent: EraAccents.ofSlug(eras[i].slug),
+                              decorIcon: _decorIconOfSlug(eras[i].slug),
+                              darkText: _isDarkTextOnSlug(eras[i].slug),
+                              onTap: () =>
+                                  context.go('/history/${eras[i].slug}'),
+                            ),
                     ),
-                  if (era != eras.last) const SizedBox(height: 16),
+                    if (eras[i] != eras.last) const SizedBox(height: 16),
+                  ],
                 ],
-              ],
               ),
             ),
           ),
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, _) => Center(child: Text('Gagal memuat data: $error')),
+          loading: () => const _EraListSkeleton(),
+          error: (error, _) => Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(
+                'Gagal memuat data: $error',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
+            ),
+          ),
         ),
       ),
     );
   }
+
+  Widget _sectionTitle(BuildContext context, String text) {
+    return Text(
+      text,
+      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.2,
+          ),
+    );
+  }
 }
 
-/// Kartu kecil "Kolonial 5/12 tahun" di section Progress per Periode.
+/// Fade + slide dari bawah ke posisi normal — sama seperti home_screen.dart.
+class _FadeSlideUp extends StatelessWidget {
+  const _FadeSlideUp({required this.animation, required this.child});
+
+  final Animation<double> animation;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: animation,
+      child: child,
+      builder: (context, child) {
+        return Opacity(
+          opacity: animation.value.clamp(0.0, 1.0),
+          child: Transform.translate(
+            offset: Offset(0, (1 - animation.value) * 18),
+            child: child,
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Kartu kecil ring progress "Kolonial 5/12 tahun" di section
+/// Progress per Periode. Ring lebih ringkas & elegan dibanding bar tipis,
+/// dan mengisi dengan animasi saat pertama tampil.
 class _EraProgressMiniCard extends StatelessWidget {
   const _EraProgressMiniCard({
     required this.label,
@@ -202,45 +301,67 @@ class _EraProgressMiniCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border),
       ),
-      clipBehavior: Clip.antiAlias,
+      padding: const EdgeInsets.fromLTRB(10, 14, 10, 12),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(height: 4, color: accent),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          SizedBox(
+            width: 46,
+            height: 46,
+            child: Stack(
+              alignment: Alignment.center,
               children: [
-                Text(
-                  label,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                  overflow: TextOverflow.ellipsis,
+                SizedBox(
+                  width: 46,
+                  height: 46,
+                  child: CircularProgressIndicator(
+                    value: 1,
+                    strokeWidth: 5,
+                    strokeCap: StrokeCap.round,
+                    valueColor: AlwaysStoppedAnimation(AppColors.border),
+                  ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  '$completed/$total tahun',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                SizedBox(
+                  width: 46,
+                  height: 46,
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0, end: ratio),
+                    duration: const Duration(milliseconds: 700),
+                    curve: Curves.easeOutCubic,
+                    builder: (context, value, _) {
+                      return CircularProgressIndicator(
+                        value: value,
+                        strokeWidth: 5,
+                        strokeCap: StrokeCap.round,
+                        backgroundColor: Colors.transparent,
+                        valueColor: AlwaysStoppedAnimation(accent),
+                      );
+                    },
+                  ),
                 ),
-                const SizedBox(height: 8),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: ratio,
-                    minHeight: 5,
-                    backgroundColor: AppColors.border,
-                    valueColor: AlwaysStoppedAnimation<Color>(accent),
+                Text(
+                  '$completed/$total',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ],
             ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w600,
+                ),
           ),
         ],
       ),
@@ -248,7 +369,7 @@ class _EraProgressMiniCard extends StatelessWidget {
   }
 }
 
-/// Kartu besar warna solid per era di section "Jelajahi Masa".
+/// Kartu besar gradasi per era di section "Jelajahi Masa".
 class _EraExploreCard extends StatelessWidget {
   const _EraExploreCard({
     required this.name,
@@ -269,14 +390,28 @@ class _EraExploreCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textColor = darkText ? AppColors.ink : AppColors.surface;
-    final chevronBg = (darkText ? AppColors.ink : AppColors.surface).withOpacity(0.12);
+    final chevronBg =
+        (darkText ? AppColors.ink : AppColors.surface).withValues(alpha: 0.14);
 
-    return Material(
-      color: accent,
-      borderRadius: BorderRadius.circular(20),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
+    return PressableScale(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(22),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [accent, Color.lerp(accent, Colors.black, 0.18)!],
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: accent.withValues(alpha: 0.28),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        clipBehavior: Clip.antiAlias,
         child: Stack(
           children: [
             // Watermark dekoratif — hanya kosmetik, tidak menutupi teks.
@@ -286,7 +421,7 @@ class _EraExploreCard extends StatelessWidget {
               child: Icon(
                 decorIcon,
                 size: 120,
-                color: textColor.withOpacity(0.15),
+                color: textColor.withValues(alpha: 0.15),
               ),
             ),
             Padding(
@@ -300,17 +435,19 @@ class _EraExploreCard extends StatelessWidget {
                       children: [
                         Text(
                           name,
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: textColor,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: textColor,
+                                  ),
                         ),
                         const SizedBox(height: 6),
                         Text(
                           description,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: textColor.withOpacity(0.85),
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: textColor.withValues(alpha: 0.85),
+                                  ),
                         ),
                       ],
                     ),
@@ -323,7 +460,7 @@ class _EraExploreCard extends StatelessWidget {
                       shape: BoxShape.circle,
                       color: chevronBg,
                     ),
-                    child: Icon(Icons.chevron_right, color: textColor),
+                    child: Icon(Icons.chevron_right_rounded, color: textColor),
                   ),
                 ],
               ),
@@ -331,6 +468,75 @@ class _EraExploreCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Skeleton loading — pengganti spinner polos di tengah layar, supaya
+/// bentuk layout (judul + 3 kartu) sudah terlihat sejak awal.
+class _EraListSkeleton extends StatelessWidget {
+  const _EraListSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
+      children: const [
+        _SkeletonBox(height: 28, width: 200),
+        SizedBox(height: 10),
+        _SkeletonBox(height: 16, width: 240),
+        SizedBox(height: 26),
+        _SkeletonBox(height: 140),
+        SizedBox(height: 16),
+        _SkeletonBox(height: 140),
+        SizedBox(height: 16),
+        _SkeletonBox(height: 140),
+      ],
+    );
+  }
+}
+
+class _SkeletonBox extends StatefulWidget {
+  const _SkeletonBox({required this.height, this.width});
+
+  final double height;
+  final double? width;
+
+  @override
+  State<_SkeletonBox> createState() => _SkeletonBoxState();
+}
+
+class _SkeletonBoxState extends State<_SkeletonBox>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1000),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        return Container(
+          height: widget.height,
+          width: widget.width ?? double.infinity,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            color: Color.lerp(
+              const Color(0xFFEDEEF0),
+              const Color(0xFFE2E4E7),
+              Curves.easeInOut.transform(_controller.value),
+            ),
+          ),
+        );
+      },
     );
   }
 }

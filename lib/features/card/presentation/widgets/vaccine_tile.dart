@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/models/vaccine_card.dart';
+import '../../../../shared/widgets/pressable_scale.dart';
 
 /// Design.md §3.4 poin 1, disesuaikan ke domain vaksin.
 ///
@@ -12,12 +13,16 @@ import '../../../../shared/models/vaccine_card.dart';
 /// Yang disembunyikan hanya `photoUrl` (backend kirim null saat locked,
 /// diganti `photoLockedUrl` versi siluet — lihat VaccineCardResource).
 ///
-/// GLOW "BARU" (baru): vaksin yang `unlocked && unseen` (sudah lolos
-/// animasi reveal di dialog, tapi belum pernah dibuka detailnya — lihat
+/// GLOW "BARU": vaksin yang `unlocked && unseen` (sudah lolos animasi
+/// reveal di dialog, tapi belum pernah dibuka detailnya — lihat
 /// `_openDetail` di vaccine_list_screen.dart yang baru menandai `seen`
 /// pas detail dibuka, BUKAN pas dialog reveal ditutup) dikasih glow
 /// pulsing + badge kecil "Baru!", supaya tetap menonjol di grid sampai
 /// user benar-benar buka detailnya.
+///
+/// REDESIGN: `InkWell` (ripple Material) diganti [PressableScale] (scale
+/// tekan) supaya konsisten dengan tap-feedback di kartu lain se-app;
+/// `onTap`, kondisi glow, dan silhouette locked/unlocked sama persis.
 class VaccineTile extends StatelessWidget {
   const VaccineTile({super.key, required this.vaccine, required this.onTap});
 
@@ -30,9 +35,8 @@ class VaccineTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final accent = vaccine.unlocked ? AppColors.gamify : AppColors.border;
 
-    final card = InkWell(
+    final card = PressableScale(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
       child: Container(
         decoration: BoxDecoration(
           color: AppColors.surface,
@@ -67,7 +71,7 @@ class VaccineTile extends StatelessWidget {
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(
-                          Icons.lock_outline,
+                          Icons.lock_outline_rounded,
                           size: 14,
                           color: AppColors.textSecondary,
                         ),
@@ -155,7 +159,7 @@ class VaccineTile extends StatelessWidget {
     final url = vaccine.unlocked ? vaccine.photoUrl : vaccine.photoLockedUrl;
     if (url == null) {
       return Icon(
-        vaccine.unlocked ? Icons.vaccines_outlined : Icons.lock_outline,
+        vaccine.unlocked ? Icons.vaccines_outlined : Icons.lock_outline_rounded,
         size: 32,
         color: vaccine.unlocked ? AppColors.gamify : AppColors.border,
       );
@@ -169,8 +173,8 @@ class VaccineTile extends StatelessWidget {
 }
 
 /// Border-glow yang "berdenyut" pelan tanpa henti (dipasang di luar
-/// `InkWell` supaya efek shadow nggak ke-clip sama `Clip.antiAlias` di
-/// Container dalamnya). Blur & spread naik-turun terus lewat kurva sin,
+/// [PressableScale] supaya efek shadow tidak ke-clip sama `Clip.antiAlias`
+/// di Container dalamnya). Blur & spread naik-turun terus lewat kurva sin,
 /// jadi transisinya mulus di kedua ujung (bukan "loncat" pas reverse).
 class _PulsingGlow extends StatefulWidget {
   const _PulsingGlow({required this.child});

@@ -188,7 +188,12 @@ class _VaccineListScreenState extends ConsumerState<VaccineListScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Koleksi Vaksin')),
+      appBar: AppBar(
+        backgroundColor: AppColors.surface,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        title: const Text('Koleksi Vaksin', style: TextStyle(fontWeight: FontWeight.w800)),
+      ),
       body: cardsAsync.when(
         data: (response) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -202,10 +207,37 @@ class _VaccineListScreenState extends ConsumerState<VaccineListScreen> {
               slivers: [
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                    child: Text(
-                      '${response.meta.unlocked} dari ${response.meta.total} vaksin terbuka',
-                      style: Theme.of(context).textTheme.titleMedium,
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${response.meta.unlocked} dari ${response.meta.total} vaksin terbuka',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                        ),
+                        const SizedBox(height: 8),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: TweenAnimationBuilder<double>(
+                            tween: Tween(
+                              begin: 0,
+                              end: response.meta.total == 0
+                                  ? 0.0
+                                  : response.meta.unlocked / response.meta.total,
+                            ),
+                            duration: const Duration(milliseconds: 700),
+                            curve: Curves.easeOutCubic,
+                            builder: (context, value, _) {
+                              return LinearProgressIndicator(
+                                value: value,
+                                minHeight: 6,
+                                backgroundColor: AppColors.border,
+                                valueColor: const AlwaysStoppedAnimation(AppColors.gamify),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -272,12 +304,27 @@ class _VaccineListScreenState extends ConsumerState<VaccineListScreen> {
                   SliverFillRemaining(
                     hasScrollBody: false,
                     child: Center(
-                      child: Text(
-                        'Belum ada vaksin di kategori ini.',
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodyMedium
-                            ?.copyWith(color: AppColors.textSecondary),
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.vaccines_outlined,
+                              size: 44,
+                              color: AppColors.textSecondary.withValues(alpha: 0.5),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'Belum ada vaksin di kategori ini.',
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(color: AppColors.textSecondary),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   )
@@ -340,8 +387,34 @@ class _VaccineListScreenState extends ConsumerState<VaccineListScreen> {
             ),
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(child: Text('Gagal memuat data: $error')),
+        loading: () => Center(child: CircularProgressIndicator(color: AppColors.gamify)),
+        error: (error, _) => Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.error_outline_rounded, size: 40, color: AppColors.textSecondary.withValues(alpha: 0.6)),
+                const SizedBox(height: 12),
+                Text(
+                  'Gagal memuat data: $error',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: AppColors.textSecondary),
+                ),
+                const SizedBox(height: 16),
+                InkWell(
+                  onTap: () => ref.invalidate(cardListProvider),
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    decoration: BoxDecoration(color: AppColors.ink, borderRadius: BorderRadius.circular(20)),
+                    child: const Text('Coba Lagi', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

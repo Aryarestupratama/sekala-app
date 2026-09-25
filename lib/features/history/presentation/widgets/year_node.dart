@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-// NOTE: sesuaikan path import ini kalau lokasi app_colors.dart di project
-// Anda beda (diasumsikan lib/core/theme/app_colors.dart, 4 level dari sini).
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/models/year.dart';
+import '../../../../shared/widgets/pressable_scale.dart';
 
 enum YearNodeState { completed, current, locked }
 
@@ -14,6 +13,10 @@ enum YearNodeState { completed, current, locked }
 ///   warna era, plus kartu tooltip gelap "Mulai/Lanjutkan membaca →".
 /// - locked: belum terbuka (R-YEAR-02/03) — lingkaran abu, ikon gembok,
 ///   label "Belum Terbuka".
+///
+/// REDESIGN: `withOpacity` (deprecated) -> `withValues(alpha:)`, dan
+/// seluruh node kini dibungkus [PressableScale] supaya terasa "empuk"
+/// saat ditekan (bounce animasi node current tetap ada, tidak dihapus).
 class YearNode extends StatelessWidget {
   const YearNode({
     super.key,
@@ -32,10 +35,7 @@ class YearNode extends StatelessWidget {
 
   /// Posisi horizontal node (px, relatif ke `screenWidth`) dan lebar layar
   /// yang tersedia — dipakai tiap sub-widget state untuk menghitung
-  /// pergeseran kotak label/tooltip-nya **sendiri**, sesuai lebar kotak
-  /// masing-masing (kotak tooltip current 220px vs label locked/completed
-  /// 130px). Kalau null (mis. dipakai di tempat lain tanpa konteks layar),
-  /// tidak ada pergeseran sama sekali — perilaku sama seperti sebelumnya.
+  /// pergeseran kotak label/tooltip-nya sendiri.
   final double? nodeX;
   final double? screenWidth;
 
@@ -54,10 +54,7 @@ class YearNode extends StatelessWidget {
 
 /// Hitung pergeseran horizontal (px) untuk sebuah kotak selebar
 /// `2 * boxHalfWidth` yang idealnya center di `nodeX`, supaya kotak
-/// tersebut tetap muat penuh di dalam `screenWidth` (dengan padding aman
-/// di kedua tepi). Mengembalikan 0 kalau data posisi belum tersedia
-/// (`nodeX`/`screenWidth` null) atau kalau kotak memang sudah aman
-/// di tengah tanpa perlu digeser.
+/// tersebut tetap muat penuh di dalam `screenWidth`.
 double _shiftForBox({
   required double? nodeX,
   required double? screenWidth,
@@ -91,9 +88,8 @@ class _CompletedNode extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return PressableScale(
       onTap: onTap,
-      behavior: HitTestBehavior.opaque,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -108,7 +104,7 @@ class _CompletedNode extends StatelessWidget {
                   color: accent,
                   boxShadow: [
                     BoxShadow(
-                      color: accent.withOpacity(0.35),
+                      color: accent.withValues(alpha: 0.35),
                       blurRadius: 12,
                       offset: const Offset(0, 4),
                     ),
@@ -137,7 +133,7 @@ class _CompletedNode extends StatelessWidget {
                       BorderSide(color: Colors.white, width: 2),
                     ),
                   ),
-                  child: const Icon(Icons.check, size: 13, color: Colors.white),
+                  child: const Icon(Icons.check_rounded, size: 13, color: Colors.white),
                 ),
               ),
             ],
@@ -158,11 +154,10 @@ class _CompletedNode extends StatelessWidget {
 
 /// Node untuk tahun yang sedang aktif (unlocked, belum completed).
 ///
-/// Lingkarannya diberi animasi "bounce" halus & terus berulang (naik-turun
-/// + sedikit membesar-mengecil) supaya kelihatan "hidup" dan mengundang
-/// perhatian user untuk melanjutkan — kotak tooltip hitam di bawahnya
-/// sengaja **tidak** ikut bounce, biar teksnya tetap stabil/gampang dibaca
-/// saat animasi berjalan.
+/// Lingkarannya diberi animasi "bounce" halus & terus berulang, kotak
+/// tooltip hitam di bawahnya sengaja TIDAK ikut bounce, supaya teksnya
+/// tetap stabil/gampang dibaca. Efek tekan (PressableScale) dibungkus di
+/// LUAR bounce supaya dua animasi tidak saling mengganggu.
 class _CurrentNode extends StatefulWidget {
   const _CurrentNode({
     required this.year,
@@ -194,8 +189,6 @@ class _CurrentNodeState extends State<_CurrentNode> with SingleTickerProviderSta
       duration: const Duration(milliseconds: 900),
     )..repeat(reverse: true);
 
-    // Curve pantul ringan (bukan linear) supaya kesannya kayak "loncat
-    // kecil", bukan sekadar naik-turun mekanis.
     _bounce = CurvedAnimation(parent: _controller, curve: Curves.easeInOutSine);
   }
 
@@ -210,17 +203,14 @@ class _CurrentNodeState extends State<_CurrentNode> with SingleTickerProviderSta
     final completedSections = widget.year.sections.where((s) => s.completed).length;
     final ctaLabel = completedSections == 0 ? 'Mulai membaca' : 'Lanjutkan membaca';
 
-    return GestureDetector(
+    return PressableScale(
       onTap: widget.onTap,
-      behavior: HitTestBehavior.opaque,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           AnimatedBuilder(
             animation: _bounce,
             builder: (context, child) {
-              // Naik maksimal 8px + membesar sedikit (1.0 -> 1.06) di
-              // puncak bounce, balik lagi ke posisi normal — loop terus.
               final liftY = -8 * _bounce.value;
               final scale = 1.0 + (0.06 * _bounce.value);
               return Transform.translate(
@@ -237,7 +227,7 @@ class _CurrentNodeState extends State<_CurrentNode> with SingleTickerProviderSta
                 border: Border.all(color: widget.accent, width: 4),
                 boxShadow: [
                   BoxShadow(
-                    color: widget.accent.withOpacity(0.3),
+                    color: widget.accent.withValues(alpha: 0.3),
                     blurRadius: 16,
                     offset: const Offset(0, 4),
                   ),
@@ -306,9 +296,8 @@ class _LockedNode extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return PressableScale(
       onTap: onTap,
-      behavior: HitTestBehavior.opaque,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -331,7 +320,7 @@ class _LockedNode extends StatelessWidget {
                     fontSize: 14,
                   ),
                 ),
-                const Icon(Icons.lock, size: 14, color: AppColors.textDisabled),
+                const Icon(Icons.lock_rounded, size: 14, color: AppColors.textDisabled),
               ],
             ),
           ),

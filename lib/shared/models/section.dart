@@ -1,5 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'content_block.dart';
+import 'section_summary.dart' show kSectionTypeCaseStudy, kSectionTypeReading;
 import 'section_year.dart';
 
 part 'section.freezed.dart';
@@ -39,8 +40,16 @@ part 'section.g.dart';
 ///   section maupun 1x per year). Sudah di-resolve backend ke direct-view
 ///   URL (accessor `Section::getResolvedHeaderImageUrlAttribute()`), siap
 ///   dipakai langsung sebagai `src` <Image.network>.
+///
+/// PERUBAHAN (Studi Kasus, R-CASE-01): ditambah `type` — backend sudah
+/// mengirimnya di `SectionDetailResource` (kedua cabang locked/unlocked).
+/// Section `case_study` tidak punya content block bacaan; layar detail
+/// section biasa tidak boleh dipakai untuknya (redirect ke alur studi
+/// kasus, lihat `isCaseStudy`).
 @freezed
 abstract class Section with _$Section {
+  const Section._();
+
   const factory Section({
     required int id,
     required String title,
@@ -54,8 +63,13 @@ abstract class Section with _$Section {
     @JsonKey(name: 'content_blocks')
     @Default(<ContentBlock>[])
     List<ContentBlock> contentBlocks,
+
+    // BARU (R-CASE-01): 'reading' | 'case_study'. Default 'reading'.
+    @Default(kSectionTypeReading) String type,
   }) = _Section;
 
   factory Section.fromJson(Map<String, dynamic> json) =>
       _$SectionFromJson(json);
+
+  bool get isCaseStudy => type == kSectionTypeCaseStudy;
 }

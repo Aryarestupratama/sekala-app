@@ -15,6 +15,7 @@ _Section _$SectionFromJson(Map<String, dynamic> json) => _Section(
               ?.map((e) => ContentBlock.fromJson(e as Map<String, dynamic>))
               .toList() ??
           const <ContentBlock>[],
+      type: json['type'] as String? ?? kSectionTypeReading,
     );
 
 Map<String, dynamic> _$SectionToJson(_Section instance) => <String, dynamic>{
@@ -23,4 +24,5 @@ Map<String, dynamic> _$SectionToJson(_Section instance) => <String, dynamic>{
       'year': instance.year,
       'header_image_url': instance.headerImageUrl,
       'content_blocks': instance.contentBlocks,
+      'type': instance.type,
     };

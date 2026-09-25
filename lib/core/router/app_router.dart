@@ -6,10 +6,12 @@ import 'package:go_router/go_router.dart';
 import 'auth_state.dart';
 import '../../features/auth/presentation/screens/auth_screen.dart';
 import '../../features/auth/presentation/screens/splash_screen.dart';
+import '../../features/auth/presentation/providers/splash_providers.dart';
 import '../../features/home/presentation/screens/home_screen.dart';
 import '../../features/history/presentation/screens/era_list_screen.dart';
 import '../../features/history/presentation/screens/era_roadmap_screen.dart';
 import '../../features/history/presentation/screens/section_detail_screen.dart';
+import '../../features/case_study/presentation/screens/case_study_shell_screen.dart';
 import '../../features/year_summary/presentation/screens/year_summary_screen.dart';
 import '../../features/quiz/presentation/screens/quiz_screen.dart';
 import '../../features/era_quiz/presentation/screens/era_quiz_screen.dart';
@@ -27,6 +29,13 @@ import '../../shared/widgets/main_shell.dart';
 class _AuthRefreshListenable extends ChangeNotifier {
   _AuthRefreshListenable(Ref ref) {
     ref.listen<AuthState>(authNotifierProvider, (_, __) => notifyListeners());
+    // Video intro splash: begitu selesai (atau gagal dimuat dan langsung
+    // ditandai selesai), router perlu re-evaluate redirect supaya user
+    // yang statusnya sudah resolved dari awal (mis. authenticated) tidak
+    // nyangkut di /splash menunggu perubahan auth state yang tidak akan
+    // terjadi lagi.
+    ref.listen<bool>(
+        splashVideoFinishedProvider, (_, __) => notifyListeners());
   }
 }
 
@@ -53,6 +62,15 @@ const _protectedPathPrefixes = ['/cards', '/profile'];
 bool _isQuizPath(String location) =>
     location.contains('/quiz') || location.startsWith('/era-quiz');
 
+/// R-CASE (Studi Kasus): endpoint backend-nya ada di grup middleware
+/// `['auth:sanctum', 'verified']` — SAMA kelas dengan kuis (bukan
+/// Rangkuman, yang cuma implisit terlindungi lewat flow UI seperti
+/// dijelaskan di atas). Progress (`completeSectionIfNeeded`) & submit
+/// jawaban ditulis di sini, jadi guest wajib ditolak eksplisit, sama
+/// alasannya dengan `_isQuizPath` (jaga-jaga deep link langsung ke
+/// `/section/:id/case-study`).
+bool _isCaseStudyPath(String location) => location.contains('/case-study');
+
 final routerProvider = Provider<GoRouter>((ref) {
   final refreshListenable = _AuthRefreshListenable(ref);
 
@@ -62,9 +80,18 @@ final routerProvider = Provider<GoRouter>((ref) {
     refreshListenable: refreshListenable,
     redirect: (context, state) {
       final authState = ref.read(authNotifierProvider);
+      final videoFinished = ref.read(splashVideoFinishedProvider);
       final location = state.matchedLocation;
       final isSplash = location == '/splash';
       final isAuth = location == '/auth';
+
+      // Tahan di splash sampai video intro selesai diputar (atau gagal
+      // dimuat dan langsung ditandai selesai) — TERLEPAS dari status
+      // auth, termasuk kalau auth-check sudah kelar duluan sebelum
+      // video habis (keputusan produk: video diprioritaskan).
+      if (!videoFinished) {
+        return isSplash ? null : '/splash';
+      }
 
       switch (authState.status) {
         case AuthStatus.checking:
@@ -84,7 +111,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           if (isAuth) return null;
           final isProtected = _protectedPathPrefixes
                   .any((prefix) => location.startsWith(prefix)) ||
-              _isQuizPath(location); // R-QUIZ-09
+              _isQuizPath(location) || // R-QUIZ-09
+              _isCaseStudyPath(location); // R-CASE, sama kelas dgn kuis
           return isProtected ? '/auth' : null;
 
         case AuthStatus.authenticated:
@@ -140,6 +168,29 @@ final routerProvider = Provider<GoRouter>((ref) {
                 path: '/section/:sectionId',
                 builder: (context, state) => SectionDetailScreen(
                   sectionId: state.pathParameters['sectionId']!,
+                ),
+              ),
+              // BARU — R-CASE (Fase 1): Studi Kasus (Opening/Briefing/
+              // Ruang Keputusan/Badge, semua di satu shell). Top-level
+              // (bukan nested di bawah /section/:sectionId) dengan alasan
+              // sama seperti /section: bisa di-deep-link langsung. Dituju
+              // dari 2 tempat: redirect otomatis `SectionDetailScreen`
+              // (kalau section yang dibuka ternyata bertipe `case_study`
+              // — section ini TIDAK punya content_blocks untuk dirender)
+              // dan CTA "Mulai Studi Kasus" saat section SEBELUMNYA
+              // selesai dibaca. `year`/`era` WAJIB dioper via query param
+              // oleh pemanggil — shell pakai keduanya untuk ambil
+              // `Year.title` (nama wabah) lewat `yearInEraProvider` dan
+              // untuk menghitung section berikutnya setelah Badge (lihat
+              // docstring `CaseStudyShellScreen`).
+              GoRoute(
+                path: '/section/:sectionId/case-study',
+                builder: (context, state) => CaseStudyShellScreen(
+                  sectionId: int.parse(state.pathParameters['sectionId']!),
+                  yearId:
+                      int.tryParse(state.uri.queryParameters['year'] ?? '') ??
+                          0,
+                  eraSlug: state.uri.queryParameters['era'] ?? '',
                 ),
               ),
               // BARU — Rangkuman Wabah & Kuis (INFO-04/05, Design.md §3.3
