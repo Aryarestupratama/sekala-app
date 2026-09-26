@@ -124,7 +124,11 @@ class _LoadingContentState extends State<_LoadingContent> with SingleTickerProvi
         const _DragHandle(),
         _skeletonBox(height: 24, width: 180),
         const SizedBox(height: 16),
-        _skeletonBox(height: 160),
+        _skeletonBox(height: 16),
+        const SizedBox(height: 8),
+        _skeletonBox(height: 16),
+        const SizedBox(height: 8),
+        _skeletonBox(height: 16, width: 220),
         const SizedBox(height: 20),
         _skeletonBox(height: 48),
       ],
@@ -193,16 +197,13 @@ class _ContentState extends State<_Content> with SingleTickerProviderStateMixin 
             ],
           ),
           const SizedBox(height: 14),
-          if (widget.intro?.imageUrl != null)
-            ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: AspectRatio(
-                aspectRatio: 5 / 4,
-                child: Image.network(
-                  widget.intro!.imageUrl!,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
-                ),
+          if (widget.intro?.content != null)
+            Text(
+              widget.intro!.content!,
+              style: const TextStyle(
+                fontSize: 14,
+                height: 1.5,
+                color: AppColors.textSecondary,
               ),
             ),
           const SizedBox(height: 20),
