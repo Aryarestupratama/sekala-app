@@ -8,6 +8,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/models/home_progress.dart';
 import '../../../../shared/widgets/pressable_scale.dart';
 import '../../../onboarding/tutorial_keys.dart';
+import '../../../onboarding/tutorial_showcase_style.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../home/presentation/providers/home_providers.dart';
 import '../providers/history_providers.dart';
@@ -194,7 +195,7 @@ class _EraListScreenState extends ConsumerState<EraListScreen>
                           // yang beneran dipakai buat highlight tur.
                           ? KeyedSubtree(
                               key: TutorialKeys.eraExploreCardReady,
-                              child: Showcase(
+                              child: tutorialShowcase(
                                 key: TutorialKeys.eraExploreCard,
                                 title: 'Jelajahi Masa',
                                 description:

@@ -77,7 +77,23 @@ class SectionCompletionController extends StateNotifier<AsyncValue<void>> {
   }
 }
 
+/// BUKAN `.autoDispose` (bugfix — sama persis kelas bug yang sudah pernah
+/// ditemukan & diperbaiki di `caseStudyControllerProvider`,
+/// `case_study_providers.dart`, progress.md "Bug ke-2"): `SectionDetailScreen`
+/// hanya `ref.read(...).complete(sectionId)` untuk memicu aksi, TIDAK
+/// pernah `watch` `AsyncValue` controller ini (loading state tombol
+/// dikelola state lokal). Selama `.autoDispose`, Riverpod membuang
+/// provider ini SEGERA setelah `ref.read()` (tidak ada listener aktif),
+/// yaitu SEBELUM `complete()` (async, nunggu network) selesai — begitu
+/// response datang dan method mencoba `_ref.invalidate(yearsProvider(...))`
+/// / `_ref.invalidate(homeSummaryProvider)`, `_ref` sudah tidak valid lagi
+/// (disposed), sehingga kedua invalidate itu gagal diam-diam (exception
+/// ketangkep try/catch generik atau race, tergantung timing) — inilah
+/// sebab Home & Era List/Roadmap tidak update realtime setelah user
+/// menyelesaikan section bacaan biasa (BUKAN studi kasus, yang jalur
+/// controllernya sudah tidak `.autoDispose` sejak awal & karena itu aman).
+/// Provider ini bukan `.family`, aman hidup selama app berjalan.
 final sectionCompletionControllerProvider =
-    StateNotifierProvider.autoDispose<SectionCompletionController, AsyncValue<void>>(
+    StateNotifierProvider<SectionCompletionController, AsyncValue<void>>(
   (ref) => SectionCompletionController(ref),
 );

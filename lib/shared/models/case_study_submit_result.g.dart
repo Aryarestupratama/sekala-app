@@ -19,6 +19,7 @@ _CaseStudySubmitResult _$CaseStudySubmitResultFromJson(
           ? const <int>[]
           : _idsFromJson(json['newly_unlocked_vaccine_ids']),
       borderUnlocked: json['border_unlocked'] as bool? ?? false,
+      badgeNewlyUnlocked: json['badge_newly_unlocked'] as bool? ?? false,
     );
 
 Map<String, dynamic> _$CaseStudySubmitResultToJson(
@@ -30,4 +31,5 @@ Map<String, dynamic> _$CaseStudySubmitResultToJson(
       'year_completed': instance.yearCompleted,
       'newly_unlocked_vaccine_ids': instance.newlyUnlockedVaccineIds,
       'border_unlocked': instance.borderUnlocked,
+      'badge_newly_unlocked': instance.badgeNewlyUnlocked,
     };

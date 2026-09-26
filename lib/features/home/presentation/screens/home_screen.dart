@@ -7,6 +7,7 @@ import '../../../../core/router/auth_state.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/models/home_progress.dart';
 import '../../../onboarding/tutorial_keys.dart';
+import '../../../onboarding/tutorial_showcase_style.dart';
 import '../../../onboarding/tutorial_tour_controller.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../auth/presentation/widgets/email_verification_banner.dart';
@@ -116,13 +117,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   animation: _slot(0.0, 0.5),
                   child: _buildHeader(context, isGuest, userName),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 18),
 
                 if (isGuest)
                   _FadeSlideUp(
                     animation: _slot(0.15, 0.65),
                     child: Padding(
-                      padding: const EdgeInsets.only(bottom: 24),
+                      padding: const EdgeInsets.only(bottom: 18),
                       child: GuestInviteCard(onTap: () => context.go('/auth')),
                     ),
                   ),
@@ -247,8 +248,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final homeSummaryAsync = ref.watch(homeSummaryProvider);
     return homeSummaryAsync.maybeWhen(
       loading: () => const Padding(
-        padding: EdgeInsets.only(bottom: 24),
-        child: _SkeletonBox(height: 120),
+        padding: EdgeInsets.only(bottom: 18),
+        child: _SkeletonBox(height: 100),
       ),
       data: (summary) {
         final rec = summary?.recommendation;
@@ -259,7 +260,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         };
 
         return Padding(
-          padding: const EdgeInsets.only(bottom: 24),
+          padding: const EdgeInsets.only(bottom: 18),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -289,7 +290,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         final total = progressByEra.fold<int>(0, (sum, p) => sum + p.total);
 
         return Padding(
-          padding: const EdgeInsets.only(bottom: 24),
+          padding: const EdgeInsets.only(bottom: 18),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -304,7 +305,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   Widget _buildCta(BuildContext context) {
-    return Showcase(
+    return tutorialShowcase(
       key: TutorialKeys.homeCtaButton,
       title: 'Mulai Jelajahi',
       description:

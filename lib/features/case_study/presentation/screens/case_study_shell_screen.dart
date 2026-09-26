@@ -120,15 +120,45 @@ class _CaseStudyShellScreenState extends ConsumerState<CaseStudyShellScreen> {
       _stage = _Stage.badge;
     });
 
-    // Fase 3 — notifikasi terpisah dari layar Badge itu sendiri (badge per
-    // wabah & border lintas-wabah adalah 2 reward berbeda, jangan dicampur
-    // jadi satu tampilan). postFrameCallback supaya SnackBar muncul
-    // SETELAH CaseStudyBadgeView ter-render (setState di atas baru
-    // dijadwalkan, belum tentu context masih attach ke tree yang sama
-    // kalau ditampilkan sinkron di sini).
-    if (result.borderUnlocked) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
+    // Notifikasi terpisah dari layar Badge itu sendiri — badge per wabah,
+    // border lintas-wabah, dan (nanti) vaksin adalah 3 reward berbeda,
+    // jangan dicampur jadi satu tampilan. postFrameCallback supaya
+    // SnackBar muncul SETELAH CaseStudyBadgeView ter-render (setState di
+    // atas baru dijadwalkan, belum tentu context masih attach ke tree yang
+    // sama kalau ditampilkan sinkron di sini).
+    //
+    // `badgeNewlyUnlocked` (dari `UserProgress::wasRecentlyCreated` sisi
+    // backend) membedakan "baru pertama kali dapat badge ini" dari
+    // "retake yang kebetulan benar lagi" — retake TIDAK menampilkan
+    // notifikasi lagi (badge-nya memang sudah lama didapat, cuma layar
+    // Badge yang ditampilkan ulang sebagai konfirmasi visual).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+
+      if (result.badgeNewlyUnlocked) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: AppColors.gamify,
+            content: Row(
+              children: [
+                const Icon(Icons.military_tech_rounded,
+                    color: Colors.white, size: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Badge "${result.badge?.name ?? ''}" berhasil didapat! Lihat di Koleksi Badge.',
+                    style: const TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+
+      if (result.borderUnlocked) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             backgroundColor: AppColors.gamify,
@@ -147,8 +177,8 @@ class _CaseStudyShellScreenState extends ConsumerState<CaseStudyShellScreen> {
             duration: Duration(seconds: 4),
           ),
         );
-      });
-    }
+      }
+    });
   }
 
   /// "Kerjakan ulang studi kasus" dari layar Badge (jalur sudah completed)

@@ -4,6 +4,7 @@ import '../../../../shared/models/quiz_show_response.dart';
 import '../../../../shared/models/quiz_answer_check_result.dart';
 import '../../../../shared/models/quiz_retry_response.dart';
 import '../../../history/presentation/providers/history_providers.dart';
+import '../../../home/presentation/providers/home_providers.dart';
 import '../../data/quiz_api.dart';
 import '../../data/quiz_repository_impl.dart';
 import '../../domain/quiz_repository.dart';
@@ -101,6 +102,20 @@ class QuizAnswerController extends StateNotifier<AsyncValue<QuizAnswerCheckResul
           // `QuizScreen` sendiri, jadi invalidate ini tidak memicu
           // rebuild/teardown layar kuis yang sedang aktif.
           _ref.invalidate(yearsProvider(eraSlug));
+          // BUGFIX: SEBELUMNYA TERLEWAT — `homeSummaryProvider` (ring
+          // "Progress Belajarmu" & kartu "Lanjutkan Membaca" di Home)
+          // tidak pernah di-invalidate di sini, cuma `yearsProvider`
+          // (roadmap era). Kuis year yang lulus SERING kali justru jadi
+          // pemicu utama "year completed" (section terakhir biasanya
+          // sudah selesai duluan, kuis yang menutup), jadi tanpa baris
+          // ini Home tetap menampilkan progress lama sampai user pull-
+          // to-refresh manual — persis gejala yang dilaporkan. `HomeScreen`
+          // juga TIDAK men-`watch` provider ini di dalam alur kuis
+          // (provider ini cuma dipakai QuizScreen/QuizAnswerController),
+          // jadi aman diinvalidate di sini tanpa merusak state layar kuis
+          // yang sedang aktif — sama alasannya dengan `yearsProvider` di
+          // atas.
+          _ref.invalidate(homeSummaryProvider);
         }
       }
 

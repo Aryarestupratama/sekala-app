@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../shared/models/case_study_detail.dart';
 import '../../../../shared/models/case_study_submit_result.dart';
+import '../../../auth/presentation/providers/auth_providers.dart';
+import '../../../badge/presentation/providers/badge_providers.dart';
 import '../../../history/presentation/providers/history_providers.dart';
 import '../../../home/presentation/providers/home_providers.dart';
 import '../../data/case_study_api.dart';
@@ -52,7 +54,21 @@ class CaseStudyController extends StateNotifier<AsyncValue<void>> {
   ///   `SectionDetailScreen` untuk status completed sebelum roadmap
   ///   sempat di-refetch),
   /// - `yearsProvider(eraSlug)` & `homeSummaryProvider` di-invalidate
-  ///   supaya roadmap/progress/gate section 9 ter-refresh.
+  ///   supaya roadmap/progress/gate section 9 ter-refresh (Home & Era
+  ///   List/Roadmap).
+  /// - `badgeListProvider` di-invalidate — SEBELUMNYA TERLEWAT: submit
+  ///   benar selalu berarti badge wabah ini didapat (baru atau retake),
+  ///   tanpa invalidate ini Koleksi Badge tetap menampilkan cache lama
+  ///   sampai user manual pull-to-refresh.
+  /// - `currentUserProvider` di-invalidate — SEBELUMNYA TERLEWAT: field
+  ///   `frame_unlocked`/`frame_equipped` (Border SEKALA) ada di `User`,
+  ///   bukan di `HomeSummary`, jadi invalidate `homeSummaryProvider` saja
+  ///   tidak menyentuhnya. Tanpa ini, `ProfileScreen` (switch "Pasang
+  ///   Border SEKALA") baru muncul setelah user keluar-masuk tab Profil
+  ///   atau restart app. Selalu di-invalidate saat correct (bukan hanya
+  ///   saat `result.borderUnlocked == true`) supaya tetap aman kalau
+  ///   backend sisi lain (mis. unlock vaksin) turut mengubah data user di
+  ///   masa depan — invalidate murah & idempotent.
   /// [eraSlug] kosong -> invalidate roadmap dilewati (aman, hanya
   /// tertunda sampai roadmap di-refetch sendiri).
   ///
@@ -80,6 +96,8 @@ class CaseStudyController extends StateNotifier<AsyncValue<void>> {
           _ref.invalidate(yearsProvider(eraSlug));
         }
         _ref.invalidate(homeSummaryProvider);
+        _ref.invalidate(badgeListProvider);
+        _ref.invalidate(currentUserProvider);
       }
 
       state = const AsyncData(null);

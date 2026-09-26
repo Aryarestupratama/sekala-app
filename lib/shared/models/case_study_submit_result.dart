@@ -51,6 +51,11 @@ abstract class CaseStudySubmitResult with _$CaseStudySubmitResult {
     // attempt benar yang bukan pemicu (border sudah kebuka duluan) sama-
     // sama tidak menampilkan notifikasi.
     @JsonKey(name: 'border_unlocked') @Default(false) bool borderUnlocked,
+    // Beda dari borderUnlocked (sticky lintas-wabah): true HANYA di
+    // attempt yang PERTAMA KALI membuat progress section studi kasus ini
+    // (bukan retake yang kebetulan benar lagi) — dipakai untuk munculkan
+    // notifikasi "Badge X berhasil didapat!" tepat sekali.
+    @JsonKey(name: 'badge_newly_unlocked') @Default(false) bool badgeNewlyUnlocked,
   }) = _CaseStudySubmitResult;
 
   factory CaseStudySubmitResult.fromJson(Map<String, dynamic> json) =>

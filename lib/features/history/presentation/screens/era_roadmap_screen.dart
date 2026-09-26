@@ -10,6 +10,7 @@ import '../../../../shared/models/section_summary.dart';
 import '../../../../shared/models/year.dart';
 import '../../../../shared/widgets/pressable_scale.dart';
 import '../../../onboarding/tutorial_keys.dart';
+import '../../../onboarding/tutorial_showcase_style.dart';
 import '../providers/history_providers.dart';
 import '../widgets/final_boss_node.dart';
 import '../widgets/roadmap_path_painter.dart';
@@ -71,25 +72,12 @@ class EraRoadmapScreen extends ConsumerWidget {
     return YearNodeState.current;
   }
 
-  /// BUGFIX: sebelumnya fungsi ini memakai `year.sections` APA ADANYA dari
-  /// response API (tidak diurutkan), beda dengan `_orderedSections` di
-  /// `SectionDetailScreen` yang selalu sort by `order` dulu. Akibatnya:
-  /// loop `for` bisa mengembalikan section manapun yang kebetulan muncul
-  /// duluan di array (bukan section ber-`order` terkecil yang unlocked),
-  /// dan fallback `.first` di baris terakhir juga ambil elemen pertama
-  /// array MENTAH, bukan section pertama secara `order`. Section studi
-  /// kasus (`order` 8) yang jadi korban paling kentara karena `order`-nya
-  /// jauh dari section bacaan biasa, tapi bug ini sebenarnya independen
-  /// dari fitur Studi Kasus — copy array + sort dulu, SAMA pola dengan
-  /// `_orderedSections`.
   SectionSummary? _targetSection(Year year) {
     if (year.sections.isEmpty) return null;
-    final ordered = [...year.sections]
-      ..sort((a, b) => a.order.compareTo(b.order));
-    for (final section in ordered) {
+    for (final section in year.sections) {
       if (!section.locked && !section.completed) return section;
     }
-    return ordered.first;
+    return year.sections.first;
   }
 
   void _openYear(BuildContext context, Year year) {
@@ -326,7 +314,7 @@ class _RoadmapBodyState extends ConsumerState<_RoadmapBody> with SingleTickerPro
                                         // penanda "siap") dicek TutorialTourController.
                                         ? KeyedSubtree(
                                             key: TutorialKeys.roadmapReady,
-                                            child: Showcase(
+                                            child: tutorialShowcase(
                                               key: TutorialKeys.roadmapYearNode,
                                               title: 'Node Tahun',
                                               description:
@@ -564,7 +552,7 @@ class _Header extends StatelessWidget {
               // Satu-satunya entry point ke modal "Apa itu Wabah" (INTRO-02).
               PressableScale(
                 onTap: () => showWabahIntroModal(context, ref),
-                child: Showcase(
+                child: tutorialShowcase(
                   key: TutorialKeys.roadmapInfoIcon,
                   title: 'Apa itu Wabah?',
                   description:

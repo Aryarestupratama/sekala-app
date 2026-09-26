@@ -12,6 +12,7 @@ import '../../../../shared/provider/active_tab_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/models/vaccine_card.dart';
 import '../../../onboarding/tutorial_keys.dart';
+import '../../../onboarding/tutorial_showcase_style.dart';
 import '../providers/card_providers.dart';
 import '../widgets/vaccine_tile.dart';
 
@@ -367,7 +368,7 @@ class _VaccineListScreenState extends ConsumerState<VaccineListScreen> {
                           if (index == 0) {
                             return KeyedSubtree(
                               key: TutorialKeys.vaccineListReady,
-                              child: Showcase(
+                              child: tutorialShowcase(
                                 key: TutorialKeys.vaccineTileFirst,
                                 title: 'Koleksi Vaksin',
                                 description:

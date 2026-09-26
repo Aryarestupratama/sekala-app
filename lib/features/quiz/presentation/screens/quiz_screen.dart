@@ -4,11 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/models/era.dart';
 import '../../../../shared/models/quiz.dart';
 import '../../../../shared/models/quiz_answer_check_result.dart';
 import '../../../../shared/models/quiz_question.dart';
 import '../../../../shared/models/quiz_question_option.dart';
 import '../../../../shared/models/quiz_show_response.dart';
+import '../../../../shared/widgets/pressable_scale.dart';
 import '../../../card/presentation/providers/card_providers.dart';
 import '../providers/quiz_providers.dart';
 
@@ -49,6 +51,7 @@ class QuizScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final quizAsync = ref.watch(quizProvider(yearId));
+    final accent = EraAccents.ofSlug(eraSlug);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -63,15 +66,27 @@ class QuizScreen extends ConsumerWidget {
               yearId: yearId,
               eraSlug: eraSlug,
               yearTitle: yearTitle,
+              accent: accent,
             );
           },
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => Center(child: CircularProgressIndicator(color: accent)),
           // Termasuk kasus 403 (R-QUIZ-02: belum semua section completed)
           // — tampil sebagai pesan error generik dari ApiException.
           error: (error, _) => Center(
             child: Padding(
               padding: const EdgeInsets.all(24),
-              child: Text('Kuis belum bisa diakses: $error', textAlign: TextAlign.center),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.lock_outline_rounded, size: 40, color: AppColors.textSecondary.withValues(alpha: 0.6)),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Kuis belum bisa diakses: $error',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -109,7 +124,7 @@ class _QuizUnavailable extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.quiz_outlined, size: 40, color: AppColors.textDisabled),
+            const Icon(Icons.quiz_rounded, size: 40, color: AppColors.textDisabled),
             const SizedBox(height: 12),
             const Text(
               'Kuis untuk wabah ini belum tersedia.',
@@ -133,12 +148,14 @@ class _QuizFlow extends ConsumerStatefulWidget {
     required this.response,
     required this.yearId,
     required this.eraSlug,
+    required this.accent,
     this.yearTitle,
   });
 
   final QuizShowResponse response;
   final int yearId;
   final String eraSlug;
+  final Color accent;
   final String? yearTitle;
 
   @override
@@ -188,6 +205,7 @@ class _QuizFlowState extends ConsumerState<_QuizFlow> {
         response: widget.response,
         yearTitle: widget.yearTitle,
         eraSlug: widget.eraSlug,
+        accent: widget.accent,
         onPrimaryPressed: null, // tidak ada aksi, sudah final
       );
     }
@@ -197,6 +215,7 @@ class _QuizFlowState extends ConsumerState<_QuizFlow> {
         score: _failedScore!,
         passingGrade: widget.response.passingGrade,
         isRetrying: ref.watch(quizRetryControllerProvider).isLoading,
+        accent: widget.accent,
         onRetry: () async {
           final retried = await ref.read(quizRetryControllerProvider.notifier).retry(widget.yearId);
           if (retried != null && mounted) {
@@ -217,6 +236,7 @@ class _QuizFlowState extends ConsumerState<_QuizFlow> {
         response: widget.response,
         yearTitle: widget.yearTitle,
         eraSlug: widget.eraSlug,
+        accent: widget.accent,
         isLoading: retryState.isLoading,
         errorText: retryState.hasError
             ? 'Gagal memulai ulang kuis: ${retryState.error}'
@@ -230,6 +250,7 @@ class _QuizFlowState extends ConsumerState<_QuizFlow> {
       yearId: widget.yearId,
       eraSlug: widget.eraSlug,
       yearTitle: widget.yearTitle,
+      accent: widget.accent,
       onFailed: _onFailed,
     );
   }
@@ -245,6 +266,7 @@ class _QuizIntro extends StatelessWidget {
     required this.response,
     required this.yearTitle,
     required this.eraSlug,
+    required this.accent,
     this.isLoading = false,
     this.errorText,
     required this.onPrimaryPressed,
@@ -253,6 +275,7 @@ class _QuizIntro extends StatelessWidget {
   final QuizShowResponse response;
   final String? yearTitle;
   final String eraSlug;
+  final Color accent;
   final bool isLoading;
   final String? errorText;
 
@@ -274,9 +297,9 @@ class _QuizIntro extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              response.passed ? Icons.emoji_events : Icons.quiz_outlined,
+              response.passed ? Icons.emoji_events_rounded : Icons.quiz_rounded,
               size: 44,
-              color: response.passed ? AppColors.success : AppColors.ink,
+              color: response.passed ? AppColors.success : accent,
             ),
             const SizedBox(height: 16),
             Text(
@@ -302,23 +325,11 @@ class _QuizIntro extends StatelessWidget {
               const SizedBox(height: 12),
             ],
             if (onPrimaryPressed != null)
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: isLoading ? null : onPrimaryPressed,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.ink,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-                  ),
-                  child: isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        )
-                      : Text(primaryLabel, style: const TextStyle(fontWeight: FontWeight.bold)),
-                ),
+              _PrimaryCta(
+                label: primaryLabel,
+                color: accent,
+                loading: isLoading,
+                onTap: onPrimaryPressed,
               )
             else
               const Text(
@@ -367,6 +378,66 @@ class _InfoRow extends StatelessWidget {
   }
 }
 
+/// Tombol CTA utama pill, dipakai bersama oleh Intro/FailedResult/Body —
+/// gaya sama dengan `PressableScale`+`Container` di layar lain (bukan
+/// `FilledButton` bawaan). Kontras teks/spinner dihitung dari kecerahan
+/// [color] karena warna era ada yang gelap.
+///
+/// - [onTap] null -> disabled (abu-abu, tap diabaikan).
+/// - [loading] true -> tetap berwarna [color] dengan spinner, tap
+///   diabaikan (mencegah double-submit tanpa "berkedip" abu-abu).
+class _PrimaryCta extends StatelessWidget {
+  const _PrimaryCta({
+    required this.label,
+    required this.color,
+    required this.onTap,
+    this.loading = false,
+  });
+
+  final String label;
+  final Color color;
+  final VoidCallback? onTap;
+  final bool loading;
+
+  @override
+  Widget build(BuildContext context) {
+    final active = loading || onTap != null;
+    final onColor = ThemeData.estimateBrightnessForColor(color) == Brightness.dark
+        ? Colors.white
+        : AppColors.ink;
+
+    return Opacity(
+      opacity: active ? 1.0 : 0.5,
+      child: PressableScale(
+        onTap: loading ? null : onTap,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          decoration: BoxDecoration(
+            color: active ? color : AppColors.border,
+            borderRadius: BorderRadius.circular(28),
+          ),
+          alignment: Alignment.center,
+          child: loading
+              ? SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: onColor),
+                )
+              : Text(
+                  label,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                    color: active ? onColor : AppColors.textDisabled,
+                  ),
+                ),
+        ),
+      ),
+    );
+  }
+}
+
 /// BARU — tampil begitu soal terakhir dijawab TAPI skor < passing grade.
 /// Beda dari alur lama yang langsung `_finish()` tanpa syarat lulus.
 class _FailedResultView extends StatelessWidget {
@@ -374,6 +445,7 @@ class _FailedResultView extends StatelessWidget {
     required this.score,
     required this.passingGrade,
     required this.isRetrying,
+    required this.accent,
     required this.onRetry,
     required this.onExit,
   });
@@ -381,6 +453,7 @@ class _FailedResultView extends StatelessWidget {
   final double score;
   final int passingGrade;
   final bool isRetrying;
+  final Color accent;
   final VoidCallback onRetry;
   final VoidCallback onExit;
 
@@ -392,7 +465,7 @@ class _FailedResultView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.refresh, size: 44, color: AppColors.coral),
+            const Icon(Icons.refresh_rounded, size: 44, color: AppColors.coral),
             const SizedBox(height: 16),
             const Text(
               'Belum Lulus',
@@ -405,23 +478,11 @@ class _FailedResultView extends StatelessWidget {
               style: const TextStyle(color: AppColors.textSecondary, fontSize: 13.5),
             ),
             const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: isRetrying ? null : onRetry,
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.ink,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-                ),
-                child: isRetrying
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                      )
-                    : const Text('Kerjakan Ulang', style: TextStyle(fontWeight: FontWeight.bold)),
-              ),
+            _PrimaryCta(
+              label: 'Kerjakan Ulang',
+              color: accent,
+              loading: isRetrying,
+              onTap: onRetry,
             ),
             const SizedBox(height: 12),
             TextButton(onPressed: onExit, child: const Text('Keluar dari kuis')),
@@ -438,12 +499,14 @@ class _QuizBody extends ConsumerStatefulWidget {
     required this.yearId,
     required this.eraSlug,
     required this.onFailed,
+    required this.accent,
     this.yearTitle,
   });
 
   final Quiz quiz;
   final int yearId;
   final String eraSlug;
+  final Color accent;
   final String? yearTitle;
 
   /// BARU — dipanggil begitu soal terakhir dijawab TAPI isPassing ==
@@ -637,7 +700,7 @@ class _QuizBodyState extends ConsumerState<_QuizBody> {
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
           child: Row(
             children: [
-              IconButton(icon: const Icon(Icons.close), onPressed: _confirmExit),
+              IconButton(icon: const Icon(Icons.close_rounded), onPressed: _confirmExit),
               const SizedBox(width: 4),
               Expanded(
                 child: Text(
@@ -656,10 +719,12 @@ class _QuizBodyState extends ConsumerState<_QuizBody> {
             children: [
               for (var i = 0; i < total; i++) ...[
                 Expanded(
-                  child: Container(
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 260),
+                    curve: Curves.easeOut,
                     height: 6,
                     decoration: BoxDecoration(
-                      color: i <= _index ? AppColors.ink : AppColors.border,
+                      color: i <= _index ? widget.accent : AppColors.border,
                       borderRadius: BorderRadius.circular(4),
                     ),
                   ),
@@ -725,26 +790,11 @@ class _QuizBodyState extends ConsumerState<_QuizBody> {
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-          child: SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.ink,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-              ),
-              onPressed: (!_isAnswered || _isChecking) ? null : _onPrimaryButtonTap,
-              child: _isChecking
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                    )
-                  : Text(
-                      isLastAndCompleted ? 'Lihat Hasil' : 'Lanjut',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                    ),
-            ),
+          child: _PrimaryCta(
+            label: isLastAndCompleted ? 'Lihat Hasil' : 'Lanjut',
+            color: widget.accent,
+            loading: _isChecking,
+            onTap: !_isAnswered ? null : _onPrimaryButtonTap,
           ),
         ),
       ],
@@ -817,9 +867,9 @@ class _OptionTile extends StatelessWidget {
                 !isAnswered
                     ? (isSelected ? Icons.radio_button_checked : Icons.radio_button_off)
                     : (isCorrectOption
-                        ? Icons.check_circle
+                        ? Icons.check_circle_rounded
                         : (isWrongSelectedOption
-                            ? Icons.cancel
+                            ? Icons.cancel_rounded
                             : Icons.radio_button_off)), // netral, bukan dipilih & bukan yang benar
                 size: 20,
                 color: !isAnswered
@@ -887,7 +937,7 @@ class _ExplanationBox extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(
-            isCorrect ? Icons.check_circle : Icons.info_outline,
+            isCorrect ? Icons.check_circle_rounded : Icons.info_outline_rounded,
             size: 20,
             color: color,
           ),
@@ -999,7 +1049,7 @@ class _VaccineUnlockBannerState extends State<_VaccineUnlockBanner> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.vaccines_outlined, color: Colors.white),
+                      const Icon(Icons.vaccines_rounded, color: Colors.white),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
