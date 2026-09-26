@@ -43,6 +43,7 @@ class CaseStudyDecisionView extends StatefulWidget {
     required this.onSubmit,
     required this.onCorrect,
     required this.onBack,
+    required this.accent,
   });
 
   /// `Year.title` — disisipkan ke instruksi langkah 1 (`CaseStudyTexts
@@ -53,6 +54,11 @@ class CaseStudyDecisionView extends StatefulWidget {
 
   /// Pertanyaan di atas kolom alasan (`CaseStudy.reasonDescription`, admin).
   final String reasonDescription;
+
+  /// Warna era (`EraAccents.ofSlug`), dioper dari shell — menggantikan
+  /// oren hardcode di seluruh layar ini (accent bar, tombol, badge
+  /// prioritas, sheet feedback salah).
+  final Color accent;
 
   final Future<CaseStudySubmitResult?> Function(
     List<int> slotOptionIds,
@@ -213,7 +219,7 @@ class _CaseStudyDecisionViewState extends State<CaseStudyDecisionView> {
       return;
     }
 
-    await showCaseStudyIncorrectSheet(context, feedback: result.feedback);
+    await showCaseStudyIncorrectSheet(context, feedback: result.feedback, accent: widget.accent);
     if (!mounted) return;
     // "Coba lagi": balik ke langkah 1, susunan & alasan tetap utuh supaya
     // user tinggal menukar posisi.
@@ -274,7 +280,7 @@ class _CaseStudyDecisionViewState extends State<CaseStudyDecisionView> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const CaseStudyAccentBar(),
+                      CaseStudyAccentBar(color: widget.accent),
                       const SizedBox(height: 12),
                       const CaseStudyEyebrow(CaseStudyTexts.decisionEyebrow),
                       const SizedBox(height: 12),
@@ -303,6 +309,7 @@ class _CaseStudyDecisionViewState extends State<CaseStudyDecisionView> {
                     slots: slotViews,
                     onReleaseSlot: _releaseSlot,
                     onReset: _reset,
+                    accent: widget.accent,
                   ),
                 ),
               ),
@@ -337,6 +344,7 @@ class _CaseStudyDecisionViewState extends State<CaseStudyDecisionView> {
                       description: o.description,
                       priority: selected ? slotIndex + 1 : null,
                       dimmed: dimmed,
+                      accent: widget.accent,
                       onTap: dimmed ? null : () => _toggle(o.id),
                     );
                   },
@@ -350,6 +358,7 @@ class _CaseStudyDecisionViewState extends State<CaseStudyDecisionView> {
               const EdgeInsets.fromLTRB(kCaseStudyHPad, 8, kCaseStudyHPad, 20),
           child: CaseStudyPrimaryButton(
             label: CaseStudyTexts.continueCta,
+            color: widget.accent,
             onTap: _allFilled ? () => _goTo(_DecisionStep.reason) : null,
           ),
         ),
@@ -377,7 +386,7 @@ class _CaseStudyDecisionViewState extends State<CaseStudyDecisionView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const CaseStudyAccentBar(),
+                  CaseStudyAccentBar(color: widget.accent),
                   const SizedBox(height: 12),
                   const CaseStudyEyebrow(CaseStudyTexts.decisionEyebrow),
                   const SizedBox(height: 12),
@@ -398,6 +407,7 @@ class _CaseStudyDecisionViewState extends State<CaseStudyDecisionView> {
                             title: o.title,
                           ),
                     ],
+                    accent: widget.accent,
                     onEdit: () => _goTo(_DecisionStep.rank),
                   ),
                   const SizedBox(height: 24),
@@ -406,8 +416,8 @@ class _CaseStudyDecisionViewState extends State<CaseStudyDecisionView> {
                       Container(
                         width: 8,
                         height: 8,
-                        decoration: const BoxDecoration(
-                          color: AppColors.warning,
+                        decoration: BoxDecoration(
+                          color: widget.accent,
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -479,6 +489,7 @@ class _CaseStudyDecisionViewState extends State<CaseStudyDecisionView> {
           child: CaseStudyPrimaryButton(
             label: CaseStudyTexts.submitCta,
             icon: null,
+            color: widget.accent,
             loading: _submitting,
             onTap: ready && _allFilled ? _submit : null,
           ),
@@ -565,10 +576,11 @@ class _SummaryRowData {
 
 /// Kartu ringkasan 3 prioritas di langkah 2 (+ tombol "Ubah").
 class _SummaryCard extends StatelessWidget {
-  const _SummaryCard({required this.rows, required this.onEdit});
+  const _SummaryCard({required this.rows, required this.onEdit, required this.accent});
 
   final List<_SummaryRowData> rows;
   final VoidCallback onEdit;
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
@@ -624,7 +636,7 @@ class _SummaryCard extends StatelessWidget {
               children: [
                 for (var i = 0; i < rows.length; i++) ...[
                   if (i > 0) const SizedBox(height: 6),
-                  _SummaryRow(number: i + 1, data: rows[i]),
+                  _SummaryRow(number: i + 1, data: rows[i], accent: accent),
                 ],
               ],
             ),
@@ -636,13 +648,17 @@ class _SummaryCard extends StatelessWidget {
 }
 
 class _SummaryRow extends StatelessWidget {
-  const _SummaryRow({required this.number, required this.data});
+  const _SummaryRow({required this.number, required this.data, required this.accent});
 
   final int number;
   final _SummaryRowData data;
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
+    final onAccent = ThemeData.estimateBrightnessForColor(accent) == Brightness.dark
+        ? Colors.white
+        : AppColors.ink;
     return Container(
       constraints: const BoxConstraints(minHeight: 44),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -657,8 +673,8 @@ class _SummaryRow extends StatelessWidget {
             width: 24,
             height: 24,
             alignment: Alignment.center,
-            decoration: const BoxDecoration(
-              color: AppColors.warning,
+            decoration: BoxDecoration(
+              color: accent,
               shape: BoxShape.circle,
             ),
             child: Text(
@@ -666,7 +682,7 @@ class _SummaryRow extends StatelessWidget {
               style: AppTextStyles.caption.copyWith(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color: AppColors.ink,
+                color: onAccent,
               ),
             ),
           ),

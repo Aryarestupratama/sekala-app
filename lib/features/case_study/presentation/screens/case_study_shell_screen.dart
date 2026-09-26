@@ -7,6 +7,7 @@ import '../../../../core/theme/app_text_styles.dart';
 import '../../../../shared/models/case_study_badge.dart';
 import '../../../../shared/models/case_study_detail.dart';
 import '../../../../shared/models/case_study_submit_result.dart';
+import '../../../../shared/models/era.dart';
 import '../../../../shared/models/year.dart';
 import '../../../history/presentation/providers/history_providers.dart';
 import '../providers/case_study_providers.dart';
@@ -118,6 +119,36 @@ class _CaseStudyShellScreenState extends ConsumerState<CaseStudyShellScreen> {
               : result.feedback;
       _stage = _Stage.badge;
     });
+
+    // Fase 3 — notifikasi terpisah dari layar Badge itu sendiri (badge per
+    // wabah & border lintas-wabah adalah 2 reward berbeda, jangan dicampur
+    // jadi satu tampilan). postFrameCallback supaya SnackBar muncul
+    // SETELAH CaseStudyBadgeView ter-render (setState di atas baru
+    // dijadwalkan, belum tentu context masih attach ke tree yang sama
+    // kalau ditampilkan sinkron di sini).
+    if (result.borderUnlocked) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            backgroundColor: AppColors.gamify,
+            content: Row(
+              children: [
+                Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 20),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Border SEKALA terbuka! Pasang di foto profilmu.',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+            duration: Duration(seconds: 4),
+          ),
+        );
+      });
+    }
   }
 
   /// "Kerjakan ulang studi kasus" dari layar Badge (jalur sudah completed)
@@ -167,16 +198,23 @@ class _CaseStudyShellScreenState extends ConsumerState<CaseStudyShellScreen> {
       yearInEraProvider((eraSlug: widget.eraSlug, yearId: widget.yearId)),
     );
 
+    // Warna era tersedia dari widget.eraSlug sejak awal (tidak menunggu
+    // detail/year selesai fetch) — dipakai semua stage & scaffold
+    // error/loading di bawah, menggantikan oren hardcode yang sebelumnya
+    // sama di semua era.
+    final accent = EraAccents.ofSlug(widget.eraSlug);
+
     if (detailAsync.hasError) {
       return _CaseStudyErrorScaffold(
         error: detailAsync.error!,
         onRetry: () =>
             ref.invalidate(caseStudyDetailProvider(widget.sectionId)),
         onBack: _goBack,
+        accent: accent,
       );
     }
     if (!detailAsync.hasValue) {
-      return const _CaseStudyLoadingScaffold();
+      return _CaseStudyLoadingScaffold(accent: accent);
     }
 
     final detail = detailAsync.value!;
@@ -189,16 +227,17 @@ class _CaseStudyShellScreenState extends ConsumerState<CaseStudyShellScreen> {
     final year = yearAsync.valueOrNull;
     final wabahName = year?.title ?? '';
 
-    return _buildStage(detail, wabahName, year);
+    return _buildStage(detail, wabahName, year, accent);
   }
 
-  Widget _buildStage(CaseStudyDetail detail, String wabahName, Year? year) {
+  Widget _buildStage(CaseStudyDetail detail, String wabahName, Year? year, Color accent) {
     switch (_stage!) {
       case _Stage.opening:
         return CaseStudyOpeningView(
           wabahName: wabahName,
           onStart: () => setState(() => _stage = _Stage.briefing),
           onBack: _goBack,
+          accent: accent,
         );
 
       case _Stage.briefing:
@@ -208,6 +247,7 @@ class _CaseStudyShellScreenState extends ConsumerState<CaseStudyShellScreen> {
           challengeText: detail.caseStudy.challengeText,
           onNext: () => setState(() => _stage = _Stage.decision),
           onBack: () => setState(() => _stage = _Stage.opening),
+          accent: accent,
         );
 
       case _Stage.decision:
@@ -218,6 +258,7 @@ class _CaseStudyShellScreenState extends ConsumerState<CaseStudyShellScreen> {
           onSubmit: _submit,
           onCorrect: _onCorrect,
           onBack: () => setState(() => _stage = _Stage.briefing),
+          accent: accent,
         );
 
       case _Stage.badge:
@@ -229,6 +270,7 @@ class _CaseStudyShellScreenState extends ConsumerState<CaseStudyShellScreen> {
             error: StateError('Data badge tidak tersedia'),
             onRetry: () => setState(() => _stage = _Stage.opening),
             onBack: _goBack,
+            accent: accent,
           );
         }
         return CaseStudyBadgeView(
@@ -236,6 +278,7 @@ class _CaseStudyShellScreenState extends ConsumerState<CaseStudyShellScreen> {
           badge: badge,
           description: _activeDescription,
           onNext: () => _goNext(year),
+          accent: accent,
           // Tombol "Kerjakan ulang" HANYA muncul kalau memang masuk lewat
           // jalur "sudah completed" (detail.completed true) — bukan
           // momen baru saja submit benar pertama kali.
@@ -246,13 +289,15 @@ class _CaseStudyShellScreenState extends ConsumerState<CaseStudyShellScreen> {
 }
 
 class _CaseStudyLoadingScaffold extends StatelessWidget {
-  const _CaseStudyLoadingScaffold();
+  const _CaseStudyLoadingScaffold({this.accent});
+
+  final Color? accent;
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    return Scaffold(
       backgroundColor: AppColors.background,
-      body: Center(child: CircularProgressIndicator()),
+      body: Center(child: CircularProgressIndicator(color: accent)),
     );
   }
 }
@@ -266,11 +311,13 @@ class _CaseStudyErrorScaffold extends StatelessWidget {
     required this.error,
     required this.onRetry,
     required this.onBack,
+    required this.accent,
   });
 
   final Object error;
   final VoidCallback onRetry;
   final VoidCallback onBack;
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
@@ -293,7 +340,7 @@ class _CaseStudyErrorScaffold extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       const Icon(
-                        Icons.error_outline,
+                        Icons.error_outline_rounded,
                         size: 40,
                         color: AppColors.textSecondary,
                       ),
@@ -306,7 +353,8 @@ class _CaseStudyErrorScaffold extends StatelessWidget {
                       const SizedBox(height: 20),
                       CaseStudyPrimaryButton(
                         label: 'Coba lagi',
-                        icon: Icons.refresh,
+                        icon: Icons.refresh_rounded,
+                        color: accent,
                         onTap: onRetry,
                       ),
                     ],

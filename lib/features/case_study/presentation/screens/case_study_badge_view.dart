@@ -35,6 +35,7 @@ class CaseStudyBadgeView extends StatelessWidget {
     required this.badge,
     required this.description,
     required this.onNext,
+    required this.accent,
     this.onRetry,
   });
 
@@ -42,6 +43,10 @@ class CaseStudyBadgeView extends StatelessWidget {
   final CaseStudyBadge badge;
   final String description;
   final VoidCallback onNext;
+
+  /// Warna era (`EraAccents.ofSlug`), dioper dari shell — menggantikan
+  /// oren hardcode di medali, glow, dan pil nama badge.
+  final Color accent;
   final VoidCallback? onRetry;
 
   @override
@@ -68,17 +73,17 @@ class CaseStudyBadgeView extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          caseStudyReveal(context, 0, _BadgeMedallion(badge: badge)),
+                          caseStudyReveal(context, 0, _BadgeMedallion(badge: badge, accent: accent)),
                           const SizedBox(height: 24),
                           caseStudyReveal(
                             context,
                             1,
                             Column(
                               children: [
-                                const SizedBox(
+                                SizedBox(
                                   width: 40,
                                   child: Divider(
-                                    color: AppColors.warning,
+                                    color: accent,
                                     thickness: 3,
                                     height: 3,
                                   ),
@@ -127,7 +132,7 @@ class CaseStudyBadgeView extends StatelessWidget {
                           caseStudyReveal(
                             context,
                             4,
-                            _BadgeNamePill(name: badge.name),
+                            _BadgeNamePill(name: badge.name, accent: accent),
                           ),
                         ],
                       ),
@@ -173,9 +178,10 @@ class CaseStudyBadgeView extends StatelessWidget {
 }
 
 class _BadgeMedallion extends StatelessWidget {
-  const _BadgeMedallion({required this.badge});
+  const _BadgeMedallion({required this.badge, required this.accent});
 
   final CaseStudyBadge badge;
+  final Color accent;
 
   static const double _size = 168;
 
@@ -195,7 +201,7 @@ class _BadgeMedallion extends StatelessWidget {
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.warning.withValues(alpha: 0.25),
+                  color: accent.withValues(alpha: 0.25),
                   blurRadius: 32,
                   spreadRadius: 4,
                 ),
@@ -205,15 +211,15 @@ class _BadgeMedallion extends StatelessWidget {
           Container(
             width: _size,
             height: _size,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: AppColors.ink,
               border: Border.fromBorderSide(
-                BorderSide(color: AppColors.warning, width: 6),
+                BorderSide(color: accent, width: 6),
               ),
             ),
             clipBehavior: Clip.antiAlias,
-            child: _BadgeImageOrIcon(badge: badge),
+            child: _BadgeImageOrIcon(badge: badge, accent: accent),
           ),
         ],
       ),
@@ -222,69 +228,77 @@ class _BadgeMedallion extends StatelessWidget {
 }
 
 class _BadgeImageOrIcon extends StatelessWidget {
-  const _BadgeImageOrIcon({required this.badge});
+  const _BadgeImageOrIcon({required this.badge, required this.accent});
 
   final CaseStudyBadge badge;
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
     final url = badge.imageUrl;
-    if (url == null || url.trim().isEmpty) return const _PlaceholderIcon();
+    if (url == null || url.trim().isEmpty) return _PlaceholderIcon(accent: accent);
 
     return CachedNetworkImage(
       imageUrl: url,
       fit: BoxFit.cover,
-      placeholder: (context, _) => const Center(
+      placeholder: (context, _) => Center(
         child: SizedBox(
           width: 28,
           height: 28,
           child: CircularProgressIndicator(
             strokeWidth: 2,
-            color: AppColors.warning,
+            color: accent,
           ),
         ),
       ),
-      errorWidget: (context, _, __) => const _PlaceholderIcon(),
+      errorWidget: (context, _, __) => _PlaceholderIcon(accent: accent),
     );
   }
 }
 
 class _PlaceholderIcon extends StatelessWidget {
-  const _PlaceholderIcon();
+  const _PlaceholderIcon({required this.accent});
+
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    return Center(
       child: Icon(
-        Icons.military_tech_outlined,
+        Icons.military_tech_rounded,
         size: 56,
-        color: AppColors.warning,
+        color: accent,
       ),
     );
   }
 }
 
 class _BadgeNamePill extends StatelessWidget {
-  const _BadgeNamePill({required this.name});
+  const _BadgeNamePill({required this.name, required this.accent});
 
   final String name;
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
     if (name.trim().isEmpty) return const SizedBox.shrink();
 
+    final onAccent = ThemeData.estimateBrightnessForColor(accent) == Brightness.dark
+        ? Colors.white
+        : AppColors.ink;
+
     return Container(
       constraints: const BoxConstraints(minHeight: 52, maxWidth: 320),
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
       decoration: BoxDecoration(
-        color: AppColors.warning,
+        color: accent,
         borderRadius: BorderRadius.circular(28),
       ),
       child: Text(
         name,
         textAlign: TextAlign.center,
         style: AppTextStyles.button.copyWith(
-          color: AppColors.ink,
+          color: onAccent,
           fontSize: 15,
           fontWeight: FontWeight.w700,
         ),
@@ -318,7 +332,7 @@ class _NextButton extends StatelessWidget {
               style: AppTextStyles.button.copyWith(color: AppColors.ink),
             ),
             const SizedBox(width: 8),
-            const Icon(Icons.arrow_forward, size: 18),
+            const Icon(Icons.arrow_forward_rounded, size: 18),
           ],
         ),
       ),

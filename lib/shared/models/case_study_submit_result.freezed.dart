@@ -23,6 +23,8 @@ mixin _$CaseStudySubmitResult {
   bool get yearCompleted;
   @JsonKey(name: 'newly_unlocked_vaccine_ids', fromJson: _idsFromJson)
   List<int> get newlyUnlockedVaccineIds;
+  @JsonKey(name: 'border_unlocked')
+  bool get borderUnlocked;
 
   /// Create a copy of CaseStudySubmitResult
   /// with the given fields replaced by the non-null parameter values.
@@ -48,7 +50,9 @@ mixin _$CaseStudySubmitResult {
             (identical(other.yearCompleted, yearCompleted) ||
                 other.yearCompleted == yearCompleted) &&
             const DeepCollectionEquality().equals(
-                other.newlyUnlockedVaccineIds, newlyUnlockedVaccineIds));
+                other.newlyUnlockedVaccineIds, newlyUnlockedVaccineIds) &&
+            (identical(other.borderUnlocked, borderUnlocked) ||
+                other.borderUnlocked == borderUnlocked));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -59,11 +63,12 @@ mixin _$CaseStudySubmitResult {
       feedback,
       badge,
       yearCompleted,
-      const DeepCollectionEquality().hash(newlyUnlockedVaccineIds));
+      const DeepCollectionEquality().hash(newlyUnlockedVaccineIds),
+      borderUnlocked);
 
   @override
   String toString() {
-    return 'CaseStudySubmitResult(isCorrect: $isCorrect, feedback: $feedback, badge: $badge, yearCompleted: $yearCompleted, newlyUnlockedVaccineIds: $newlyUnlockedVaccineIds)';
+    return 'CaseStudySubmitResult(isCorrect: $isCorrect, feedback: $feedback, badge: $badge, yearCompleted: $yearCompleted, newlyUnlockedVaccineIds: $newlyUnlockedVaccineIds, borderUnlocked: $borderUnlocked)';
   }
 }
 
@@ -79,7 +84,8 @@ abstract mixin class $CaseStudySubmitResultCopyWith<$Res> {
       CaseStudyBadge? badge,
       @JsonKey(name: 'year_completed') bool yearCompleted,
       @JsonKey(name: 'newly_unlocked_vaccine_ids', fromJson: _idsFromJson)
-      List<int> newlyUnlockedVaccineIds});
+      List<int> newlyUnlockedVaccineIds,
+      @JsonKey(name: 'border_unlocked') bool borderUnlocked});
 
   $CaseStudyBadgeCopyWith<$Res>? get badge;
 }
@@ -102,6 +108,7 @@ class _$CaseStudySubmitResultCopyWithImpl<$Res>
     Object? badge = freezed,
     Object? yearCompleted = null,
     Object? newlyUnlockedVaccineIds = null,
+    Object? borderUnlocked = null,
   }) {
     return _then(CaseStudySubmitResult(
       isCorrect: null == isCorrect
@@ -124,6 +131,10 @@ class _$CaseStudySubmitResultCopyWithImpl<$Res>
           ? _self.newlyUnlockedVaccineIds
           : newlyUnlockedVaccineIds // ignore: cast_nullable_to_non_nullable
               as List<int>,
+      borderUnlocked: null == borderUnlocked
+          ? _self.borderUnlocked
+          : borderUnlocked // ignore: cast_nullable_to_non_nullable
+              as bool,
     ));
   }
 
@@ -241,15 +252,21 @@ extension CaseStudySubmitResultPatterns on CaseStudySubmitResult {
             CaseStudyBadge? badge,
             @JsonKey(name: 'year_completed') bool yearCompleted,
             @JsonKey(name: 'newly_unlocked_vaccine_ids', fromJson: _idsFromJson)
-            List<int> newlyUnlockedVaccineIds)?
+            List<int> newlyUnlockedVaccineIds,
+            @JsonKey(name: 'border_unlocked') bool borderUnlocked)?
         $default, {
     required TResult orElse(),
   }) {
     final _that = this;
     switch (_that) {
       case _CaseStudySubmitResult() when $default != null:
-        return $default(_that.isCorrect, _that.feedback, _that.badge,
-            _that.yearCompleted, _that.newlyUnlockedVaccineIds);
+        return $default(
+            _that.isCorrect,
+            _that.feedback,
+            _that.badge,
+            _that.yearCompleted,
+            _that.newlyUnlockedVaccineIds,
+            _that.borderUnlocked);
       case _:
         return orElse();
     }
@@ -276,14 +293,20 @@ extension CaseStudySubmitResultPatterns on CaseStudySubmitResult {
             CaseStudyBadge? badge,
             @JsonKey(name: 'year_completed') bool yearCompleted,
             @JsonKey(name: 'newly_unlocked_vaccine_ids', fromJson: _idsFromJson)
-            List<int> newlyUnlockedVaccineIds)
+            List<int> newlyUnlockedVaccineIds,
+            @JsonKey(name: 'border_unlocked') bool borderUnlocked)
         $default,
   ) {
     final _that = this;
     switch (_that) {
       case _CaseStudySubmitResult():
-        return $default(_that.isCorrect, _that.feedback, _that.badge,
-            _that.yearCompleted, _that.newlyUnlockedVaccineIds);
+        return $default(
+            _that.isCorrect,
+            _that.feedback,
+            _that.badge,
+            _that.yearCompleted,
+            _that.newlyUnlockedVaccineIds,
+            _that.borderUnlocked);
       case _:
         throw StateError('Unexpected subclass');
     }
@@ -309,14 +332,20 @@ extension CaseStudySubmitResultPatterns on CaseStudySubmitResult {
             CaseStudyBadge? badge,
             @JsonKey(name: 'year_completed') bool yearCompleted,
             @JsonKey(name: 'newly_unlocked_vaccine_ids', fromJson: _idsFromJson)
-            List<int> newlyUnlockedVaccineIds)?
+            List<int> newlyUnlockedVaccineIds,
+            @JsonKey(name: 'border_unlocked') bool borderUnlocked)?
         $default,
   ) {
     final _that = this;
     switch (_that) {
       case _CaseStudySubmitResult() when $default != null:
-        return $default(_that.isCorrect, _that.feedback, _that.badge,
-            _that.yearCompleted, _that.newlyUnlockedVaccineIds);
+        return $default(
+            _that.isCorrect,
+            _that.feedback,
+            _that.badge,
+            _that.yearCompleted,
+            _that.newlyUnlockedVaccineIds,
+            _that.borderUnlocked);
       case _:
         return null;
     }
@@ -332,7 +361,8 @@ class _CaseStudySubmitResult implements CaseStudySubmitResult {
       this.badge,
       @JsonKey(name: 'year_completed') this.yearCompleted = false,
       @JsonKey(name: 'newly_unlocked_vaccine_ids', fromJson: _idsFromJson)
-      List<int> newlyUnlockedVaccineIds = const <int>[]})
+      List<int> newlyUnlockedVaccineIds = const <int>[],
+      @JsonKey(name: 'border_unlocked') this.borderUnlocked = false})
       : _newlyUnlockedVaccineIds = newlyUnlockedVaccineIds;
   factory _CaseStudySubmitResult.fromJson(Map<String, dynamic> json) =>
       _$CaseStudySubmitResultFromJson(json);
@@ -357,6 +387,10 @@ class _CaseStudySubmitResult implements CaseStudySubmitResult {
     // ignore: implicit_dynamic_type
     return EqualUnmodifiableListView(_newlyUnlockedVaccineIds);
   }
+
+  @override
+  @JsonKey(name: 'border_unlocked')
+  final bool borderUnlocked;
 
   /// Create a copy of CaseStudySubmitResult
   /// with the given fields replaced by the non-null parameter values.
@@ -387,7 +421,9 @@ class _CaseStudySubmitResult implements CaseStudySubmitResult {
             (identical(other.yearCompleted, yearCompleted) ||
                 other.yearCompleted == yearCompleted) &&
             const DeepCollectionEquality().equals(
-                other._newlyUnlockedVaccineIds, _newlyUnlockedVaccineIds));
+                other._newlyUnlockedVaccineIds, _newlyUnlockedVaccineIds) &&
+            (identical(other.borderUnlocked, borderUnlocked) ||
+                other.borderUnlocked == borderUnlocked));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -398,11 +434,12 @@ class _CaseStudySubmitResult implements CaseStudySubmitResult {
       feedback,
       badge,
       yearCompleted,
-      const DeepCollectionEquality().hash(_newlyUnlockedVaccineIds));
+      const DeepCollectionEquality().hash(_newlyUnlockedVaccineIds),
+      borderUnlocked);
 
   @override
   String toString() {
-    return 'CaseStudySubmitResult(isCorrect: $isCorrect, feedback: $feedback, badge: $badge, yearCompleted: $yearCompleted, newlyUnlockedVaccineIds: $newlyUnlockedVaccineIds)';
+    return 'CaseStudySubmitResult(isCorrect: $isCorrect, feedback: $feedback, badge: $badge, yearCompleted: $yearCompleted, newlyUnlockedVaccineIds: $newlyUnlockedVaccineIds, borderUnlocked: $borderUnlocked)';
   }
 }
 
@@ -420,7 +457,8 @@ abstract mixin class _$CaseStudySubmitResultCopyWith<$Res>
       CaseStudyBadge? badge,
       @JsonKey(name: 'year_completed') bool yearCompleted,
       @JsonKey(name: 'newly_unlocked_vaccine_ids', fromJson: _idsFromJson)
-      List<int> newlyUnlockedVaccineIds});
+      List<int> newlyUnlockedVaccineIds,
+      @JsonKey(name: 'border_unlocked') bool borderUnlocked});
 
   @override
   $CaseStudyBadgeCopyWith<$Res>? get badge;
@@ -444,6 +482,7 @@ class __$CaseStudySubmitResultCopyWithImpl<$Res>
     Object? badge = freezed,
     Object? yearCompleted = null,
     Object? newlyUnlockedVaccineIds = null,
+    Object? borderUnlocked = null,
   }) {
     return _then(_CaseStudySubmitResult(
       isCorrect: null == isCorrect
@@ -466,6 +505,10 @@ class __$CaseStudySubmitResultCopyWithImpl<$Res>
           ? _self._newlyUnlockedVaccineIds
           : newlyUnlockedVaccineIds // ignore: cast_nullable_to_non_nullable
               as List<int>,
+      borderUnlocked: null == borderUnlocked
+          ? _self.borderUnlocked
+          : borderUnlocked // ignore: cast_nullable_to_non_nullable
+              as bool,
     ));
   }
 

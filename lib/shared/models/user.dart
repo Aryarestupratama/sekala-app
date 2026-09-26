@@ -3,12 +3,13 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 part 'user.freezed.dart';
 part 'user.g.dart';
 
-/// Mengacu UserResource aktual (dikonfirmasi lewat testing 28 Agt 2026):
-/// { id, name, email, role, is_email_verified }.
+/// Mengacu UserResource aktual.
 ///
-/// PERUBAHAN: backend kirim `is_email_verified` (boolean langsung),
-/// BUKAN `email_verified_at` (timestamp nullable) seperti dugaan awal
-/// dari Schema.md. Field & getter disesuaikan.
+/// Fase 3 (progress.md) — 4 field baru: `avatar_url` (null = belum pernah
+/// upload, Flutter fallback inisial), `frame_unlocked`/`frame_unlocked_at`
+/// (PERMANEN sekali true, lihat User::hasFrameUnlocked() backend — tidak
+/// pernah kembali false), `frame_equipped` (toggle pasang/lepas, hanya
+/// bermakna kalau frame_unlocked true).
 @freezed
 abstract class User with _$User {
   const factory User({
@@ -19,11 +20,21 @@ abstract class User with _$User {
     // nggak perlu enum bertingkat.
     required String role,
     @JsonKey(name: 'is_email_verified') required bool isEmailVerified,
+    @JsonKey(name: 'avatar_url') String? avatarUrl,
+    @JsonKey(name: 'frame_unlocked') @Default(false) bool frameUnlocked,
+    @JsonKey(name: 'frame_unlocked_at') DateTime? frameUnlockedAt,
+    @JsonKey(name: 'frame_equipped') @Default(false) bool frameEquipped,
   }) = _User;
 
   const User._();
 
   bool get isAdmin => role == 'admin';
+
+  /// `frameEquipped` dikirim backend apa adanya (default false), TAPI kalau
+  /// suatu saat backend/kondisi race mengirim true padahal belum unlocked,
+  /// UI baiknya tetap patuh ke frameUnlocked sebagai syarat tampil —
+  /// dipakai widget avatar/border, bukan cuma baca frameEquipped mentah.
+  bool get shouldShowFrame => frameUnlocked && frameEquipped;
 
   factory User.fromJson(Map<String, dynamic> json) => _$UserFromJson(json);
 }

@@ -29,11 +29,15 @@ class CaseStudyPriorityTray extends StatelessWidget {
     required this.slots,
     required this.onReleaseSlot,
     required this.onReset,
+    required this.accent,
   });
 
   final List<CaseStudyTraySlot?> slots;
   final ValueChanged<int> onReleaseSlot;
   final VoidCallback onReset;
+
+  /// Warna era — dipakai titik nomor pada slot yang sudah terisi.
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
@@ -65,7 +69,7 @@ class CaseStudyPriorityTray extends StatelessWidget {
                 const Spacer(),
                 TextButton.icon(
                   onPressed: hasAny ? onReset : null,
-                  icon: const Icon(Icons.refresh, size: 16),
+                  icon: const Icon(Icons.refresh_rounded, size: 16),
                   label: const Text(CaseStudyTexts.resetCta),
                   style: TextButton.styleFrom(
                     foregroundColor: AppColors.ink,
@@ -93,6 +97,7 @@ class CaseStudyPriorityTray extends StatelessWidget {
                     child: _Slot(
                       number: i + 1,
                       slot: slots[i],
+                      accent: accent,
                       onTap: slots[i] == null ? null : () => onReleaseSlot(i),
                     ),
                   ),
@@ -107,11 +112,17 @@ class CaseStudyPriorityTray extends StatelessWidget {
 }
 
 class _Slot extends StatelessWidget {
-  const _Slot({required this.number, required this.slot, required this.onTap});
+  const _Slot({
+    required this.number,
+    required this.slot,
+    required this.onTap,
+    required this.accent,
+  });
 
   final int number;
   final CaseStudyTraySlot? slot;
   final VoidCallback? onTap;
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
@@ -136,6 +147,7 @@ class _Slot extends StatelessWidget {
                 key: ValueKey('filled-$number-${slot!.letter}'),
                 number: number,
                 slot: slot!,
+                accent: accent,
                 onTap: onTap,
               )
             : _EmptySlot(key: ValueKey('empty-$number'), number: number),
@@ -150,11 +162,13 @@ class _FilledSlot extends StatelessWidget {
     required this.number,
     required this.slot,
     required this.onTap,
+    required this.accent,
   });
 
   final int number;
   final CaseStudyTraySlot slot;
   final VoidCallback? onTap;
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
@@ -174,7 +188,7 @@ class _FilledSlot extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  _NumberDot(number: number, filled: true),
+                  _NumberDot(number: number, filled: true, accent: accent),
                   const SizedBox(width: 6),
                   Text(
                     slot.letter,
@@ -239,20 +253,24 @@ class _EmptySlot extends StatelessWidget {
 }
 
 class _NumberDot extends StatelessWidget {
-  const _NumberDot({required this.number, required this.filled});
+  const _NumberDot({required this.number, required this.filled, this.accent = AppColors.warning});
 
   final int number;
   final bool filled;
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
+    final onAccent = ThemeData.estimateBrightnessForColor(accent) == Brightness.dark
+        ? Colors.white
+        : AppColors.textSecondary;
     return Container(
       width: 22,
       height: 22,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: filled ? AppColors.warning : Colors.transparent,
+        color: filled ? accent : Colors.transparent,
         border: filled ? null : Border.all(color: AppColors.border),
       ),
       child: Text(
@@ -260,7 +278,7 @@ class _NumberDot extends StatelessWidget {
         style: AppTextStyles.caption.copyWith(
           fontSize: 11,
           fontWeight: FontWeight.w700,
-          color: filled ? AppColors.ink : AppColors.textSecondary,
+          color: filled ? onAccent : AppColors.textSecondary,
         ),
       ),
     );

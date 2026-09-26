@@ -17,6 +17,7 @@ import 'case_study_common.dart';
 Future<void> showCaseStudyIncorrectSheet(
   BuildContext context, {
   required String feedback,
+  required Color accent,
 }) {
   final text = feedback.trim().isEmpty
       ? CaseStudyTexts.incorrectFallback
@@ -43,7 +44,7 @@ Future<void> showCaseStudyIncorrectSheet(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const CaseStudyAccentBar(),
+                CaseStudyAccentBar(color: accent),
                 const SizedBox(height: 12),
                 const CaseStudyEyebrow(CaseStudyTexts.incorrectEyebrow),
                 const SizedBox(height: 12),
@@ -55,7 +56,8 @@ Future<void> showCaseStudyIncorrectSheet(
                 const SizedBox(height: 20),
                 CaseStudyPrimaryButton(
                   label: CaseStudyTexts.retryCta,
-                  icon: Icons.refresh,
+                  icon: Icons.refresh_rounded,
+                  color: accent,
                   onTap: () => Navigator.of(sheetContext).pop(),
                 ),
               ],

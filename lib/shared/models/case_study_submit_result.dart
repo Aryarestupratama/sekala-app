@@ -45,6 +45,12 @@ abstract class CaseStudySubmitResult with _$CaseStudySubmitResult {
     @JsonKey(name: 'newly_unlocked_vaccine_ids', fromJson: _idsFromJson)
     @Default(<int>[])
     List<int> newlyUnlockedVaccineIds,
+    // Fase 3 — true HANYA di attempt yang benar-benar men-trigger unlock
+    // border (BorderUnlockService::checkAndUnlock() sticky, backend tidak
+    // pernah kirim true dua kali). Default false: attempt salah maupun
+    // attempt benar yang bukan pemicu (border sudah kebuka duluan) sama-
+    // sama tidak menampilkan notifikasi.
+    @JsonKey(name: 'border_unlocked') @Default(false) bool borderUnlocked,
   }) = _CaseStudySubmitResult;
 
   factory CaseStudySubmitResult.fromJson(Map<String, dynamic> json) =>

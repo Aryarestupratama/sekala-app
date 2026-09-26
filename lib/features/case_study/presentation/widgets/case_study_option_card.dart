@@ -19,6 +19,7 @@ class CaseStudyOptionCard extends StatelessWidget {
     required this.title,
     required this.description,
     required this.onTap,
+    required this.accent,
     this.priority,
     this.dimmed = false,
   });
@@ -27,6 +28,9 @@ class CaseStudyOptionCard extends StatelessWidget {
   final String title;
   final String description;
   final VoidCallback? onTap;
+
+  /// Warna era — dipakai badge nomor prioritas saat kartu ini dipilih.
+  final Color accent;
 
   /// 1..3 kalau sudah ditaruh di slot prioritas, null kalau belum.
   final int? priority;
@@ -113,7 +117,7 @@ class CaseStudyOptionCard extends StatelessWidget {
                     ),
                     if (selected) ...[
                       const SizedBox(width: 8),
-                      _PriorityBadge(number: priority!),
+                      _PriorityBadge(number: priority!, accent: accent),
                     ],
                   ],
                 ),
@@ -127,24 +131,28 @@ class CaseStudyOptionCard extends StatelessWidget {
 }
 
 class _PriorityBadge extends StatelessWidget {
-  const _PriorityBadge({required this.number});
+  const _PriorityBadge({required this.number, required this.accent});
 
   final int number;
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
+    final onAccent = ThemeData.estimateBrightnessForColor(accent) == Brightness.dark
+        ? Colors.white
+        : AppColors.ink;
     return Container(
       width: 24,
       height: 24,
       alignment: Alignment.center,
-      decoration: const BoxDecoration(
-        color: AppColors.warning,
+      decoration: BoxDecoration(
+        color: accent,
         shape: BoxShape.circle,
       ),
       child: Text(
         '$number',
         style: AppTextStyles.caption.copyWith(
-          color: AppColors.ink,
+          color: onAccent,
           fontSize: 12,
           fontWeight: FontWeight.w700,
         ),

@@ -21,6 +21,14 @@ mixin _$User {
   String get role;
   @JsonKey(name: 'is_email_verified')
   bool get isEmailVerified;
+  @JsonKey(name: 'avatar_url')
+  String? get avatarUrl;
+  @JsonKey(name: 'frame_unlocked')
+  bool get frameUnlocked;
+  @JsonKey(name: 'frame_unlocked_at')
+  DateTime? get frameUnlockedAt;
+  @JsonKey(name: 'frame_equipped')
+  bool get frameEquipped;
 
   /// Create a copy of User
   /// with the given fields replaced by the non-null parameter values.
@@ -42,17 +50,34 @@ mixin _$User {
             (identical(other.email, email) || other.email == email) &&
             (identical(other.role, role) || other.role == role) &&
             (identical(other.isEmailVerified, isEmailVerified) ||
-                other.isEmailVerified == isEmailVerified));
+                other.isEmailVerified == isEmailVerified) &&
+            (identical(other.avatarUrl, avatarUrl) ||
+                other.avatarUrl == avatarUrl) &&
+            (identical(other.frameUnlocked, frameUnlocked) ||
+                other.frameUnlocked == frameUnlocked) &&
+            (identical(other.frameUnlockedAt, frameUnlockedAt) ||
+                other.frameUnlockedAt == frameUnlockedAt) &&
+            (identical(other.frameEquipped, frameEquipped) ||
+                other.frameEquipped == frameEquipped));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode =>
-      Object.hash(runtimeType, id, name, email, role, isEmailVerified);
+  int get hashCode => Object.hash(
+      runtimeType,
+      id,
+      name,
+      email,
+      role,
+      isEmailVerified,
+      avatarUrl,
+      frameUnlocked,
+      frameUnlockedAt,
+      frameEquipped);
 
   @override
   String toString() {
-    return 'User(id: $id, name: $name, email: $email, role: $role, isEmailVerified: $isEmailVerified)';
+    return 'User(id: $id, name: $name, email: $email, role: $role, isEmailVerified: $isEmailVerified, avatarUrl: $avatarUrl, frameUnlocked: $frameUnlocked, frameUnlockedAt: $frameUnlockedAt, frameEquipped: $frameEquipped)';
   }
 }
 
@@ -66,7 +91,11 @@ abstract mixin class $UserCopyWith<$Res> {
       String name,
       String email,
       String role,
-      @JsonKey(name: 'is_email_verified') bool isEmailVerified});
+      @JsonKey(name: 'is_email_verified') bool isEmailVerified,
+      @JsonKey(name: 'avatar_url') String? avatarUrl,
+      @JsonKey(name: 'frame_unlocked') bool frameUnlocked,
+      @JsonKey(name: 'frame_unlocked_at') DateTime? frameUnlockedAt,
+      @JsonKey(name: 'frame_equipped') bool frameEquipped});
 }
 
 /// @nodoc
@@ -86,6 +115,10 @@ class _$UserCopyWithImpl<$Res> implements $UserCopyWith<$Res> {
     Object? email = null,
     Object? role = null,
     Object? isEmailVerified = null,
+    Object? avatarUrl = freezed,
+    Object? frameUnlocked = null,
+    Object? frameUnlockedAt = freezed,
+    Object? frameEquipped = null,
   }) {
     return _then(User(
       id: null == id
@@ -107,6 +140,22 @@ class _$UserCopyWithImpl<$Res> implements $UserCopyWith<$Res> {
       isEmailVerified: null == isEmailVerified
           ? _self.isEmailVerified
           : isEmailVerified // ignore: cast_nullable_to_non_nullable
+              as bool,
+      avatarUrl: freezed == avatarUrl
+          ? _self.avatarUrl
+          : avatarUrl // ignore: cast_nullable_to_non_nullable
+              as String?,
+      frameUnlocked: null == frameUnlocked
+          ? _self.frameUnlocked
+          : frameUnlocked // ignore: cast_nullable_to_non_nullable
+              as bool,
+      frameUnlockedAt: freezed == frameUnlockedAt
+          ? _self.frameUnlockedAt
+          : frameUnlockedAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
+      frameEquipped: null == frameEquipped
+          ? _self.frameEquipped
+          : frameEquipped // ignore: cast_nullable_to_non_nullable
               as bool,
     ));
   }
@@ -205,16 +254,32 @@ extension UserPatterns on User {
 
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>(
-    TResult Function(int id, String name, String email, String role,
-            @JsonKey(name: 'is_email_verified') bool isEmailVerified)?
+    TResult Function(
+            int id,
+            String name,
+            String email,
+            String role,
+            @JsonKey(name: 'is_email_verified') bool isEmailVerified,
+            @JsonKey(name: 'avatar_url') String? avatarUrl,
+            @JsonKey(name: 'frame_unlocked') bool frameUnlocked,
+            @JsonKey(name: 'frame_unlocked_at') DateTime? frameUnlockedAt,
+            @JsonKey(name: 'frame_equipped') bool frameEquipped)?
         $default, {
     required TResult orElse(),
   }) {
     final _that = this;
     switch (_that) {
       case _User() when $default != null:
-        return $default(_that.id, _that.name, _that.email, _that.role,
-            _that.isEmailVerified);
+        return $default(
+            _that.id,
+            _that.name,
+            _that.email,
+            _that.role,
+            _that.isEmailVerified,
+            _that.avatarUrl,
+            _that.frameUnlocked,
+            _that.frameUnlockedAt,
+            _that.frameEquipped);
       case _:
         return orElse();
     }
@@ -235,15 +300,31 @@ extension UserPatterns on User {
 
   @optionalTypeArgs
   TResult when<TResult extends Object?>(
-    TResult Function(int id, String name, String email, String role,
-            @JsonKey(name: 'is_email_verified') bool isEmailVerified)
+    TResult Function(
+            int id,
+            String name,
+            String email,
+            String role,
+            @JsonKey(name: 'is_email_verified') bool isEmailVerified,
+            @JsonKey(name: 'avatar_url') String? avatarUrl,
+            @JsonKey(name: 'frame_unlocked') bool frameUnlocked,
+            @JsonKey(name: 'frame_unlocked_at') DateTime? frameUnlockedAt,
+            @JsonKey(name: 'frame_equipped') bool frameEquipped)
         $default,
   ) {
     final _that = this;
     switch (_that) {
       case _User():
-        return $default(_that.id, _that.name, _that.email, _that.role,
-            _that.isEmailVerified);
+        return $default(
+            _that.id,
+            _that.name,
+            _that.email,
+            _that.role,
+            _that.isEmailVerified,
+            _that.avatarUrl,
+            _that.frameUnlocked,
+            _that.frameUnlockedAt,
+            _that.frameEquipped);
       case _:
         throw StateError('Unexpected subclass');
     }
@@ -263,15 +344,31 @@ extension UserPatterns on User {
 
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>(
-    TResult? Function(int id, String name, String email, String role,
-            @JsonKey(name: 'is_email_verified') bool isEmailVerified)?
+    TResult? Function(
+            int id,
+            String name,
+            String email,
+            String role,
+            @JsonKey(name: 'is_email_verified') bool isEmailVerified,
+            @JsonKey(name: 'avatar_url') String? avatarUrl,
+            @JsonKey(name: 'frame_unlocked') bool frameUnlocked,
+            @JsonKey(name: 'frame_unlocked_at') DateTime? frameUnlockedAt,
+            @JsonKey(name: 'frame_equipped') bool frameEquipped)?
         $default,
   ) {
     final _that = this;
     switch (_that) {
       case _User() when $default != null:
-        return $default(_that.id, _that.name, _that.email, _that.role,
-            _that.isEmailVerified);
+        return $default(
+            _that.id,
+            _that.name,
+            _that.email,
+            _that.role,
+            _that.isEmailVerified,
+            _that.avatarUrl,
+            _that.frameUnlocked,
+            _that.frameUnlockedAt,
+            _that.frameEquipped);
       case _:
         return null;
     }
@@ -286,7 +383,11 @@ class _User extends User {
       required this.name,
       required this.email,
       required this.role,
-      @JsonKey(name: 'is_email_verified') required this.isEmailVerified})
+      @JsonKey(name: 'is_email_verified') required this.isEmailVerified,
+      @JsonKey(name: 'avatar_url') this.avatarUrl,
+      @JsonKey(name: 'frame_unlocked') this.frameUnlocked = false,
+      @JsonKey(name: 'frame_unlocked_at') this.frameUnlockedAt,
+      @JsonKey(name: 'frame_equipped') this.frameEquipped = false})
       : super._();
   factory _User.fromJson(Map<String, dynamic> json) => _$UserFromJson(json);
 
@@ -301,6 +402,18 @@ class _User extends User {
   @override
   @JsonKey(name: 'is_email_verified')
   final bool isEmailVerified;
+  @override
+  @JsonKey(name: 'avatar_url')
+  final String? avatarUrl;
+  @override
+  @JsonKey(name: 'frame_unlocked')
+  final bool frameUnlocked;
+  @override
+  @JsonKey(name: 'frame_unlocked_at')
+  final DateTime? frameUnlockedAt;
+  @override
+  @JsonKey(name: 'frame_equipped')
+  final bool frameEquipped;
 
   /// Create a copy of User
   /// with the given fields replaced by the non-null parameter values.
@@ -327,17 +440,34 @@ class _User extends User {
             (identical(other.email, email) || other.email == email) &&
             (identical(other.role, role) || other.role == role) &&
             (identical(other.isEmailVerified, isEmailVerified) ||
-                other.isEmailVerified == isEmailVerified));
+                other.isEmailVerified == isEmailVerified) &&
+            (identical(other.avatarUrl, avatarUrl) ||
+                other.avatarUrl == avatarUrl) &&
+            (identical(other.frameUnlocked, frameUnlocked) ||
+                other.frameUnlocked == frameUnlocked) &&
+            (identical(other.frameUnlockedAt, frameUnlockedAt) ||
+                other.frameUnlockedAt == frameUnlockedAt) &&
+            (identical(other.frameEquipped, frameEquipped) ||
+                other.frameEquipped == frameEquipped));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode =>
-      Object.hash(runtimeType, id, name, email, role, isEmailVerified);
+  int get hashCode => Object.hash(
+      runtimeType,
+      id,
+      name,
+      email,
+      role,
+      isEmailVerified,
+      avatarUrl,
+      frameUnlocked,
+      frameUnlockedAt,
+      frameEquipped);
 
   @override
   String toString() {
-    return 'User(id: $id, name: $name, email: $email, role: $role, isEmailVerified: $isEmailVerified)';
+    return 'User(id: $id, name: $name, email: $email, role: $role, isEmailVerified: $isEmailVerified, avatarUrl: $avatarUrl, frameUnlocked: $frameUnlocked, frameUnlockedAt: $frameUnlockedAt, frameEquipped: $frameEquipped)';
   }
 }
 
@@ -352,7 +482,11 @@ abstract mixin class _$UserCopyWith<$Res> implements $UserCopyWith<$Res> {
       String name,
       String email,
       String role,
-      @JsonKey(name: 'is_email_verified') bool isEmailVerified});
+      @JsonKey(name: 'is_email_verified') bool isEmailVerified,
+      @JsonKey(name: 'avatar_url') String? avatarUrl,
+      @JsonKey(name: 'frame_unlocked') bool frameUnlocked,
+      @JsonKey(name: 'frame_unlocked_at') DateTime? frameUnlockedAt,
+      @JsonKey(name: 'frame_equipped') bool frameEquipped});
 }
 
 /// @nodoc
@@ -372,6 +506,10 @@ class __$UserCopyWithImpl<$Res> implements _$UserCopyWith<$Res> {
     Object? email = null,
     Object? role = null,
     Object? isEmailVerified = null,
+    Object? avatarUrl = freezed,
+    Object? frameUnlocked = null,
+    Object? frameUnlockedAt = freezed,
+    Object? frameEquipped = null,
   }) {
     return _then(_User(
       id: null == id
@@ -393,6 +531,22 @@ class __$UserCopyWithImpl<$Res> implements _$UserCopyWith<$Res> {
       isEmailVerified: null == isEmailVerified
           ? _self.isEmailVerified
           : isEmailVerified // ignore: cast_nullable_to_non_nullable
+              as bool,
+      avatarUrl: freezed == avatarUrl
+          ? _self.avatarUrl
+          : avatarUrl // ignore: cast_nullable_to_non_nullable
+              as String?,
+      frameUnlocked: null == frameUnlocked
+          ? _self.frameUnlocked
+          : frameUnlocked // ignore: cast_nullable_to_non_nullable
+              as bool,
+      frameUnlockedAt: freezed == frameUnlockedAt
+          ? _self.frameUnlockedAt
+          : frameUnlockedAt // ignore: cast_nullable_to_non_nullable
+              as DateTime?,
+      frameEquipped: null == frameEquipped
+          ? _self.frameEquipped
+          : frameEquipped // ignore: cast_nullable_to_non_nullable
               as bool,
     ));
   }

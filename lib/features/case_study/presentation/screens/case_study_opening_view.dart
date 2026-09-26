@@ -21,11 +21,16 @@ class CaseStudyOpeningView extends StatelessWidget {
     super.key,
     required this.wabahName,
     required this.onStart,
+    required this.accent,
     this.onBack,
   });
 
   final String wabahName;
   final VoidCallback onStart;
+
+  /// Warna era (`EraAccents.ofSlug`), dioper dari shell — menggantikan
+  /// oren hardcode supaya tampilan mengikuti era yang sedang dibaca.
+  final Color accent;
   final VoidCallback? onBack;
 
   @override
@@ -65,7 +70,7 @@ class CaseStudyOpeningView extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           caseStudyReveal(
-                              context, 0, const CaseStudyAccentBar()),
+                              context, 0, CaseStudyAccentBar(color: accent)),
                           const SizedBox(height: 12),
                           caseStudyReveal(
                             context,
@@ -118,6 +123,7 @@ class CaseStudyOpeningView extends StatelessWidget {
                 5,
                 CaseStudyPrimaryButton(
                   label: CaseStudyTexts.startBriefingCta,
+                  color: accent,
                   onTap: onStart,
                 ),
               ),

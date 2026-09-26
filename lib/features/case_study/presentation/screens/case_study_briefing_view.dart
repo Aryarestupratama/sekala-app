@@ -23,12 +23,16 @@ class CaseStudyBriefingView extends StatelessWidget {
     required this.description,
     required this.challengeText,
     required this.onNext,
+    required this.accent,
     this.onBack,
   });
 
   final String title;
   final String description;
   final String challengeText;
+
+  /// Warna era (`EraAccents.ofSlug`), dioper dari shell.
+  final Color accent;
 
   /// Tombol "Buka matriks prioritas" -> layar Ruang Keputusan.
   final VoidCallback onNext;
@@ -57,7 +61,7 @@ class CaseStudyBriefingView extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    caseStudyReveal(context, 0, const CaseStudyAccentBar()),
+                    caseStudyReveal(context, 0, CaseStudyAccentBar(color: accent)),
                     const SizedBox(height: 12),
                     caseStudyReveal(
                       context,
@@ -86,7 +90,7 @@ class CaseStudyBriefingView extends StatelessWidget {
                     caseStudyReveal(
                       context,
                       4,
-                      _ChallengeCallout(challengeText: challengeText),
+                      _ChallengeCallout(challengeText: challengeText, accent: accent),
                     ),
                   ],
                 ),
@@ -100,6 +104,7 @@ class CaseStudyBriefingView extends StatelessWidget {
                 5,
                 CaseStudyPrimaryButton(
                   label: CaseStudyTexts.openMatrixCta,
+                  color: accent,
                   onTap: onNext,
                 ),
               ),
@@ -113,9 +118,10 @@ class CaseStudyBriefingView extends StatelessWidget {
 
 /// Kotak tantangan: putih + border tipis + strip orange 4px di tepi kiri.
 class _ChallengeCallout extends StatelessWidget {
-  const _ChallengeCallout({required this.challengeText});
+  const _ChallengeCallout({required this.challengeText, required this.accent});
 
   final String challengeText;
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
@@ -137,7 +143,7 @@ class _ChallengeCallout extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Container(width: 4, color: AppColors.warning),
+            Container(width: 4, color: accent),
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.all(16),

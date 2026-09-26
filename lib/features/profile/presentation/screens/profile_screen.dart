@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:showcaseview/showcaseview.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../shared/models/user.dart';
 import '../../../../shared/widgets/pressable_scale.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../auth/presentation/widgets/email_verification_banner.dart';
@@ -12,6 +13,9 @@ import 'about_sekala_screen.dart';
 
 import '../../../home/presentation/providers/home_providers.dart';
 import '../../../card/presentation/providers/card_providers.dart';
+import '../../../badge/presentation/screens/badge_list_screen.dart';
+import '../providers/avatar_providers.dart';
+import '../widgets/profile_avatar.dart';
 
 /// Design.md §3.5 — avatar inisial, badge verifikasi, 2 stat card, menu
 /// pengaturan, tombol Keluar sebagai text button merah.
@@ -89,6 +93,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     final userAsync = ref.watch(currentUserProvider);
     final isLoggingOut = ref.watch(authControllerProvider).isLoading;
 
+    // Fase 3 — tampilkan error upload/hapus foto/toggle border sebagai
+    // snackbar (aksi tunggal, tidak butuh state permanen di layar). Sukses
+    // TIDAK butuh snackbar terpisah — perubahan sudah langsung kelihatan
+    // begitu currentUserProvider ke-invalidate (lihat AvatarController).
+    ref.listen(avatarControllerProvider, (previous, next) {
+      next.whenOrNull(
+        error: (error, _) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Gagal memproses foto/border: $error')),
+          );
+        },
+      );
+    });
+
     // Stat "tahun dibaca" — jumlah `completed` di seluruh era, dari
     // HomeSummary.progressByEra. homeSummaryProvider mengembalikan null
     // untuk guest (rute Profil sendiri sudah di-guard, tapi tetap jaga2).
@@ -153,33 +171,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                     ),
                     child: Column(
                       children: [
-                        Container(
-                          width: 84,
-                          height: 84,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [AppColors.ink, AppColors.ink.withValues(alpha: 0.75)],
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.ink.withValues(alpha: 0.25),
-                                blurRadius: 16,
-                                offset: const Offset(0, 6),
-                              ),
-                            ],
-                          ),
-                          alignment: Alignment.center,
-                          child: Text(
-                            _initials(user.name),
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.white,
-                                ),
-                          ),
-                        ),
+                        ProfileAvatar(user: user, initials: _initials(user.name)),
                         const SizedBox(height: 14),
                         Text(
                           user.name,
@@ -262,6 +254,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                 clipBehavior: Clip.antiAlias,
                 child: Column(
                   children: [
+                    _MenuTile(
+                      icon: Icons.emoji_events_outlined,
+                      label: 'Koleksi Badge',
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const BadgeListScreen()),
+                      ),
+                    ),
+                    // Fase 3 — toggle Border SEKALA. SENGAJA hanya dirender
+                    // kalau user.frameUnlocked true (bukan ditampilkan
+                    // disabled/greyed-out) — menu ini "muncul" sebagai
+                    // reward, bukan mengiklankan fitur yang belum bisa
+                    // dipakai user.
+                    if (userAsync.valueOrNull?.frameUnlocked ?? false) ...[
+                      const Divider(height: 1, color: AppColors.border),
+                      _FrameToggleTile(user: userAsync.value!),
+                    ],
+                    const Divider(height: 1, color: AppColors.border),
                     _MenuTile(
                       icon: Icons.lock_outline_rounded,
                       label: 'Ubah Kata Sandi',
@@ -390,6 +399,57 @@ class _StatCard extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(color: AppColors.textSecondary, fontSize: 12.5),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// (Fase 3) Switch pasang/lepas Border SEKALA — hanya dirender di
+/// ProfileScreen kalau `user.frameUnlocked` true (lihat pemanggilnya),
+/// jadi widget ini TIDAK perlu menangani kasus "belum unlocked" sendiri.
+class _FrameToggleTile extends ConsumerWidget {
+  const _FrameToggleTile({required this.user});
+
+  final User user;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isBusy = ref.watch(avatarControllerProvider).isLoading;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: AppColors.gamify.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            alignment: Alignment.center,
+            child: const Icon(Icons.auto_awesome_rounded, size: 18, color: AppColors.gamify),
+          ),
+          const SizedBox(width: 14),
+          const Expanded(
+            child: Text(
+              'Pasang Border SEKALA',
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14.5),
+            ),
+          ),
+          isBusy
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : Switch(
+                  value: user.frameEquipped,
+                  activeColor: AppColors.gamify,
+                  onChanged: (value) =>
+                      ref.read(avatarControllerProvider.notifier).toggleFrame(value),
+                ),
         ],
       ),
     );
