@@ -29,6 +29,8 @@ mixin _$User {
   DateTime? get frameUnlockedAt;
   @JsonKey(name: 'frame_equipped')
   bool get frameEquipped;
+  @JsonKey(name: 'has_seen_onboarding_tutorial')
+  bool get hasSeenOnboardingTutorial;
 
   /// Create a copy of User
   /// with the given fields replaced by the non-null parameter values.
@@ -58,7 +60,10 @@ mixin _$User {
             (identical(other.frameUnlockedAt, frameUnlockedAt) ||
                 other.frameUnlockedAt == frameUnlockedAt) &&
             (identical(other.frameEquipped, frameEquipped) ||
-                other.frameEquipped == frameEquipped));
+                other.frameEquipped == frameEquipped) &&
+            (identical(other.hasSeenOnboardingTutorial,
+                    hasSeenOnboardingTutorial) ||
+                other.hasSeenOnboardingTutorial == hasSeenOnboardingTutorial));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -73,11 +78,12 @@ mixin _$User {
       avatarUrl,
       frameUnlocked,
       frameUnlockedAt,
-      frameEquipped);
+      frameEquipped,
+      hasSeenOnboardingTutorial);
 
   @override
   String toString() {
-    return 'User(id: $id, name: $name, email: $email, role: $role, isEmailVerified: $isEmailVerified, avatarUrl: $avatarUrl, frameUnlocked: $frameUnlocked, frameUnlockedAt: $frameUnlockedAt, frameEquipped: $frameEquipped)';
+    return 'User(id: $id, name: $name, email: $email, role: $role, isEmailVerified: $isEmailVerified, avatarUrl: $avatarUrl, frameUnlocked: $frameUnlocked, frameUnlockedAt: $frameUnlockedAt, frameEquipped: $frameEquipped, hasSeenOnboardingTutorial: $hasSeenOnboardingTutorial)';
   }
 }
 
@@ -95,7 +101,9 @@ abstract mixin class $UserCopyWith<$Res> {
       @JsonKey(name: 'avatar_url') String? avatarUrl,
       @JsonKey(name: 'frame_unlocked') bool frameUnlocked,
       @JsonKey(name: 'frame_unlocked_at') DateTime? frameUnlockedAt,
-      @JsonKey(name: 'frame_equipped') bool frameEquipped});
+      @JsonKey(name: 'frame_equipped') bool frameEquipped,
+      @JsonKey(name: 'has_seen_onboarding_tutorial')
+      bool hasSeenOnboardingTutorial});
 }
 
 /// @nodoc
@@ -119,6 +127,7 @@ class _$UserCopyWithImpl<$Res> implements $UserCopyWith<$Res> {
     Object? frameUnlocked = null,
     Object? frameUnlockedAt = freezed,
     Object? frameEquipped = null,
+    Object? hasSeenOnboardingTutorial = null,
   }) {
     return _then(User(
       id: null == id
@@ -156,6 +165,10 @@ class _$UserCopyWithImpl<$Res> implements $UserCopyWith<$Res> {
       frameEquipped: null == frameEquipped
           ? _self.frameEquipped
           : frameEquipped // ignore: cast_nullable_to_non_nullable
+              as bool,
+      hasSeenOnboardingTutorial: null == hasSeenOnboardingTutorial
+          ? _self.hasSeenOnboardingTutorial
+          : hasSeenOnboardingTutorial // ignore: cast_nullable_to_non_nullable
               as bool,
     ));
   }
@@ -263,7 +276,9 @@ extension UserPatterns on User {
             @JsonKey(name: 'avatar_url') String? avatarUrl,
             @JsonKey(name: 'frame_unlocked') bool frameUnlocked,
             @JsonKey(name: 'frame_unlocked_at') DateTime? frameUnlockedAt,
-            @JsonKey(name: 'frame_equipped') bool frameEquipped)?
+            @JsonKey(name: 'frame_equipped') bool frameEquipped,
+            @JsonKey(name: 'has_seen_onboarding_tutorial')
+            bool hasSeenOnboardingTutorial)?
         $default, {
     required TResult orElse(),
   }) {
@@ -279,7 +294,8 @@ extension UserPatterns on User {
             _that.avatarUrl,
             _that.frameUnlocked,
             _that.frameUnlockedAt,
-            _that.frameEquipped);
+            _that.frameEquipped,
+            _that.hasSeenOnboardingTutorial);
       case _:
         return orElse();
     }
@@ -309,7 +325,9 @@ extension UserPatterns on User {
             @JsonKey(name: 'avatar_url') String? avatarUrl,
             @JsonKey(name: 'frame_unlocked') bool frameUnlocked,
             @JsonKey(name: 'frame_unlocked_at') DateTime? frameUnlockedAt,
-            @JsonKey(name: 'frame_equipped') bool frameEquipped)
+            @JsonKey(name: 'frame_equipped') bool frameEquipped,
+            @JsonKey(name: 'has_seen_onboarding_tutorial')
+            bool hasSeenOnboardingTutorial)
         $default,
   ) {
     final _that = this;
@@ -324,7 +342,8 @@ extension UserPatterns on User {
             _that.avatarUrl,
             _that.frameUnlocked,
             _that.frameUnlockedAt,
-            _that.frameEquipped);
+            _that.frameEquipped,
+            _that.hasSeenOnboardingTutorial);
       case _:
         throw StateError('Unexpected subclass');
     }
@@ -353,7 +372,9 @@ extension UserPatterns on User {
             @JsonKey(name: 'avatar_url') String? avatarUrl,
             @JsonKey(name: 'frame_unlocked') bool frameUnlocked,
             @JsonKey(name: 'frame_unlocked_at') DateTime? frameUnlockedAt,
-            @JsonKey(name: 'frame_equipped') bool frameEquipped)?
+            @JsonKey(name: 'frame_equipped') bool frameEquipped,
+            @JsonKey(name: 'has_seen_onboarding_tutorial')
+            bool hasSeenOnboardingTutorial)?
         $default,
   ) {
     final _that = this;
@@ -368,7 +389,8 @@ extension UserPatterns on User {
             _that.avatarUrl,
             _that.frameUnlocked,
             _that.frameUnlockedAt,
-            _that.frameEquipped);
+            _that.frameEquipped,
+            _that.hasSeenOnboardingTutorial);
       case _:
         return null;
     }
@@ -387,7 +409,9 @@ class _User extends User {
       @JsonKey(name: 'avatar_url') this.avatarUrl,
       @JsonKey(name: 'frame_unlocked') this.frameUnlocked = false,
       @JsonKey(name: 'frame_unlocked_at') this.frameUnlockedAt,
-      @JsonKey(name: 'frame_equipped') this.frameEquipped = false})
+      @JsonKey(name: 'frame_equipped') this.frameEquipped = false,
+      @JsonKey(name: 'has_seen_onboarding_tutorial')
+      this.hasSeenOnboardingTutorial = false})
       : super._();
   factory _User.fromJson(Map<String, dynamic> json) => _$UserFromJson(json);
 
@@ -414,6 +438,9 @@ class _User extends User {
   @override
   @JsonKey(name: 'frame_equipped')
   final bool frameEquipped;
+  @override
+  @JsonKey(name: 'has_seen_onboarding_tutorial')
+  final bool hasSeenOnboardingTutorial;
 
   /// Create a copy of User
   /// with the given fields replaced by the non-null parameter values.
@@ -448,7 +475,10 @@ class _User extends User {
             (identical(other.frameUnlockedAt, frameUnlockedAt) ||
                 other.frameUnlockedAt == frameUnlockedAt) &&
             (identical(other.frameEquipped, frameEquipped) ||
-                other.frameEquipped == frameEquipped));
+                other.frameEquipped == frameEquipped) &&
+            (identical(other.hasSeenOnboardingTutorial,
+                    hasSeenOnboardingTutorial) ||
+                other.hasSeenOnboardingTutorial == hasSeenOnboardingTutorial));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -463,11 +493,12 @@ class _User extends User {
       avatarUrl,
       frameUnlocked,
       frameUnlockedAt,
-      frameEquipped);
+      frameEquipped,
+      hasSeenOnboardingTutorial);
 
   @override
   String toString() {
-    return 'User(id: $id, name: $name, email: $email, role: $role, isEmailVerified: $isEmailVerified, avatarUrl: $avatarUrl, frameUnlocked: $frameUnlocked, frameUnlockedAt: $frameUnlockedAt, frameEquipped: $frameEquipped)';
+    return 'User(id: $id, name: $name, email: $email, role: $role, isEmailVerified: $isEmailVerified, avatarUrl: $avatarUrl, frameUnlocked: $frameUnlocked, frameUnlockedAt: $frameUnlockedAt, frameEquipped: $frameEquipped, hasSeenOnboardingTutorial: $hasSeenOnboardingTutorial)';
   }
 }
 
@@ -486,7 +517,9 @@ abstract mixin class _$UserCopyWith<$Res> implements $UserCopyWith<$Res> {
       @JsonKey(name: 'avatar_url') String? avatarUrl,
       @JsonKey(name: 'frame_unlocked') bool frameUnlocked,
       @JsonKey(name: 'frame_unlocked_at') DateTime? frameUnlockedAt,
-      @JsonKey(name: 'frame_equipped') bool frameEquipped});
+      @JsonKey(name: 'frame_equipped') bool frameEquipped,
+      @JsonKey(name: 'has_seen_onboarding_tutorial')
+      bool hasSeenOnboardingTutorial});
 }
 
 /// @nodoc
@@ -510,6 +543,7 @@ class __$UserCopyWithImpl<$Res> implements _$UserCopyWith<$Res> {
     Object? frameUnlocked = null,
     Object? frameUnlockedAt = freezed,
     Object? frameEquipped = null,
+    Object? hasSeenOnboardingTutorial = null,
   }) {
     return _then(_User(
       id: null == id
@@ -547,6 +581,10 @@ class __$UserCopyWithImpl<$Res> implements _$UserCopyWith<$Res> {
       frameEquipped: null == frameEquipped
           ? _self.frameEquipped
           : frameEquipped // ignore: cast_nullable_to_non_nullable
+              as bool,
+      hasSeenOnboardingTutorial: null == hasSeenOnboardingTutorial
+          ? _self.hasSeenOnboardingTutorial
+          : hasSeenOnboardingTutorial // ignore: cast_nullable_to_non_nullable
               as bool,
     ));
   }

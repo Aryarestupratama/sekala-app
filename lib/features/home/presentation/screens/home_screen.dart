@@ -55,7 +55,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || _didCheckAutoStartTutorial) return;
       _didCheckAutoStartTutorial = true;
-      TutorialTourController.maybeAutoStart(context);
+      TutorialTourController.maybeAutoStart(context, ref);
     });
   }
 

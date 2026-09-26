@@ -96,4 +96,7 @@ class AuthRepositoryImpl implements AuthRepository {
       newPasswordConfirmation: newPasswordConfirmation,
     );
   }
+
+  @override
+  Future<void> markTutorialSeen() => _api.markTutorialSeen();
 }

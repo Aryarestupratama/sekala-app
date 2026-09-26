@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:showcaseview/showcaseview.dart';
 
+import '../auth/presentation/providers/auth_providers.dart';
+import '../../core/router/auth_state.dart';
 import 'tutorial_keys.dart';
 
 /// Satu "langkah" tur = 1 screen/tab, berisi showcase key apa saja yang
@@ -34,9 +37,15 @@ class TutorialStep {
   final List<GlobalKey> keys;
 }
 
-/// Kunci SharedPreferences untuk status "sudah pernah lihat tutorial".
-/// Beda namespace dari fitur "Apa itu Wabah" lama -- ini level "pernah
-/// buka aplikasi", bukan per-fitur.
+/// Kunci SharedPreferences untuk status "sudah pernah lihat tutorial" —
+/// SEKARANG cuma dipakai untuk GUEST (session lokal, tidak punya row
+/// `users`). Untuk user login, status "sudah lihat" disimpan di backend
+/// (`users.has_seen_onboarding_tutorial`, via `authRepositoryProvider`)
+/// SUPAYA per-akun, bukan per-device — flag lokal murni terbukti salah
+/// asumsi: logout lalu daftar/login akun LAIN di device yang sama membuat
+/// tur tidak pernah muncul untuk akun baru itu (ketuker sama akun
+/// sebelumnya yang sudah pernah lihat, karena SharedPreferences memang
+/// per-device/per-install).
 const _prefsKeyHasSeenTutorial = 'has_seen_onboarding_tutorial';
 
 class TutorialTourController {
@@ -102,29 +111,62 @@ class TutorialTourController {
   // berjalan, tidak perlu di-refresh tiap step.
   static BuildContext? _activeContext;
 
+  /// WidgetRef dari pemanggil `start()`/`maybeAutoStart()` — disimpan
+  /// bareng `_activeContext` (siklus hidup sama, lihat catatan di atas)
+  /// supaya `onStepFinished()`/`_markSeen()` bisa baca status auth &
+  /// panggil `authRepositoryProvider.markTutorialSeen()` tanpa perlu
+  /// context BuildContext punya akses Provider secara langsung.
+  static WidgetRef? _activeRef;
+
   /// Dipanggil dari HomeScreen (BUKAN MainShell -- lihat catatan
   /// `_activeContext` di atas) setelah frame pertama, cuma jalan kalau
   /// user belum pernah lihat tutorial sama sekali.
-  static Future<void> maybeAutoStart(BuildContext context) async {
-    final prefs = await SharedPreferences.getInstance();
-    final hasSeen = prefs.getBool(_prefsKeyHasSeenTutorial) ?? false;
+  ///
+  /// [ref] WAJIB `WidgetRef` dari `ConsumerState` HomeScreen — dipakai
+  /// untuk 2 hal: (1) cek status "sudah lihat" yang SUMBERNYA beda
+  /// tergantung status auth (guest -> SharedPreferences lokal, user login
+  /// -> `User.hasSeenOnboardingTutorial` dari backend), dan (2) disimpan
+  /// ke `_activeRef` untuk dipakai lagi nanti di `onStepFinished()`.
+  static Future<void> maybeAutoStart(BuildContext context, WidgetRef ref) async {
+    final authStatus = ref.read(authNotifierProvider).status;
+
+    final bool hasSeen;
+    if (authStatus == AuthStatus.authenticated) {
+      // User login -- sumber kebenaran backend, BUKAN SharedPreferences
+      // (lihat catatan panjang di `_prefsKeyHasSeenTutorial`). Pakai
+      // `.future` supaya dapat data FRESH (bukan cache stale dari
+      // sebelum login ini, misal sisa akun sebelumnya di device yang
+      // sama) -- currentUserProvider sendiri sudah auto-invalidate tiap
+      // authNotifierProvider berubah (lihat auth_providers.dart), tapi di
+      // titik postFrameCallback ini kita perlu NILAINYA, bukan cuma
+      // trigger refetch.
+      final user = await ref.read(currentUserProvider.future);
+      hasSeen = user?.hasSeenOnboardingTutorial ?? false;
+    } else {
+      // Guest -- tidak punya row `users`, tetap pakai flag lokal.
+      final prefs = await SharedPreferences.getInstance();
+      hasSeen = prefs.getBool(_prefsKeyHasSeenTutorial) ?? false;
+    }
+
     if (hasSeen) return;
     if (!context.mounted) return;
-    start(context);
+    start(context, ref);
   }
 
   /// Dipanggil manual dari Bantuan & Dukungan ("Lihat Tutorial Aplikasi")
   /// maupun oleh [maybeAutoStart]. [context] WAJIB context dari dalam salah
   /// satu layar tab (Home/Informasi/Koleksi/Profil atau layar yang di-push
-  /// di dalamnya) -- context dari MainShell sendiri TIDAK valid.
+  /// di dalamnya) -- context dari MainShell sendiri TIDAK valid. [ref]
+  /// WAJIB `WidgetRef` dari screen yang sama (lihat catatan `_activeRef`).
   ///
   /// Memanggil ini SELALU membatalkan tur lain yang mungkin masih berjalan
   /// (lihat catatan `_runId`).
-  static void start(BuildContext context) {
+  static void start(BuildContext context, WidgetRef ref) {
     _runId++;
     final myRunId = _runId;
     debugPrint('[Tutorial] start() dipanggil (runId=$myRunId) dengan context=$context');
     _activeContext = context;
+    _activeRef = ref;
     _currentStepIndex = 0;
     _goToStep(myRunId, _steps[_currentStepIndex]);
   }
@@ -294,7 +336,29 @@ class TutorialTourController {
     _goToStep(runId, _steps[_currentStepIndex]);
   }
 
+  /// Guest -> tetap tulis flag lokal (tidak punya row `users`).
+  /// User login -> kirim ke backend (`PATCH auth/profile/tutorial-seen`)
+  /// SEBAGAI SATU-SATUNYA sumber kebenaran -- SENGAJA TIDAK ikut menulis
+  /// flag lokal juga untuk kasus ini, supaya tidak mengulang bug lama:
+  /// kalau ditulis lokal juga, device yang sama dipakai akun LAIN
+  /// setelahnya akan salah baca flag ini lagi (lihat catatan
+  /// `_prefsKeyHasSeenTutorial`). Kalau request backend gagal (offline),
+  /// sengaja dibiarkan gagal diam-diam (bukan fitur kritikal) -- auto-start
+  /// akan otomatis dicoba lagi di sesi berikutnya karena backend masih
+  /// `false`.
   static Future<void> _markSeen() async {
+    final ref = _activeRef;
+    final authStatus = ref?.read(authNotifierProvider).status;
+
+    if (authStatus == AuthStatus.authenticated && ref != null) {
+      try {
+        await ref.read(authRepositoryProvider).markTutorialSeen();
+      } catch (_) {
+        // Best-effort -- lihat dokumentasi method di atas.
+      }
+      return;
+    }
+
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_prefsKeyHasSeenTutorial, true);
   }

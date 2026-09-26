@@ -24,6 +24,15 @@ abstract class User with _$User {
     @JsonKey(name: 'frame_unlocked') @Default(false) bool frameUnlocked,
     @JsonKey(name: 'frame_unlocked_at') DateTime? frameUnlockedAt,
     @JsonKey(name: 'frame_equipped') @Default(false) bool frameEquipped,
+    // BARU — status "sudah lihat tutorial onboarding" level AKUN,
+    // MENGGANTIKAN flag SharedPreferences murni-lokal di
+    // TutorialTourController (yang salah asumsi per-device, bukan per-akun
+    // — lihat catatan panjang di sana). Guest tidak punya User (fetchMe()
+    // cuma dipanggil untuk authenticated), jadi guest tetap pakai flag
+    // lokal terpisah.
+    @JsonKey(name: 'has_seen_onboarding_tutorial')
+    @Default(false)
+    bool hasSeenOnboardingTutorial,
   }) = _User;
 
   const User._();

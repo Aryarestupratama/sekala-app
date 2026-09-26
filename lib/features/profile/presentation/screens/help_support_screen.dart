@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/pressable_scale.dart';
@@ -16,11 +17,16 @@ import 'panduan_belajar_screen.dart';
 /// `TutorialTourController.start()` di menu pertama TIDAK diubah — itu
 /// penting supaya branch Profil tidak nyangkut di layar ini saat tur
 /// sampai ke step terakhir (lihat catatan aslinya).
-class HelpSupportScreen extends StatelessWidget {
+///
+/// BARU: `StatelessWidget` -> `ConsumerWidget` — `TutorialTourController.
+/// start()` sekarang butuh `WidgetRef` juga (bukan cuma `BuildContext`),
+/// dipakai untuk baca status auth & panggil `authRepositoryProvider.
+/// markTutorialSeen()` di akhir tur (lihat tutorial_tour_controller.dart).
+class HelpSupportScreen extends ConsumerWidget {
   const HelpSupportScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -56,7 +62,7 @@ class HelpSupportScreen extends StatelessWidget {
                     // (Element belum langsung dibuang, transisi animasi
                     // pop masih jalan), cukup buat memulai tur.
                     Navigator.of(context).pop();
-                    TutorialTourController.start(context);
+                    TutorialTourController.start(context, ref);
                   },
                 ),
                 const Divider(height: 1, color: AppColors.border),

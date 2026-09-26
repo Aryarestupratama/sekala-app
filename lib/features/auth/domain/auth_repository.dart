@@ -26,4 +26,9 @@ abstract class AuthRepository {
     required String newPassword,
     required String newPasswordConfirmation,
   });
+
+  /// BARU — tandai tutorial onboarding sudah dilihat, level akun (user
+  /// login saja — guest pakai flag lokal terpisah di
+  /// TutorialTourController).
+  Future<void> markTutorialSeen();
 }

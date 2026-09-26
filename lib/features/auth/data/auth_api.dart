@@ -95,4 +95,15 @@ class AuthApi {
       });
     });
   }
+
+  /// BARU — tandai tutorial onboarding sudah dilihat, level akun.
+  /// Backend: PATCH /auth/profile/tutorial-seen (TutorialController::
+  /// markSeen). Dipanggil TutorialTourController begitu step terakhir tur
+  /// selesai, MENGGANTIKAN flag SharedPreferences murni-lokal untuk user
+  /// login (guest tetap pakai flag lokal, tidak lewat method ini).
+  Future<void> markTutorialSeen() {
+    return unwrapApiCall(() async {
+      await _dio.patch('/auth/profile/tutorial-seen');
+    });
+  }
 }

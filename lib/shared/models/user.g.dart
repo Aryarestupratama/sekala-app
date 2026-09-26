@@ -18,6 +18,8 @@ _User _$UserFromJson(Map<String, dynamic> json) => _User(
           ? null
           : DateTime.parse(json['frame_unlocked_at'] as String),
       frameEquipped: json['frame_equipped'] as bool? ?? false,
+      hasSeenOnboardingTutorial:
+          json['has_seen_onboarding_tutorial'] as bool? ?? false,
     );
 
 Map<String, dynamic> _$UserToJson(_User instance) => <String, dynamic>{
@@ -30,4 +32,5 @@ Map<String, dynamic> _$UserToJson(_User instance) => <String, dynamic>{
       'frame_unlocked': instance.frameUnlocked,
       'frame_unlocked_at': instance.frameUnlockedAt?.toIso8601String(),
       'frame_equipped': instance.frameEquipped,
+      'has_seen_onboarding_tutorial': instance.hasSeenOnboardingTutorial,
     };
