@@ -41,6 +41,7 @@ _BadgeCard _$BadgeCardFromJson(Map<String, dynamic> json) => _BadgeCard(
       unlockedAt: json['unlocked_at'] == null
           ? null
           : DateTime.parse(json['unlocked_at'] as String),
+      unseen: json['unseen'] as bool? ?? false,
       year: BadgeYear.fromJson(json['year'] as Map<String, dynamic>),
       era: BadgeEra.fromJson(json['era'] as Map<String, dynamic>),
     );
@@ -54,6 +55,7 @@ Map<String, dynamic> _$BadgeCardToJson(_BadgeCard instance) =>
       'icon_url': instance.iconUrl,
       'unlocked': instance.unlocked,
       'unlocked_at': instance.unlockedAt?.toIso8601String(),
+      'unseen': instance.unseen,
       'year': instance.year,
       'era': instance.era,
     };

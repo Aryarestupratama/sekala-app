@@ -17,6 +17,7 @@ T _$identity<T>(T value) => value;
 mixin _$BadgeListMeta {
   int get total;
   int get unlocked;
+  int get unseen;
 
   /// Create a copy of BadgeListMeta
   /// with the given fields replaced by the non-null parameter values.
@@ -36,16 +37,17 @@ mixin _$BadgeListMeta {
             other is BadgeListMeta &&
             (identical(other.total, total) || other.total == total) &&
             (identical(other.unlocked, unlocked) ||
-                other.unlocked == unlocked));
+                other.unlocked == unlocked) &&
+            (identical(other.unseen, unseen) || other.unseen == unseen));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, total, unlocked);
+  int get hashCode => Object.hash(runtimeType, total, unlocked, unseen);
 
   @override
   String toString() {
-    return 'BadgeListMeta(total: $total, unlocked: $unlocked)';
+    return 'BadgeListMeta(total: $total, unlocked: $unlocked, unseen: $unseen)';
   }
 }
 
@@ -55,7 +57,7 @@ abstract mixin class $BadgeListMetaCopyWith<$Res> {
           BadgeListMeta value, $Res Function(BadgeListMeta) _then) =
       _$BadgeListMetaCopyWithImpl;
   @useResult
-  $Res call({int total, int unlocked});
+  $Res call({int total, int unlocked, int unseen});
 }
 
 /// @nodoc
@@ -73,6 +75,7 @@ class _$BadgeListMetaCopyWithImpl<$Res>
   $Res call({
     Object? total = null,
     Object? unlocked = null,
+    Object? unseen = null,
   }) {
     return _then(BadgeListMeta(
       total: null == total
@@ -82,6 +85,10 @@ class _$BadgeListMetaCopyWithImpl<$Res>
       unlocked: null == unlocked
           ? _self.unlocked
           : unlocked // ignore: cast_nullable_to_non_nullable
+              as int,
+      unseen: null == unseen
+          ? _self.unseen
+          : unseen // ignore: cast_nullable_to_non_nullable
               as int,
     ));
   }
@@ -180,13 +187,13 @@ extension BadgeListMetaPatterns on BadgeListMeta {
 
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>(
-    TResult Function(int total, int unlocked)? $default, {
+    TResult Function(int total, int unlocked, int unseen)? $default, {
     required TResult orElse(),
   }) {
     final _that = this;
     switch (_that) {
       case _BadgeListMeta() when $default != null:
-        return $default(_that.total, _that.unlocked);
+        return $default(_that.total, _that.unlocked, _that.unseen);
       case _:
         return orElse();
     }
@@ -207,12 +214,12 @@ extension BadgeListMetaPatterns on BadgeListMeta {
 
   @optionalTypeArgs
   TResult when<TResult extends Object?>(
-    TResult Function(int total, int unlocked) $default,
+    TResult Function(int total, int unlocked, int unseen) $default,
   ) {
     final _that = this;
     switch (_that) {
       case _BadgeListMeta():
-        return $default(_that.total, _that.unlocked);
+        return $default(_that.total, _that.unlocked, _that.unseen);
       case _:
         throw StateError('Unexpected subclass');
     }
@@ -232,12 +239,12 @@ extension BadgeListMetaPatterns on BadgeListMeta {
 
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>(
-    TResult? Function(int total, int unlocked)? $default,
+    TResult? Function(int total, int unlocked, int unseen)? $default,
   ) {
     final _that = this;
     switch (_that) {
       case _BadgeListMeta() when $default != null:
-        return $default(_that.total, _that.unlocked);
+        return $default(_that.total, _that.unlocked, _that.unseen);
       case _:
         return null;
     }
@@ -247,7 +254,7 @@ extension BadgeListMetaPatterns on BadgeListMeta {
 /// @nodoc
 @JsonSerializable()
 class _BadgeListMeta implements BadgeListMeta {
-  const _BadgeListMeta({this.total = 0, this.unlocked = 0});
+  const _BadgeListMeta({this.total = 0, this.unlocked = 0, this.unseen = 0});
   factory _BadgeListMeta.fromJson(Map<String, dynamic> json) =>
       _$BadgeListMetaFromJson(json);
 
@@ -257,6 +264,9 @@ class _BadgeListMeta implements BadgeListMeta {
   @override
   @JsonKey()
   final int unlocked;
+  @override
+  @JsonKey()
+  final int unseen;
 
   /// Create a copy of BadgeListMeta
   /// with the given fields replaced by the non-null parameter values.
@@ -280,16 +290,17 @@ class _BadgeListMeta implements BadgeListMeta {
             other is _BadgeListMeta &&
             (identical(other.total, total) || other.total == total) &&
             (identical(other.unlocked, unlocked) ||
-                other.unlocked == unlocked));
+                other.unlocked == unlocked) &&
+            (identical(other.unseen, unseen) || other.unseen == unseen));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, total, unlocked);
+  int get hashCode => Object.hash(runtimeType, total, unlocked, unseen);
 
   @override
   String toString() {
-    return 'BadgeListMeta(total: $total, unlocked: $unlocked)';
+    return 'BadgeListMeta(total: $total, unlocked: $unlocked, unseen: $unseen)';
   }
 }
 
@@ -301,7 +312,7 @@ abstract mixin class _$BadgeListMetaCopyWith<$Res>
       __$BadgeListMetaCopyWithImpl;
   @override
   @useResult
-  $Res call({int total, int unlocked});
+  $Res call({int total, int unlocked, int unseen});
 }
 
 /// @nodoc
@@ -319,6 +330,7 @@ class __$BadgeListMetaCopyWithImpl<$Res>
   $Res call({
     Object? total = null,
     Object? unlocked = null,
+    Object? unseen = null,
   }) {
     return _then(_BadgeListMeta(
       total: null == total
@@ -328,6 +340,10 @@ class __$BadgeListMetaCopyWithImpl<$Res>
       unlocked: null == unlocked
           ? _self.unlocked
           : unlocked // ignore: cast_nullable_to_non_nullable
+              as int,
+      unseen: null == unseen
+          ? _self.unseen
+          : unseen // ignore: cast_nullable_to_non_nullable
               as int,
     ));
   }

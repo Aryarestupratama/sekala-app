@@ -11,4 +11,9 @@ class BadgeRepositoryImpl implements BadgeRepository {
     final json = await _api.getBadges();
     return BadgeListResponse.fromJson(json);
   }
+
+  @override
+  Future<void> markBadgeSeen(int caseStudyId) async {
+    await _api.markBadgeSeen(caseStudyId);
+  }
 }

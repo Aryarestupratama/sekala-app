@@ -63,6 +63,13 @@ abstract class BadgeCard with _$BadgeCard {
 
     @JsonKey(name: 'unlocked_at') DateTime? unlockedAt,
 
+    // Dot merah bottom nav "Profil" + menu "Koleksi Badge" + tag "Baru" di
+    // grid (BadgeTile) — mirror VaccineCard.unseen. Turunan dari
+    // `user_case_study_attempts.seen_at` masih null. Selalu false kalau
+    // `unlocked == false` (badge locked tidak pernah dianggap "perlu
+    // dilihat") — dijamin backend (BadgeResource::$isUnseen).
+    @JsonKey(name: 'unseen', defaultValue: false) required bool unseen,
+
     required BadgeYear year,
     required BadgeEra era,
   }) = _BadgeCard;

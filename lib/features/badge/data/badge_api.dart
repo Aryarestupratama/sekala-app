@@ -15,4 +15,16 @@ class BadgeApi {
       return response.data as Map<String, dynamic>;
     });
   }
+
+  /// PATCH /api/badges/{caseStudy}/seen — tandai badge sudah dilihat user
+  /// (dot merah/tag "Baru" hilang). Mirror CardApi.markVaccineSeen — beda
+  /// method HTTP (PATCH, bukan POST) karena rute barunya memang didaftarkan
+  /// PATCH (lihat routes/api.php). Idempotent & permisif di sisi backend
+  /// (BadgeController::markSeen) — aman dipanggil walau sudah pernah
+  /// ditandai sebelumnya.
+  Future<void> markBadgeSeen(int caseStudyId) {
+    return unwrapApiCall(() async {
+      await _dio.patch('/badges/$caseStudyId/seen');
+    });
+  }
 }

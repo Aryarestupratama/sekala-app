@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -11,12 +13,14 @@ enum _BadgeFilter { all, unlocked, locked }
 /// user login (guard router sama kelas dengan /profile).
 ///
 /// SENGAJA JAUH lebih sederhana dari VaccineListScreen: TIDAK ada antrean
-/// reveal/dialog "badge baru!"/confetti/mark-seen — backend tidak
-/// mengirim status `unseen` sama sekali untuk badge (lihat BadgeListMeta),
-/// karena progress.md tidak meminta ritual reveal untuk badge, cuma
-/// "grid locked/unlocked, pola Koleksi Vaksin" + keputusan produk badge
-/// locked cukup diredupkan. Kalau nanti produk minta reveal ceremony
-/// untuk badge juga, contoh polanya ada di vaccine_list_screen.dart.
+/// reveal/dialog "badge baru!"/confetti — badge tidak punya ritual reveal
+/// terpisah (progress.md tidak meminta itu untuk badge, cuma "grid
+/// locked/unlocked, pola Koleksi Vaksin" + keputusan produk badge locked
+/// cukup diredupkan). YANG DITIRU dari pola vaksin cuma dot merah/tag
+/// "Baru" (`BadgeCard.unseen`) + mark-seen — lihat `_showBadgeDetail()` di
+/// bawah, dipanggil di titik yang sama dengan `_openDetail()` milik
+/// vaccine_list_screen.dart (saat user BENERAN membuka detail, bukan pas
+/// grid dirender), supaya dot & tag sempat kelihatan dulu.
 class BadgeListScreen extends ConsumerStatefulWidget {
   const BadgeListScreen({super.key});
 
@@ -39,7 +43,22 @@ class _BadgeListScreenState extends ConsumerState<BadgeListScreen> {
     return byStatus.where((b) => b.era.slug == _eraSlug).toList();
   }
 
+  /// Tandai badge sudah dilihat (best-effort, fire-and-forget — mirror
+  /// `_openDetail()` di vaccine_list_screen.dart) SEBELUM membuka sheet,
+  /// supaya dot bottom nav "Profil" & menu "Koleksi Badge" tidak
+  /// menunggu sheet ditutup dulu untuk mulai hilang. Badge yang sudah
+  /// `unseen == false` (termasuk badge locked, yang memang selalu
+  /// `unseen == false` — lihat BadgeResource.php) tidak memicu request
+  /// sama sekali.
   void _showBadgeDetail(BadgeCard badge) {
+    if (badge.unseen) {
+      unawaited(
+        ref.read(badgeRepositoryProvider).markBadgeSeen(badge.id).then((_) {
+          if (mounted) ref.invalidate(badgeListProvider);
+        }),
+      );
+    }
+
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: AppColors.surface,

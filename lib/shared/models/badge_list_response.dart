@@ -4,16 +4,19 @@ import 'badge_card.dart';
 part 'badge_list_response.freezed.dart';
 part 'badge_list_response.g.dart';
 
-/// Mengacu `meta` di BadgeController::index() — cuma `total`/`unlocked`
-/// (beda dari CardListMeta milik Vaksin yang juga bawa `unseen`/`eras`
-/// ringkasan per-era: Koleksi Badge TIDAK punya animasi reveal/status
-/// "belum dilihat", jadi tidak butuh field itu — lihat keputusan produk
-/// "locked cukup diredupkan" di progress.md).
+/// Mengacu `meta` di BadgeController::index() — `total`/`unlocked`/`unseen`.
+/// `unseen` ditambahkan mirror CardListMeta milik Vaksin, dipakai buat dot
+/// merah bottom nav "Profil" (main_shell.dart) & menu "Koleksi Badge"
+/// (profile_screen.dart). Beda dari CardListMeta: Koleksi Badge TETAP tidak
+/// punya ringkasan `eras` per-era ataupun antrean reveal — cuma angka
+/// `unseen` yang ditiru, bukan seluruh field vaksin (lihat keputusan produk
+/// "locked cukup diredupkan, tanpa reveal/confetti" di progress.md).
 @freezed
 abstract class BadgeListMeta with _$BadgeListMeta {
   const factory BadgeListMeta({
     @Default(0) int total,
     @Default(0) int unlocked,
+    @Default(0) int unseen,
   }) = _BadgeListMeta;
 
   factory BadgeListMeta.fromJson(Map<String, dynamic> json) =>

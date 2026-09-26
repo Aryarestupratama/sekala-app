@@ -679,6 +679,8 @@ mixin _$BadgeCard {
   bool get unlocked;
   @JsonKey(name: 'unlocked_at')
   DateTime? get unlockedAt;
+  @JsonKey(name: 'unseen', defaultValue: false)
+  bool get unseen;
   BadgeYear get year;
   BadgeEra get era;
 
@@ -708,6 +710,7 @@ mixin _$BadgeCard {
                 other.unlocked == unlocked) &&
             (identical(other.unlockedAt, unlockedAt) ||
                 other.unlockedAt == unlockedAt) &&
+            (identical(other.unseen, unseen) || other.unseen == unseen) &&
             (identical(other.year, year) || other.year == year) &&
             (identical(other.era, era) || other.era == era));
   }
@@ -715,11 +718,11 @@ mixin _$BadgeCard {
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, id, sectionId, name, description,
-      iconUrl, unlocked, unlockedAt, year, era);
+      iconUrl, unlocked, unlockedAt, unseen, year, era);
 
   @override
   String toString() {
-    return 'BadgeCard(id: $id, sectionId: $sectionId, name: $name, description: $description, iconUrl: $iconUrl, unlocked: $unlocked, unlockedAt: $unlockedAt, year: $year, era: $era)';
+    return 'BadgeCard(id: $id, sectionId: $sectionId, name: $name, description: $description, iconUrl: $iconUrl, unlocked: $unlocked, unlockedAt: $unlockedAt, unseen: $unseen, year: $year, era: $era)';
   }
 }
 
@@ -736,6 +739,7 @@ abstract mixin class $BadgeCardCopyWith<$Res> {
       @JsonKey(name: 'icon_url') String? iconUrl,
       @JsonKey(name: 'unlocked', defaultValue: false) bool unlocked,
       @JsonKey(name: 'unlocked_at') DateTime? unlockedAt,
+      @JsonKey(name: 'unseen', defaultValue: false) bool unseen,
       BadgeYear year,
       BadgeEra era});
 
@@ -762,6 +766,7 @@ class _$BadgeCardCopyWithImpl<$Res> implements $BadgeCardCopyWith<$Res> {
     Object? iconUrl = freezed,
     Object? unlocked = null,
     Object? unlockedAt = freezed,
+    Object? unseen = null,
     Object? year = null,
     Object? era = null,
   }) {
@@ -794,6 +799,10 @@ class _$BadgeCardCopyWithImpl<$Res> implements $BadgeCardCopyWith<$Res> {
           ? _self.unlockedAt
           : unlockedAt // ignore: cast_nullable_to_non_nullable
               as DateTime?,
+      unseen: null == unseen
+          ? _self.unseen
+          : unseen // ignore: cast_nullable_to_non_nullable
+              as bool,
       year: null == year
           ? _self.year
           : year // ignore: cast_nullable_to_non_nullable
@@ -927,6 +936,7 @@ extension BadgeCardPatterns on BadgeCard {
             @JsonKey(name: 'icon_url') String? iconUrl,
             @JsonKey(name: 'unlocked', defaultValue: false) bool unlocked,
             @JsonKey(name: 'unlocked_at') DateTime? unlockedAt,
+            @JsonKey(name: 'unseen', defaultValue: false) bool unseen,
             BadgeYear year,
             BadgeEra era)?
         $default, {
@@ -943,6 +953,7 @@ extension BadgeCardPatterns on BadgeCard {
             _that.iconUrl,
             _that.unlocked,
             _that.unlockedAt,
+            _that.unseen,
             _that.year,
             _that.era);
       case _:
@@ -973,6 +984,7 @@ extension BadgeCardPatterns on BadgeCard {
             @JsonKey(name: 'icon_url') String? iconUrl,
             @JsonKey(name: 'unlocked', defaultValue: false) bool unlocked,
             @JsonKey(name: 'unlocked_at') DateTime? unlockedAt,
+            @JsonKey(name: 'unseen', defaultValue: false) bool unseen,
             BadgeYear year,
             BadgeEra era)
         $default,
@@ -988,6 +1000,7 @@ extension BadgeCardPatterns on BadgeCard {
             _that.iconUrl,
             _that.unlocked,
             _that.unlockedAt,
+            _that.unseen,
             _that.year,
             _that.era);
       case _:
@@ -1017,6 +1030,7 @@ extension BadgeCardPatterns on BadgeCard {
             @JsonKey(name: 'icon_url') String? iconUrl,
             @JsonKey(name: 'unlocked', defaultValue: false) bool unlocked,
             @JsonKey(name: 'unlocked_at') DateTime? unlockedAt,
+            @JsonKey(name: 'unseen', defaultValue: false) bool unseen,
             BadgeYear year,
             BadgeEra era)?
         $default,
@@ -1032,6 +1046,7 @@ extension BadgeCardPatterns on BadgeCard {
             _that.iconUrl,
             _that.unlocked,
             _that.unlockedAt,
+            _that.unseen,
             _that.year,
             _that.era);
       case _:
@@ -1051,6 +1066,7 @@ class _BadgeCard implements BadgeCard {
       @JsonKey(name: 'icon_url') this.iconUrl,
       @JsonKey(name: 'unlocked', defaultValue: false) required this.unlocked,
       @JsonKey(name: 'unlocked_at') this.unlockedAt,
+      @JsonKey(name: 'unseen', defaultValue: false) required this.unseen,
       required this.year,
       required this.era});
   factory _BadgeCard.fromJson(Map<String, dynamic> json) =>
@@ -1074,6 +1090,9 @@ class _BadgeCard implements BadgeCard {
   @override
   @JsonKey(name: 'unlocked_at')
   final DateTime? unlockedAt;
+  @override
+  @JsonKey(name: 'unseen', defaultValue: false)
+  final bool unseen;
   @override
   final BadgeYear year;
   @override
@@ -1110,6 +1129,7 @@ class _BadgeCard implements BadgeCard {
                 other.unlocked == unlocked) &&
             (identical(other.unlockedAt, unlockedAt) ||
                 other.unlockedAt == unlockedAt) &&
+            (identical(other.unseen, unseen) || other.unseen == unseen) &&
             (identical(other.year, year) || other.year == year) &&
             (identical(other.era, era) || other.era == era));
   }
@@ -1117,11 +1137,11 @@ class _BadgeCard implements BadgeCard {
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   int get hashCode => Object.hash(runtimeType, id, sectionId, name, description,
-      iconUrl, unlocked, unlockedAt, year, era);
+      iconUrl, unlocked, unlockedAt, unseen, year, era);
 
   @override
   String toString() {
-    return 'BadgeCard(id: $id, sectionId: $sectionId, name: $name, description: $description, iconUrl: $iconUrl, unlocked: $unlocked, unlockedAt: $unlockedAt, year: $year, era: $era)';
+    return 'BadgeCard(id: $id, sectionId: $sectionId, name: $name, description: $description, iconUrl: $iconUrl, unlocked: $unlocked, unlockedAt: $unlockedAt, unseen: $unseen, year: $year, era: $era)';
   }
 }
 
@@ -1141,6 +1161,7 @@ abstract mixin class _$BadgeCardCopyWith<$Res>
       @JsonKey(name: 'icon_url') String? iconUrl,
       @JsonKey(name: 'unlocked', defaultValue: false) bool unlocked,
       @JsonKey(name: 'unlocked_at') DateTime? unlockedAt,
+      @JsonKey(name: 'unseen', defaultValue: false) bool unseen,
       BadgeYear year,
       BadgeEra era});
 
@@ -1169,6 +1190,7 @@ class __$BadgeCardCopyWithImpl<$Res> implements _$BadgeCardCopyWith<$Res> {
     Object? iconUrl = freezed,
     Object? unlocked = null,
     Object? unlockedAt = freezed,
+    Object? unseen = null,
     Object? year = null,
     Object? era = null,
   }) {
@@ -1201,6 +1223,10 @@ class __$BadgeCardCopyWithImpl<$Res> implements _$BadgeCardCopyWith<$Res> {
           ? _self.unlockedAt
           : unlockedAt // ignore: cast_nullable_to_non_nullable
               as DateTime?,
+      unseen: null == unseen
+          ? _self.unseen
+          : unseen // ignore: cast_nullable_to_non_nullable
+              as bool,
       year: null == year
           ? _self.year
           : year // ignore: cast_nullable_to_non_nullable

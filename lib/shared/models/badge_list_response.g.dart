@@ -10,12 +10,14 @@ _BadgeListMeta _$BadgeListMetaFromJson(Map<String, dynamic> json) =>
     _BadgeListMeta(
       total: (json['total'] as num?)?.toInt() ?? 0,
       unlocked: (json['unlocked'] as num?)?.toInt() ?? 0,
+      unseen: (json['unseen'] as num?)?.toInt() ?? 0,
     );
 
 Map<String, dynamic> _$BadgeListMetaToJson(_BadgeListMeta instance) =>
     <String, dynamic>{
       'total': instance.total,
       'unlocked': instance.unlocked,
+      'unseen': instance.unseen,
     };
 
 _BadgeListResponse _$BadgeListResponseFromJson(Map<String, dynamic> json) =>

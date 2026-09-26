@@ -8,6 +8,7 @@ import 'package:sekala_app/core/router/auth_state.dart';
 import 'package:sekala_app/core/theme/app_colors.dart';
 import 'package:sekala_app/features/auth/presentation/providers/auth_providers.dart';
 import 'package:sekala_app/features/card/presentation/providers/card_providers.dart';
+import 'package:sekala_app/features/badge/presentation/providers/badge_providers.dart';
 
 /// Bottom nav 4 tab: Home / Informasi / Koleksi / Profil (Design.md §2).
 /// Dipakai sama untuk user login & guest — guard di app_router.dart yang
@@ -18,11 +19,16 @@ import 'package:sekala_app/features/card/presentation/providers/card_providers.d
 ///   sedikit memantul), ikon aktif jadi putih di atasnya.
 /// - Ikon aktif membesar halus, warna ikon & label berubah smooth.
 /// - Badge coral di tab Koleksi berdenyut (pulse) saat ada vaksin unseen.
+/// - Badge coral di tab Profil berdenyut (pulse) saat ada badge (Studi
+///   Kasus) baru yang belum dilihat — sumber sama dengan dot menu
+///   "Koleksi Badge" di ProfileScreen (badgeListProvider.meta.unseen).
 /// - Bar masuk dengan slide-up + fade saat pertama tampil.
 /// - Haptic ringan tiap ganti tab.
 ///
-/// Logic (auth, badge unseen, sinkron activeTabIndexProvider, goBranch)
-/// TIDAK berubah, murni visual.
+/// Logic (auth, unseen vaksin/badge, sinkron activeTabIndexProvider,
+/// goBranch) TIDAK berubah dari sebelumnya (murni visual), KECUALI
+/// `_BottomNavBar.badgeIndex` (tunggal) diganti `badgeIndices` (Set) supaya
+/// 2 tab (Koleksi & Profil) bisa sama-sama menyalakan dot secara independen.
 class MainShell extends ConsumerStatefulWidget {
   const MainShell({super.key, required this.navigationShell});
 
@@ -44,6 +50,14 @@ class MainShell extends ConsumerStatefulWidget {
         activeIcon: Icons.person_rounded,
         label: 'Profil'),
   ];
+
+  // Index tab tetap (Design.md §2) — dipakai di sini & dibandingkan dengan
+  // `koleksiTabIndex` dari active_tab_provider.dart. Tidak ada
+  // `profilTabIndex` terpisah di active_tab_provider.dart karena tab
+  // Profil tidak butuh gating reveal-queue seperti tab Koleksi (lihat
+  // vaccine_list_screen.dart) — dot-nya cukup dihitung dari provider,
+  // tanpa perlu tahu "sedang aktif di tab ini atau tidak".
+  static const int _profilTabIndex = 3;
 
   @override
   ConsumerState<MainShell> createState() => _MainShellState();
@@ -81,18 +95,27 @@ class _MainShellState extends ConsumerState<MainShell> {
     final authState = ref.watch(authNotifierProvider);
     final isVerifiedUser = authState.status == AuthStatus.authenticated;
 
-    // Badge hanya untuk user login terverifikasi (guest tidak memicu
-    // request /cards yang bakal 401/403, R-GUEST-02).
-    final unseenCount = isVerifiedUser
+    // Badge tab Koleksi & Profil hanya untuk user login terverifikasi
+    // (guest tidak memicu request /cards atau /badges yang bakal 401/403,
+    // R-GUEST-02).
+    final unseenVaccines = isVerifiedUser
         ? ref.watch(cardListProvider).valueOrNull?.meta.unseen ?? 0
         : 0;
+    final unseenBadges = isVerifiedUser
+        ? ref.watch(badgeListProvider).valueOrNull?.meta.unseen ?? 0
+        : 0;
+
+    final badgeIndices = <int>{
+      if (unseenVaccines > 0) koleksiTabIndex,
+      if (unseenBadges > 0) MainShell._profilTabIndex,
+    };
 
     return Scaffold(
       body: widget.navigationShell,
       bottomNavigationBar: _BottomNavBar(
         selectedIndex: widget.navigationShell.currentIndex,
         items: MainShell._items,
-        badgeIndex: unseenCount > 0 ? koleksiTabIndex : null,
+        badgeIndices: badgeIndices,
         onDestinationSelected: (index) {
           if (index != widget.navigationShell.currentIndex) {
             HapticFeedback.selectionClick();
@@ -128,15 +151,18 @@ class _BottomNavBar extends StatelessWidget {
     required this.selectedIndex,
     required this.items,
     required this.onDestinationSelected,
-    this.badgeIndex,
+    this.badgeIndices = const {},
   });
 
   final int selectedIndex;
   final List<_NavItemData> items;
   final ValueChanged<int> onDestinationSelected;
 
-  /// Index item yang perlu badge (mis. Koleksi saat ada vaksin unseen).
-  final int? badgeIndex;
+  /// Index item yang perlu badge dot (mis. Koleksi saat ada vaksin unseen,
+  /// Profil saat ada badge baru). Diganti dari `int? badgeIndex` tunggal
+  /// jadi Set supaya lebih dari satu tab bisa menyala bersamaan, independen
+  /// satu sama lain.
+  final Set<int> badgeIndices;
 
   static const double _barHeight = 74;
   static const double _bubbleSize = 44;
@@ -213,7 +239,7 @@ class _BottomNavBar extends StatelessWidget {
                           child: _NavItem(
                             data: items[index],
                             isActive: index == selectedIndex,
-                            showBadge: index == badgeIndex,
+                            showBadge: badgeIndices.contains(index),
                             onTap: () => onDestinationSelected(index),
                           ),
                         );
@@ -330,7 +356,7 @@ class _NavItemState extends State<_NavItem> {
 }
 
 /// Dot coral dengan cincin yang berdenyut pelan, menarik perhatian ke tab
-/// Koleksi tanpa terasa mengganggu.
+/// Koleksi/Profil tanpa terasa mengganggu.
 class _PulsingDot extends StatefulWidget {
   const _PulsingDot();
 

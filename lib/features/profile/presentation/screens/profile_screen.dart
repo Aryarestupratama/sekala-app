@@ -1,18 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:showcaseview/showcaseview.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/models/user.dart';
 import '../../../../shared/widgets/pressable_scale.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../auth/presentation/widgets/email_verification_banner.dart';
 import '../../../onboarding/tutorial_keys.dart';
+import '../../../onboarding/tutorial_showcase_style.dart';
 import 'change_password_screen.dart';
 import 'help_support_screen.dart';
 import 'about_sekala_screen.dart';
 
 import '../../../home/presentation/providers/home_providers.dart';
 import '../../../card/presentation/providers/card_providers.dart';
+import '../../../badge/presentation/providers/badge_providers.dart';
 import '../../../badge/presentation/screens/badge_list_screen.dart';
 import '../providers/avatar_providers.dart';
 import '../widgets/profile_avatar.dart';
@@ -125,6 +126,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
       data: (list) => list.meta.unlocked,
       orElse: () => null,
     );
+
+    // Dot merah menu "Koleksi Badge" — sumber sama dengan dot tab Profil
+    // di main_shell.dart (badgeListProvider.meta.unseen). Rute ini hanya
+    // dicapai user login, jadi aman di-watch tanpa guard tambahan (sama
+    // seperti cardListProvider di atas).
+    final unseenBadges =
+        ref.watch(badgeListProvider).valueOrNull?.meta.unseen ?? 0;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -257,6 +265,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                     _MenuTile(
                       icon: Icons.emoji_events_outlined,
                       label: 'Koleksi Badge',
+                      showDot: unseenBadges > 0,
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(builder: (_) => const BadgeListScreen()),
                       ),
@@ -287,7 +296,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                       ),
                     ),
                     const Divider(height: 1, color: AppColors.border),
-                    Showcase(
+                    tutorialShowcase(
                       key: TutorialKeys.profileHelpMenuTile,
                       title: 'Butuh Bantuan?',
                       description:
@@ -462,12 +471,20 @@ class _MenuTile extends StatelessWidget {
     required this.label,
     required this.onTap,
     this.trailing,
+    this.showDot = false,
   });
 
   final IconData icon;
   final String label;
   final String? trailing;
   final VoidCallback onTap;
+
+  /// Dot merah kecil di samping label — mirror dot bottom nav "Profil" di
+  /// main_shell.dart (sumber sama, badgeListProvider.meta.unseen). Dipakai
+  /// khusus tile "Koleksi Badge" untuk sekarang, tapi ditulis generic
+  /// (bukan hardcode di label "Koleksi Badge") kalau nanti tile lain butuh
+  /// pola serupa.
+  final bool showDot;
 
   @override
   Widget build(BuildContext context) {
@@ -487,7 +504,28 @@ class _MenuTile extends StatelessWidget {
             ),
             const SizedBox(width: 14),
             Expanded(
-              child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14.5)),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: Text(
+                      label,
+                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14.5),
+                    ),
+                  ),
+                  if (showDot) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: AppColors.coral,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
             if (trailing != null) ...[
               Text(trailing!, style: const TextStyle(color: AppColors.textSecondary)),
