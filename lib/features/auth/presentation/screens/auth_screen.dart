@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -30,11 +28,6 @@ const _kBgLight = Color(0xFFF7F7F8);
 const _kFieldFill = Colors.white;
 const _kHintGrey = Color(0xFF9CA3AF);
 const _kBorderGrey = Color(0xFFE9EAEC);
-
-const _kGoogleBlue = Color(0xFF4285F4);
-const _kGoogleGreen = Color(0xFF34A853);
-const _kGoogleYellow = Color(0xFFFBBC05);
-const _kGoogleRed = Color(0xFFEA4335);
 
 class _AuthScreenState extends ConsumerState<AuthScreen>
     with SingleTickerProviderStateMixin {
@@ -115,28 +108,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       // Email sengaja dibiarkan terisi.
     });
   }
-
-  // Login Google DINONAKTIFKAN sementara — backend belum punya endpoint
-  // stateless untuk mobile (POST /auth/google dengan id_token).
-  // Uncomment + tambah `google_sign_in` kalau backend sudah siap:
-  //
-  // Future<void> _submitGoogle() async {
-  //   try {
-  //     final account = await _googleSignIn.signIn();
-  //     if (account == null) return;
-  //     final auth = await account.authentication;
-  //     final idToken = auth.idToken;
-  //     if (idToken == null) {
-  //       _showError('Gagal mendapatkan token dari Google. Coba lagi.');
-  //       return;
-  //     }
-  //     await ref
-  //         .read(authControllerProvider.notifier)
-  //         .loginWithGoogle(idToken: idToken);
-  //   } catch (_) {
-  //     _showError('Login dengan Google gagal. Coba lagi.');
-  //   }
-  // }
 
   void _showError(String message) {
     if (!mounted) return;
@@ -471,58 +442,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
         ),
         const SizedBox(height: 18),
 
-        // Divider "atau"
-        _FadeSlideUp(
-          animation: _slot(0.40, 0.84),
-          child: Row(
-            children: [
-              Expanded(child: Divider(color: Colors.grey.shade300)),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Text(
-                  'atau',
-                  style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
-                ),
-              ),
-              Expanded(child: Divider(color: Colors.grey.shade300)),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        // Tombol Google
-        _FadeSlideUp(
-          animation: _slot(0.44, 0.88),
-          child: SizedBox(
-            height: 46,
-            child: OutlinedButton.icon(
-              onPressed: () => _showError(
-                'Login Google belum tersedia untuk mobile. '
-                'Gunakan email & kata sandi dulu.',
-              ),
-              style: OutlinedButton.styleFrom(
-                backgroundColor: Colors.white,
-                side: BorderSide(color: Colors.grey.shade300),
-                shape: const StadiumBorder(),
-              ),
-              icon: const SizedBox(
-                height: 18,
-                width: 18,
-                child: CustomPaint(painter: _GoogleGPainter()),
-              ),
-              label: const Text(
-                'Google',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-
         // Tombol Tamu
         _FadeSlideUp(
           animation: _slot(0.48, 0.92),
@@ -850,52 +769,4 @@ class _GuestButton extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Logo "G" Google 4-warna, digambar manual supaya self-contained.
-class _GoogleGPainter extends CustomPainter {
-  const _GoogleGPainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final strokeWidth = size.width * 0.22;
-    final radius = (size.width - strokeWidth) / 2;
-    final rect = Rect.fromCircle(center: center, radius: radius);
-
-    Paint ring(Color color) => Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.butt;
-
-    const gapDeg = 4.0;
-    double rad(double deg) => deg * math.pi / 180;
-
-    // Ring penuh kecuali bukaan ~40° di sisi kanan (tempat palang biru).
-    canvas.drawArc(rect, rad(20 + gapDeg / 2), rad(80 - gapDeg), false,
-        ring(_kGoogleGreen));
-    canvas.drawArc(rect, rad(100 + gapDeg / 2), rad(80 - gapDeg), false,
-        ring(_kGoogleYellow));
-    canvas.drawArc(rect, rad(180 + gapDeg / 2), rad(80 - gapDeg), false,
-        ring(_kGoogleRed));
-    canvas.drawArc(rect, rad(260 + gapDeg / 2), rad(80 - gapDeg), false,
-        ring(_kGoogleBlue));
-
-    // Palang biru horizontal yang mengisi bukaan kanan.
-    final barPaint = Paint()..color = _kGoogleBlue;
-    final barRect = Rect.fromLTWH(
-      center.dx - strokeWidth * 0.15,
-      center.dy - strokeWidth / 2,
-      radius - center.dx + strokeWidth * 0.15 + size.width * 0.06,
-      strokeWidth,
-    );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(barRect, Radius.circular(strokeWidth * 0.25)),
-      barPaint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

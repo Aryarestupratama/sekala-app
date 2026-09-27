@@ -13,6 +13,11 @@ import '../../../../shared/models/era_quiz_recap_option.dart';
 ///   (cuma muncul kalau jawaban user SALAH, menandakan opsi yang seharusnya)
 /// - opsi == selectedOptionId & != correctOptionId -> merah, tag "PILIHANMU"
 /// - selainnya -> polos, tidak ada tag
+///
+/// REDESIGN: perbandingan di atas TIDAK berubah — murni tampilan. Badge
+/// "SOAL n"/"TAHUN"/"Benar-Salah" disamakan jadi satu ukuran caption (11),
+/// `withOpacity` -> `withValues`, ikon dibulatkan, dan spacing dirapikan
+/// supaya tidak terasa penuh sesak.
 class EraQuizRecapCard extends StatelessWidget {
   const EraQuizRecapCard({super.key, required this.index, required this.item});
 
@@ -24,16 +29,18 @@ class EraQuizRecapCard extends StatelessWidget {
   static const _wrongRed = Color(0xFFDC2626);
   static const _wrongRedBg = Color(0xFFFDEEEE);
 
+  static const _tagLabelStyle = TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.textSecondary);
+
   @override
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 3)),
+          BoxShadow(color: AppColors.ink.withValues(alpha: 0.04), blurRadius: 12, offset: const Offset(0, 5)),
         ],
       ),
       child: Column(
@@ -41,56 +48,54 @@ class EraQuizRecapCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(6)),
-                child: Text(
-                  'SOAL ${index + 1}',
-                  style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
+              Expanded(
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text('SOAL ${index + 1}', style: _tagLabelStyle),
+                    // BARU (opsional) — label tahun asal soal ini, konsekuensi
+                    // dari soal sumatif yang sekarang ditarik dari bank
+                    // formatif per year. Null-safe: kalau backend belum/tidak
+                    // mengirim `year`, badge ini disembunyikan.
+                    if (item.year != null) ...[
+                      const Text('·', style: _tagLabelStyle),
+                      Text('TAHUN ${item.year!.year}', style: _tagLabelStyle),
+                    ],
+                  ],
                 ),
               ),
-              // BARU (opsional) — label tahun asal soal ini, konsekuensi
-              // dari soal sumatif yang sekarang ditarik dari bank
-              // formatif per year. Null-safe: kalau backend belum/tidak
-              // mengirim `year` (mis. versi API lama), badge ini disembunyikan.
-              if (item.year != null) ...[
-                const SizedBox(width: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(6)),
-                  child: Text(
-                    'TAHUN ${item.year!.year}',
-                    style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
-                  ),
-                ),
-              ],
-              const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                 decoration: BoxDecoration(
                   color: item.isCorrect ? _correctGreenBg : _wrongRedBg,
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(item.isCorrect ? Icons.check : Icons.close, size: 11, color: item.isCorrect ? _correctGreen : _wrongRed),
+                    Icon(
+                      item.isCorrect ? Icons.check_rounded : Icons.close_rounded,
+                      size: 12,
+                      color: item.isCorrect ? _correctGreen : _wrongRed,
+                    ),
                     const SizedBox(width: 3),
                     Text(
                       item.isCorrect ? 'Benar' : 'Kurang Tepat',
-                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: item.isCorrect ? _correctGreen : _wrongRed),
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: item.isCorrect ? _correctGreen : _wrongRed),
                     ),
                   ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Text(
             item.question,
-            style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: AppColors.ink, height: 1.35),
+            style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700, color: AppColors.ink, height: 1.4),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           for (final option in item.options) _buildOption(option),
           const SizedBox(height: 4),
           _buildExplanation(),
@@ -115,27 +120,27 @@ class EraQuizRecapCard extends StatelessWidget {
       borderColor = _correctGreen;
       bgColor = _correctGreenBg;
       textColor = _correctGreen;
-      icon = Icons.check_circle;
+      icon = Icons.check_circle_rounded;
       iconColor = _correctGreen;
     } else if (isCorrectOption && !isSelectedOption) {
       tag = 'KUNCI BENAR';
       borderColor = _correctGreen;
       bgColor = _correctGreenBg;
       textColor = _correctGreen;
-      icon = Icons.check_circle;
+      icon = Icons.check_circle_rounded;
       iconColor = _correctGreen;
     } else if (isSelectedOption && !isCorrectOption) {
       tag = 'PILIHANMU';
       borderColor = _wrongRed;
       bgColor = _wrongRedBg;
       textColor = _wrongRed;
-      icon = Icons.cancel;
+      icon = Icons.cancel_rounded;
       iconColor = _wrongRed;
     }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(12),
@@ -156,13 +161,14 @@ class EraQuizRecapCard extends StatelessWidget {
             child: Text(
               option.optionText,
               style: TextStyle(
-                fontSize: 12.5,
+                fontSize: 13,
                 fontWeight: tag != null ? FontWeight.w600 : FontWeight.w500,
                 color: tag != null ? textColor : AppColors.ink,
               ),
             ),
           ),
-          if (tag != null)
+          if (tag != null) ...[
+            const SizedBox(width: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(color: borderColor, borderRadius: BorderRadius.circular(20)),
@@ -171,6 +177,7 @@ class EraQuizRecapCard extends StatelessWidget {
                 style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Colors.white),
               ),
             ),
+          ],
         ],
       ),
     );
@@ -180,10 +187,10 @@ class EraQuizRecapCard extends StatelessWidget {
     final color = item.isCorrect ? _correctGreen : _wrongRed;
     final bg = item.isCorrect ? _correctGreenBg : _wrongRedBg;
     final title = item.isCorrect ? 'Penjelasan Jawaban' : 'Pembahasan Kunci Jawaban';
-    final icon = item.isCorrect ? Icons.location_on : Icons.error_outline;
+    final icon = item.isCorrect ? Icons.lightbulb_outline_rounded : Icons.error_outline_rounded;
 
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(12)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -192,13 +199,13 @@ class EraQuizRecapCard extends StatelessWidget {
             children: [
               Icon(icon, size: 14, color: color),
               const SizedBox(width: 6),
-              Text(title, style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: color)),
+              Text(title, style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: color)),
             ],
           ),
           const SizedBox(height: 6),
           Text(
             item.explanation,
-            style: const TextStyle(fontSize: 12, color: AppColors.textSecondary, height: 1.4),
+            style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary, height: 1.45),
           ),
         ],
       ),

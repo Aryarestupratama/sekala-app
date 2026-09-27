@@ -10,8 +10,6 @@ abstract class AuthRepository {
  
   Future<User> login({required String email, required String password});
  
-  Future<User> loginWithGoogle({required String idToken});
- 
   Future<void> logout();
  
   Future<User> fetchMe();

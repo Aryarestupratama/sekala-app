@@ -46,21 +46,6 @@ class AuthApi {
     });
   }
 
-  // BACKEND BELUM PUNYA endpoint ini — routes/api.php cuma ada
-  // `GET auth/google/redirect` + `GET auth/google/callback` (redirect-based
-  // OAuth buat browser), bukan endpoint stateless yang nerima id_token dari
-  // mobile. Method ini disiapkan duluan biar begitu backend nambahin
-  // endpoint yang sesuai, Flutter tinggal disambungin lagi (lihat tombol
-  // Google yang di-nonaktifkan di auth_screen.dart untuk detail lengkap).
-  Future<Map<String, dynamic>> loginWithGoogle({required String idToken}) {
-    return unwrapApiCall(() async {
-      final response = await _dio.post('/auth/google', data: {
-        'id_token': idToken,
-      });
-      return response.data as Map<String, dynamic>;
-    });
-  }
-
   Future<void> logout() {
     return unwrapApiCall(() async {
       await _dio.post('/auth/logout');

@@ -3,7 +3,7 @@ import '../../../shared/models/user.dart';
 import '../domain/auth_repository.dart';
 import 'auth_api.dart';
 
-/// ASUMSI shape response untuk login/google — dugaan konvensi Laravel:
+/// ASUMSI shape response untuk login — dugaan konvensi Laravel:
 /// `{ "user": {...UserResource}, "token": "..." }`. Kalau backend
 /// ternyata membungkusnya beda (mis. `{ "data": { "user": ..., "token": ... } }`),
 /// cukup sesuaikan `_parseAuthPayload` di bawah — tidak usah ubah tempat lain.
@@ -11,8 +11,8 @@ class AuthRepositoryImpl implements AuthRepository {
   AuthRepositoryImpl(this._api);
   final AuthApi _api;
 
-  /// Dipakai untuk login/google — response-nya SELALU ada `token`
-  /// (AuthController::login()/googleCallback()), jadi aman langsung
+  /// Dipakai untuk login — response-nya SELALU ada `token`
+  /// (AuthController::login()), jadi aman langsung
   /// simpan ke storage & anggap user sudah authenticated.
   Future<User> _parseAuthPayload(Map<String, dynamic> json) async {
     final user = User.fromJson(json['user'] as Map<String, dynamic>);
@@ -48,12 +48,6 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<User> login({required String email, required String password}) async {
     final json = await _api.login(email: email, password: password);
-    return _parseAuthPayload(json);
-  }
-
-  @override
-  Future<User> loginWithGoogle({required String idToken}) async {
-    final json = await _api.loginWithGoogle(idToken: idToken);
     return _parseAuthPayload(json);
   }
 

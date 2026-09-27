@@ -5,6 +5,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/models/era.dart';
 import '../../../../shared/models/era_quiz_start.dart';
 import '../../../../shared/models/era_quiz_question_option.dart';
+import '../../../../shared/widgets/pressable_scale.dart';
 import '../../../history/presentation/providers/history_providers.dart';
 import '../providers/era_quiz_providers.dart';
 import '../widgets/era_quiz_option_tile.dart';
@@ -158,11 +159,22 @@ class _EraQuizScreenState extends ConsumerState<EraQuizScreen> {
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: sessionState.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => Center(child: CircularProgressIndicator(color: accent)),
           error: (error, _) => Center(
             child: Padding(
               padding: const EdgeInsets.all(24),
-              child: Text('Gagal memuat kuis sumatif: $error', textAlign: TextAlign.center),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.error_outline_rounded, size: 40, color: AppColors.textSecondary.withValues(alpha: 0.6)),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Gagal memuat kuis sumatif: $error',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
             ),
           ),
           data: (EraQuizStart? quiz) {
@@ -170,7 +182,7 @@ class _EraQuizScreenState extends ConsumerState<EraQuizScreen> {
               // Belum sempat start() atau sudah di-clear() (mis. abis
               // submit) — seharusnya jarang kejadian karena _started
               // sudah true di titik ini, tapi jaring pengaman.
-              return const Center(child: CircularProgressIndicator());
+              return Center(child: CircularProgressIndicator(color: accent));
             }
 
             // FIX (bug): dulu di-sort ulang by `order` di sini — itu
@@ -182,7 +194,16 @@ class _EraQuizScreenState extends ConsumerState<EraQuizScreen> {
             final questions = quiz.questions;
 
             if (questions.isEmpty) {
-              return const Center(child: Text('Kuis sumatif ini belum punya soal.'));
+              return const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Text(
+                    'Kuis sumatif ini belum punya soal.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
+                ),
+              );
             }
 
             // BARU: acak urutan opsi SEKALI per soal, di-cache supaya
@@ -208,17 +229,17 @@ class _EraQuizScreenState extends ConsumerState<EraQuizScreen> {
                   child: _ProgressSegments(total: total, currentIndex: _currentIndex, accent: accent),
                 ),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
                         'Soal ${_currentIndex + 1} dari $total',
-                        style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                        style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary, fontWeight: FontWeight.w600),
                       ),
                       Text(
                         '$percent% Selesai',
-                        style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                        style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary, fontWeight: FontWeight.w600),
                       ),
                     ],
                   ),
@@ -230,50 +251,31 @@ class _EraQuizScreenState extends ConsumerState<EraQuizScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Container(
-                          padding: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.all(18),
                           decoration: BoxDecoration(
                             color: Colors.white,
-                            borderRadius: BorderRadius.circular(18),
+                            borderRadius: BorderRadius.circular(20),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.04),
-                                blurRadius: 12,
-                                offset: const Offset(0, 4),
+                                color: AppColors.ink.withValues(alpha: 0.04),
+                                blurRadius: 14,
+                                offset: const Offset(0, 6),
                               ),
                             ],
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: accent.withOpacity(0.12),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Text(
-                                    'Pilihan Ganda',
-                                    style: TextStyle(
-                                      fontSize: 10.5,
-                                      fontWeight: FontWeight.bold,
-                                      color: accent,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 10),
                               Text(
                                 current.question,
                                 style: const TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15.5,
+                                  fontWeight: FontWeight.w700,
                                   color: AppColors.ink,
-                                  height: 1.35,
+                                  height: 1.4,
                                 ),
                               ),
-                              const SizedBox(height: 14),
+                              const SizedBox(height: 16),
                               for (final option in _shuffledOptionsByQuestionId![current.id]!)
                                 EraQuizOptionTile(
                                   label: option.optionText,
@@ -281,15 +283,15 @@ class _EraQuizScreenState extends ConsumerState<EraQuizScreen> {
                                   accent: accent,
                                   onTap: () => _selectOption(current.id, option.id),
                                 ),
-                              const SizedBox(height: 4),
+                              const SizedBox(height: 6),
                               Row(
                                 children: [
-                                  const Icon(Icons.lock_outline, size: 13, color: AppColors.textDisabled),
+                                  const Icon(Icons.lock_outline_rounded, size: 13, color: AppColors.textDisabled),
                                   const SizedBox(width: 6),
                                   Expanded(
                                     child: Text(
-                                      'Jawaban tersimpan sementara · Bisa diubah kembali sebelum submit',
-                                      style: const TextStyle(fontSize: 10.5, color: AppColors.textDisabled),
+                                      'Jawaban tersimpan sementara · bisa diubah sebelum submit',
+                                      style: const TextStyle(fontSize: 11, color: AppColors.textDisabled),
                                     ),
                                   ),
                                 ],
@@ -341,40 +343,59 @@ class _EraQuizIntro extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.military_tech, size: 44, color: accent),
-            const SizedBox(height: 16),
+            Container(
+              width: 88,
+              height: 88,
+              decoration: BoxDecoration(color: accent.withValues(alpha: 0.12), shape: BoxShape.circle),
+              alignment: Alignment.center,
+              child: Icon(Icons.military_tech_rounded, size: 40, color: accent),
+            ),
+            const SizedBox(height: 20),
             Text(
               'Kuis Sumatif${eraName != null ? ': $eraName' : ''}',
               textAlign: TextAlign.center,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 19),
+              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 19),
             ),
-            const SizedBox(height: 12),
-            const Text(
-              'Jumlah soal: 20 soal',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Column(
+                children: [
+                  _InfoLine(label: 'Jumlah soal', value: '20 soal'),
+                  const SizedBox(height: 8),
+                  _InfoLine(label: 'Nilai minimum kelulusan', value: '75%', emphasize: true),
+                ],
+              ),
             ),
-            const SizedBox(height: 4),
-            const Text(
-              'Nilai minimum kelulusan: 75%',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.ink),
-            ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 14),
             const Text(
               'Soal diambil acak dari kuis-kuis tahun di era ini. Kamu boleh mengerjakan ulang kapan saja.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 12.5),
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 12.5, height: 1.4),
             ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: onStart,
-                style: FilledButton.styleFrom(
-                  backgroundColor: accent,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+            const SizedBox(height: 28),
+            PressableScale(
+              onTap: onStart,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                decoration: BoxDecoration(color: accent, borderRadius: BorderRadius.circular(28)),
+                alignment: Alignment.center,
+                child: Text(
+                  'Mulai Kuis',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                    color: ThemeData.estimateBrightnessForColor(accent) == Brightness.dark
+                        ? Colors.white
+                        : AppColors.ink,
+                  ),
                 ),
-                child: const Text('Mulai Kuis', style: TextStyle(fontWeight: FontWeight.bold)),
               ),
             ),
             const SizedBox(height: 12),
@@ -382,6 +403,33 @@ class _EraQuizIntro extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _InfoLine extends StatelessWidget {
+  const _InfoLine({required this.label, required this.value, this.emphasize = false});
+
+  final String label;
+  final String value;
+  final bool emphasize;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(label, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+        const SizedBox(width: 6),
+        Text(
+          value,
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 13,
+            color: emphasize ? AppColors.ink : AppColors.textSecondary,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -399,16 +447,21 @@ class _Header extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       child: Row(
         children: [
-          GestureDetector(
+          PressableScale(
             onTap: onClose,
-            child: const Icon(Icons.close, size: 22, color: AppColors.ink),
+            child: Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(color: AppColors.ink.withValues(alpha: 0.06), shape: BoxShape.circle),
+              child: const Icon(Icons.close_rounded, size: 19, color: AppColors.ink),
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
               'Kuis Sumatif: ${eraName ?? '...'}',
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.ink),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.ink),
             ),
           ),
         ],
@@ -430,7 +483,9 @@ class _ProgressSegments extends StatelessWidget {
       children: [
         for (var i = 0; i < total; i++)
           Expanded(
-            child: Container(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOut,
               height: 5,
               margin: EdgeInsets.only(right: i == total - 1 ? 0 : 4),
               decoration: BoxDecoration(
@@ -481,42 +536,43 @@ class _BottomBar extends StatelessWidget {
               if (!isFirst)
                 TextButton.icon(
                   onPressed: isSubmitting ? null : onPrevious,
-                  icon: const Icon(Icons.arrow_back, size: 16, color: AppColors.ink),
-                  label: const Text('Sebelumnya', style: TextStyle(color: AppColors.ink)),
+                  icon: const Icon(Icons.arrow_back_rounded, size: 16, color: AppColors.ink),
+                  label: const Text('Sebelumnya', style: TextStyle(color: AppColors.ink, fontWeight: FontWeight.w600)),
                 )
               else
                 const SizedBox(width: 1),
               const Spacer(),
-              ElevatedButton(
-                onPressed: isSubmitting ? null : onPrimary,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.ink,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+              PressableScale(
+                onTap: isSubmitting ? null : onPrimary,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                  decoration: BoxDecoration(color: AppColors.ink, borderRadius: BorderRadius.circular(30)),
+                  child: isSubmitting
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              isLast ? 'Kirim Jawaban' : 'Selanjutnya',
+                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13.5),
+                            ),
+                            const SizedBox(width: 6),
+                            Icon(isLast ? Icons.check_rounded : Icons.arrow_forward_rounded, size: 16, color: Colors.white),
+                          ],
+                        ),
                 ),
-                child: isSubmitting
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                      )
-                    : Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(isLast ? 'Kirim Jawaban' : 'Selanjutnya'),
-                          const SizedBox(width: 6),
-                          Icon(isLast ? Icons.check : Icons.arrow_forward, size: 16),
-                        ],
-                      ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Text(
             'Hasil & pembahasan lengkap akan ditampilkan setelah seluruh $total soal dijawab.',
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 10.5, color: AppColors.textDisabled, fontStyle: FontStyle.italic),
+            style: const TextStyle(fontSize: 11, color: AppColors.textDisabled, fontStyle: FontStyle.italic),
           ),
         ],
       ),

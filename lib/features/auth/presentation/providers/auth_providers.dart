@@ -69,13 +69,6 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
     });
   }
 
-  Future<bool> loginWithGoogle({required String idToken}) {
-    return _run(() async {
-      final user = await _repository.loginWithGoogle(idToken: idToken);
-      _ref.read(authNotifierProvider.notifier).setAuthenticated(user.role);
-    });
-  }
-
   Future<bool> logout() {
     return _run(() async {
       // AuthRepositoryImpl.logout() sudah bersihin secure storage;
