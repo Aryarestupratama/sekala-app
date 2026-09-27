@@ -35,7 +35,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   // Guard supaya pengecekan auto-start tutorial cuma jalan sekali.
   //
   // PENTING: pengecekan ini SENGAJA ditaruh di sini (HomeScreen), BUKAN di
@@ -51,6 +51,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _entrance.forward();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || _didCheckAutoStartTutorial) return;
@@ -60,7 +61,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // User login tapi belum verifikasi email biasanya minimize app -> buka
+    // email -> klik link verifikasi -> balik lagi ke app. Momen "balik ke
+    // app" ini jadi satu-satunya sinyal yang Flutter punya bahwa verifikasi
+    // mungkin baru saja terjadi di luar app (browser/email client) — tidak
+    // ada push notification/websocket dari backend untuk ini. currentUserProvider
+    // di-invalidate supaya EmailVerificationBanner ikut re-fetch status
+    // terbaru, tanpa user harus logout-login manual.
+    if (state == AppLifecycleState.resumed) {
+      ref.invalidate(currentUserProvider);
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _entrance.dispose();
     super.dispose();
   }
@@ -98,6 +114,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           onRefresh: () async {
             ref.invalidate(erasProvider);
             ref.invalidate(homeSummaryProvider);
+            ref.invalidate(currentUserProvider);
           },
           // PENTING: SingleChildScrollView + Column, BUKAN ListView, supaya
           // GlobalKey Showcase (TutorialKeys.homeCtaButton) selalu attach

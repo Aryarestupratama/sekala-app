@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/models/badge_card.dart';
+import '../../../../shared/widgets/pressable_scale.dart';
 import '../providers/badge_providers.dart';
 import '../widgets/badge_tile.dart';
 
@@ -247,11 +248,19 @@ class _BadgeListScreenState extends ConsumerState<BadgeListScreen> {
                 Icon(Icons.error_outline_rounded,
                     size: 40, color: AppColors.textSecondary.withValues(alpha: 0.6)),
                 const SizedBox(height: 12),
-                Text('Gagal memuat data: $error', textAlign: TextAlign.center),
-                const SizedBox(height: 12),
-                TextButton(
-                  onPressed: () => ref.invalidate(badgeListProvider),
-                  child: const Text('Coba lagi'),
+                Text(
+                  'Gagal memuat data: $error',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: AppColors.textSecondary),
+                ),
+                const SizedBox(height: 16),
+                PressableScale(
+                  onTap: () => ref.invalidate(badgeListProvider),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    decoration: BoxDecoration(color: AppColors.ink, borderRadius: BorderRadius.circular(20)),
+                    child: const Text('Coba Lagi', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                  ),
                 ),
               ],
             ),
@@ -268,67 +277,97 @@ class _BadgeListScreenState extends ConsumerState<BadgeListScreen> {
 /// Badge locked TETAP bisa dibuka (beda dari vaksin yang menolak tap ke
 /// detail saat locked) — isinya cuma diberi hint kapan badge ini terbuka,
 /// karena nama/ikon asli memang sudah terlihat di grid sekalipun locked.
-class _BadgeDetailSheet extends StatelessWidget {
+class _BadgeDetailSheet extends StatefulWidget {
   const _BadgeDetailSheet({required this.badge});
 
   final BadgeCard badge;
 
   @override
+  State<_BadgeDetailSheet> createState() => _BadgeDetailSheetState();
+}
+
+class _BadgeDetailSheetState extends State<_BadgeDetailSheet> with SingleTickerProviderStateMixin {
+  late final AnimationController _entrance = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 380),
+  )..forward();
+
+  @override
+  void dispose() {
+    _entrance.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final badge = widget.badge;
     final locked = !badge.unlocked;
+    final animation = CurvedAnimation(parent: _entrance, curve: Curves.easeOutCubic);
 
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Container(
-              width: 36,
-              height: 4,
-              margin: const EdgeInsets.only(bottom: 16),
-              decoration: BoxDecoration(
-                color: AppColors.border,
-                borderRadius: BorderRadius.circular(2),
+        child: AnimatedBuilder(
+          animation: animation,
+          builder: (context, child) {
+            return Opacity(
+              opacity: animation.value.clamp(0.0, 1.0),
+              child: Transform.translate(
+                offset: Offset(0, (1 - animation.value) * 14),
+                child: child,
               ),
-            ),
-            SizedBox(
-              width: 88,
-              height: 88,
-              child: Opacity(
-                opacity: locked ? 0.35 : 1.0,
-                child: _BadgeSheetIcon(badge: badge),
+            );
+          },
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                width: 36,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              badge.name,
-              textAlign: TextAlign.center,
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '${badge.era.name} \u00b7 ${badge.year.title}',
-              style: const TextStyle(color: AppColors.textSecondary, fontSize: 12.5),
-            ),
-            const SizedBox(height: 12),
-            if (locked)
-              const Text(
-                'Selesaikan studi kasus wabah ini dengan tepat untuk membuka badge.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.textSecondary),
-              )
-            else if (badge.description != null && badge.description!.isNotEmpty)
+              SizedBox(
+                width: 88,
+                height: 88,
+                child: Opacity(
+                  opacity: locked ? 0.35 : 1.0,
+                  child: _BadgeSheetIcon(badge: badge),
+                ),
+              ),
+              const SizedBox(height: 12),
               Text(
-                badge.description!,
+                badge.name,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: AppColors.textSecondary, height: 1.4),
+                style: Theme.of(context)
+                    .textTheme
+                    .titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w800),
               ),
-          ],
+              const SizedBox(height: 4),
+              Text(
+                '${badge.era.name} \u00b7 ${badge.year.title}',
+                style: const TextStyle(color: AppColors.textSecondary, fontSize: 12.5),
+              ),
+              const SizedBox(height: 12),
+              if (locked)
+                const Text(
+                  'Selesaikan studi kasus wabah ini dengan tepat untuk membuka badge.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: AppColors.textSecondary),
+                )
+              else if (badge.description != null && badge.description!.isNotEmpty)
+                Text(
+                  badge.description!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: AppColors.textSecondary, height: 1.4),
+                ),
+            ],
+          ),
         ),
       ),
     );

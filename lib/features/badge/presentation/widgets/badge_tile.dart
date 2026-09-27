@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/models/badge_card.dart';
+import '../../../../shared/widgets/pressable_scale.dart';
 
 /// Kartu 1 badge di grid Koleksi Badge.
 ///
@@ -13,10 +14,14 @@ import '../../../../shared/models/badge_card.dart';
 /// greyscale) dari ikon & nama aslinya, ditambah lencana gembok kecil di
 /// pojok. Badge TIDAK punya alur reveal/confetti seperti Koleksi Vaksin —
 /// SATU-SATUNYA kemiripan dengan vaksin adalah tag "Baru" + glow untuk
-/// badge yang `unlocked && unseen` (baru didapat, belum pernah dibuka
-/// detailnya), persis pola `_needsGlow` di VaccineTile, cuma tanpa
-/// dialog/antrean reveal terpisah — mark-seen terjadi saat detail sheet
-/// dibuka (lihat `_showBadgeDetail` di badge_list_screen.dart).
+/// badge yang `unlocked && unseen`, persis pola `_needsGlow` di
+/// VaccineTile, cuma tanpa dialog/antrean reveal terpisah — mark-seen
+/// terjadi saat detail sheet dibuka (lihat `_showBadgeDetail` di
+/// badge_list_screen.dart).
+///
+/// REDESIGN: `InkWell` (ripple Material) diganti [PressableScale] (scale
+/// tekan) supaya konsisten dengan `VaccineTile` yang sudah dipakai pola
+/// sama — kondisi locked/glow/onTap semuanya identik.
 class BadgeTile extends StatelessWidget {
   const BadgeTile({super.key, required this.badge, this.onTap});
 
@@ -29,8 +34,7 @@ class BadgeTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final locked = !badge.unlocked;
 
-    final card = InkWell(
-      borderRadius: BorderRadius.circular(16),
+    final card = PressableScale(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(12),

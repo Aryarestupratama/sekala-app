@@ -86,9 +86,16 @@ class DioClient {
       }
     }
 
-    // 401 → token invalid/expired/tidak ada.
-    // Bersihkan storage & trigger redirect ke login (R-AUTH-07).
-    if (response?.statusCode == 401) {
+    // 401 → token invalid/expired/tidak ada — TAPI backend juga memakai
+    // 401 + error_code EMAIL_NOT_VERIFIED untuk endpoint yang dijaga
+    // middleware `verified` (R-AUTH-03). Dua kasus ini beda total: yang
+    // kedua tokennya MASIH VALID, cuma emailnya belum terverifikasi, jadi
+    // TIDAK boleh ikut memicu logout paksa di sini — kalau ikut terhapus,
+    // begitu user selesai verifikasi email & balik ke app, token sudah
+    // hilang duluan dan dia harus login ulang untuk dapat token baru
+    // (persis bug "koleksi vaksin/badge harus refresh/login ulang dulu").
+    final isEmailNotVerified = errorCode == 'EMAIL_NOT_VERIFIED';
+    if (response?.statusCode == 401 && !isEmailNotVerified) {
       await SecureStorageService.instance.clear();
       onUnauthenticated?.call();
     }
