@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/models/user.dart';
+import '../../../sekala_border/presentation/providers/sekala_border_providers.dart';
 import '../providers/avatar_providers.dart';
 
 enum _AvatarAction { gallery, camera, delete }
@@ -15,10 +16,12 @@ enum _AvatarAction { gallery, camera, delete }
 /// 3, biar tidak ada "loncatan" visual buat user yang belum pernah upload).
 ///
 /// Cincin Border SEKALA digambar DI LUAR foto (padding, bukan menimpa) —
-/// PLACEHOLDER gradient dulu (belum ada aset final dari tim desain, lihat
-/// progress.md "Poles visual"), gampang diganti jadi
-/// `Image.asset('assets/frames/sekala_frame.png')` nanti tanpa mengubah
-/// kontrak widget ini (tetap terima `user`, cincin tetap sama posisinya).
+/// sekarang mengambil `imageUrl` dari `sekalaBorderProvider` (aset CMS,
+/// lihat progress.md "Border SEKALA & Foto Profil"). Kalau provider masih
+/// loading/error, ATAU asetnya belum di-publish/link belum diisi
+/// (`displayImageUrl` null), fallback ke gradient placeholder LAMA supaya
+/// user yang sudah `shouldShowFrame` tetap lihat sesuatu (bukan kosong
+/// polos) sambil menunggu tim desain mengisi aset final lewat Admin Panel.
 ///
 /// DEPENDENSI: butuh package `image_picker` — kalau belum ada di
 /// pubspec.yaml, tambahkan dulu (`flutter pub add image_picker`).
@@ -92,9 +95,59 @@ class ProfileAvatar extends ConsumerWidget {
     await controller.upload(File(picked.path));
   }
 
+  /// Ring border di sekitar avatar. Kalau [imageUrl] ada, render aset PNG
+  /// asli (diasumsikan transparan di tengah, cuma cincinnya yang solid —
+  /// sama asumsi visual dengan preview `PhonePreview.jsx` sisi Admin).
+  /// Kalau null (loading/belum publish/link invalid), fallback ke gradient
+  /// placeholder lama supaya tidak kosong polos.
+  Widget _borderRing({required double size, required String? imageUrl}) {
+    if (imageUrl != null) {
+      return SizedBox(
+        width: size + 20,
+        height: size + 20,
+        child: Image.network(
+          imageUrl,
+          fit: BoxFit.contain,
+          // Kalau link rusak/gagal dimuat, fallback ke gradient placeholder
+          // ketimbang icon broken-image bawaan Flutter.
+          errorBuilder: (context, error, stackTrace) =>
+              _gradientRingFallback(size: size),
+        ),
+      );
+    }
+
+    return _gradientRingFallback(size: size);
+  }
+
+  Widget _gradientRingFallback({required double size}) {
+    return Container(
+      width: size + 20,
+      height: size + 20,
+      padding: const EdgeInsets.all(4),
+      decoration: const BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          colors: [AppColors.gamify, AppColors.sky, AppColors.gamify],
+        ),
+      ),
+      child: const DecoratedBox(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: AppColors.background,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isBusy = ref.watch(avatarControllerProvider).isLoading;
+
+    // Null kalau masih loading/error, ATAU aset belum di-publish/link
+    // belum diisi (SekalaBorder.displayImageUrl) — kasus itu di-fallback
+    // ke gradient placeholder di bawah lewat _borderRing().
+    final borderImageUrl =
+        ref.watch(sekalaBorderProvider).valueOrNull?.displayImageUrl;
 
     final circle = Container(
       width: size,
@@ -147,23 +200,7 @@ class ProfileAvatar extends ConsumerWidget {
           // kondisi tidak konsisten, cincin tidak pernah tampil tanpa
           // frameUnlocked true (lihat User.shouldShowFrame).
           if (user.shouldShowFrame)
-            Container(
-              width: size + 20,
-              height: size + 20,
-              padding: const EdgeInsets.all(4),
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  colors: [AppColors.gamify, AppColors.sky, AppColors.gamify],
-                ),
-              ),
-              child: const DecoratedBox(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.background,
-                ),
-              ),
-            ),
+            _borderRing(size: size, imageUrl: borderImageUrl),
           circle,
           if (editable)
             Positioned(

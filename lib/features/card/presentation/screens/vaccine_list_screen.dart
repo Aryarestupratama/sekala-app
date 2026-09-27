@@ -13,6 +13,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/models/vaccine_card.dart';
 import '../../../onboarding/tutorial_keys.dart';
 import '../../../onboarding/tutorial_showcase_style.dart';
+import '../../../onboarding/tutorial_tour_controller.dart';
 import '../providers/card_providers.dart';
 import '../widgets/vaccine_tile.dart';
 
@@ -373,6 +374,9 @@ class _VaccineListScreenState extends ConsumerState<VaccineListScreen> {
                                 title: 'Koleksi Vaksin',
                                 description:
                                     'Vaksin di sini otomatis terbuka begitu kamu menyelesaikan wabah terkait. Yang masih siluet berarti belum terbuka.',
+                                currentStep: TutorialTourController.currentStepNumber,
+                                totalSteps: TutorialTourController.totalStepCount,
+                                onSkip: TutorialTourController.skip,
                                 child: tile,
                               ),
                             );

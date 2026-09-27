@@ -40,23 +40,43 @@ import '../../core/theme/app_colors.dart';
 /// menolak salah satu nama parameter, sesuaikan/hapus parameter itu saja
 /// — jangan buang seluruh fungsi ini.
 ///
-/// BELUM ditambahkan (sengaja): tombol "Lewati Tutorial". `dismiss()`
-/// menutup overlay tapi TIDAK memicu `onFinish`, jadi kalau dipasang
-/// naif, status "sudah pernah lihat tutorial" (`_markSeen()` di
-/// `TutorialTourController`) tidak akan pernah tersimpan — tutorial akan
-/// auto-start lagi di login berikutnya walau user sudah skip. Menambah
-/// tombol itu dengan benar perlu perubahan di `tutorial_tour_controller
-/// .dart` juga (skip harus ikut memanggil `_markSeen()`), bukan cuma di
-/// file ini — beri tahu saya kalau kamu mau itu, saya kerjakan sekalian.
+/// REVISI 2 — Indikator progres & tombol "Lewati Tutorial":
+///
+/// 1) Indikator progres ("2/5"): opsional lewat [currentStep]+[totalSteps].
+///    Dirender sebagai teks kecil di atas judul. Kalau salah satu null,
+///    indikator tidak dirender sama sekali (dipakai di titik showcase yang
+///    berdiri sendiri, bukan bagian dari satu tur berurutan).
+///
+/// 2) Tombol "Lewati": [onSkip] adalah callback OPSIONAL. Fungsi ini SENGAJA
+///    tidak memanggil `dismiss()`/`_markSeen()` sendiri — file ini cuma
+///    urusan tampilan tooltip, bukan pemilik state tur. Pemanggil (nanti
+///    `TutorialTourController` lewat wrapper di tiap layar) yang wajib
+///    menyediakan callback konkret berisi `ShowcaseView.get().dismiss()`
+///    DIIKUTI `_markSeen()`, supaya status "sudah lihat" ikut tersimpan —
+///    ini alasan kenapa dulu tombol ini belum dipasang (lihat riwayat di
+///    atas). Kalau [onSkip] tidak diisi, tombol "Lewati" tidak dirender —
+///    jadi menambahkan fitur ini ke satu titik showcase tertentu murni
+///    soal mengisi parameter ini di titik itu, tanpa menyentuh file ini
+///    lagi maupun titik showcase lain yang belum siap.
 Widget tutorialShowcase({
   required GlobalKey key,
   required String title,
   required String description,
   required Widget child,
+  int? currentStep,
+  int? totalSteps,
+  VoidCallback? onSkip,
 }) {
+  final showProgress = currentStep != null && totalSteps != null;
+
   return Showcase(
     key: key,
-    title: title,
+    // Progres ditempel di depan judul (bukan widget/baris terpisah) karena
+    // `Showcase` merender `title` lewat `titleTextStyle` tunggal — menaruh
+    // widget kustom di atasnya butuh override `titleWidget` yang lebih
+    // invasif untuk manfaat kecil. "2/5  Judul Section" cukup jelas dan
+    // tetap satu baris style.
+    title: showProgress ? '$currentStep/$totalSteps  $title' : title,
     description: description,
     titleTextStyle: const TextStyle(
       color: Colors.white,
@@ -80,6 +100,25 @@ Widget tutorialShowcase({
       gapBetweenContentAndAction: 14,
     ),
     tooltipActions: [
+      if (onSkip != null)
+        TooltipActionButton.custom(
+          button: GestureDetector(
+            onTap: onSkip,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              child: const Text(
+                'Lewati',
+                style: TextStyle(
+                  color: Color(0xB3FFFFFF), // putih ~70%, sengaja lebih redup
+                  // dari "Lanjutkan" — ini aksi sekunder/keluar, bukan aksi
+                  // utama yang ingin didorong.
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          ),
+        ),
       TooltipActionButton.custom(
         // CATATAN: `TooltipActionButton.custom` cuma punya parameter
         // `button` + `hideActionWidgetForShowcase` — TIDAK punya `onTap`

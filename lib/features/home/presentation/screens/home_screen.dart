@@ -10,7 +10,6 @@ import '../../../onboarding/tutorial_keys.dart';
 import '../../../onboarding/tutorial_showcase_style.dart';
 import '../../../onboarding/tutorial_tour_controller.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
-import '../../../auth/presentation/widgets/email_verification_banner.dart';
 import '../../../history/presentation/providers/history_providers.dart';
 import '../providers/home_providers.dart';
 import '../widgets/guest_invite_card.dart';
@@ -67,8 +66,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     // app" ini jadi satu-satunya sinyal yang Flutter punya bahwa verifikasi
     // mungkin baru saja terjadi di luar app (browser/email client) — tidak
     // ada push notification/websocket dari backend untuk ini. currentUserProvider
-    // di-invalidate supaya EmailVerificationBanner ikut re-fetch status
-    // terbaru, tanpa user harus logout-login manual.
+    // di-invalidate supaya EmailVerificationNotice di ProfileScreen (dan
+    // chip "Email terverifikasi" di sana) ikut re-fetch status terbaru,
+    // tanpa user harus logout-login manual. Invalidate ini tetap perlu
+    // dilakukan dari Home walau notice-nya sekarang cuma tampil di Profil
+    // -- Home adalah layar yang paling mungkin aktif duluan saat app
+    // di-resume dari background.
     if (state == AppLifecycleState.resumed) {
       ref.invalidate(currentUserProvider);
     }
@@ -127,8 +130,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Login user yang belum verifikasi email lihat banner ini.
-                if (!isGuest) const EmailVerificationBanner(),
+                // Status verifikasi email TIDAK lagi ditampilkan di Home
+                // (dulu EmailVerificationBanner di sini) -- sekarang cuma
+                // di ProfileScreen, tepat di bawah foto profil, supaya
+                // tidak mengganggu konten utama Home. Lihat
+                // `EmailVerificationNotice` di
+                // `email_verification_banner.dart`.
 
                 _FadeSlideUp(
                   animation: _slot(0.0, 0.5),
@@ -327,6 +334,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       title: 'Mulai Jelajahi',
       description:
           'Tekan tombol ini untuk mulai membaca sejarah kesehatan Indonesia dari masa ke masa.',
+      currentStep: TutorialTourController.currentStepNumber,
+      totalSteps: TutorialTourController.totalStepCount,
+      onSkip: TutorialTourController.skip,
       child: _Pressable(
         onTap: () => context.go('/history'),
         child: Container(

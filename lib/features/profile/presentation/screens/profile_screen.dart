@@ -7,6 +7,7 @@ import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../auth/presentation/widgets/email_verification_banner.dart';
 import '../../../onboarding/tutorial_keys.dart';
 import '../../../onboarding/tutorial_showcase_style.dart';
+import '../../../onboarding/tutorial_tour_controller.dart';
 import 'change_password_screen.dart';
 import 'help_support_screen.dart';
 import 'about_sekala_screen.dart';
@@ -167,7 +168,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const EmailVerificationBanner(),
+            // Status verifikasi email dipindah ke bawah foto profil (lihat
+            // `EmailVerificationNotice` di dalam Column ProfileAvatar di
+            // bawah) -- dulu ada EmailVerificationBanner besar di sini,
+            // dobel/redundan dengan chip "Email terverifikasi" yang sudah
+            // ada di situ.
             _FadeSlideUp(
               animation: _slot(0.0, 0.5),
               child: userAsync.when(
@@ -224,7 +229,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                                 ),
                               ],
                             ),
-                          ),
+                          )
+                        else
+                          // Teks kecil + tombol "Kirim ulang", TANPA kotak
+                          // besar -- lihat catatan desain di
+                          // `email_verification_banner.dart`.
+                          const EmailVerificationNotice(),
                       ],
                     ),
                   );
@@ -317,6 +327,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                       title: 'Butuh Bantuan?',
                       description:
                           'Tonton ulang tutorial ini kapan saja, atau baca panduan belajar di sini.',
+                      // Step terakhir (5/5) — onSkip tetap dipasang untuk
+                      // konsistensi tombol di semua titik tur, walau
+                      // efeknya sama saja dengan menuntaskan tur normal
+                      // (skip() & finish keduanya berujung _markSeen()).
+                      currentStep: TutorialTourController.currentStepNumber,
+                      totalSteps: TutorialTourController.totalStepCount,
+                      onSkip: TutorialTourController.skip,
                       child: _MenuTile(
                         icon: Icons.help_outline_rounded,
                         label: 'Bantuan & Dukungan',

@@ -9,6 +9,7 @@ import '../../../../shared/models/home_progress.dart';
 import '../../../../shared/widgets/pressable_scale.dart';
 import '../../../onboarding/tutorial_keys.dart';
 import '../../../onboarding/tutorial_showcase_style.dart';
+import '../../../onboarding/tutorial_tour_controller.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../home/presentation/providers/home_providers.dart';
 import '../providers/history_providers.dart';
@@ -200,6 +201,9 @@ class _EraListScreenState extends ConsumerState<EraListScreen>
                                 title: 'Jelajahi Masa',
                                 description:
                                     'Ketuk salah satu masa untuk melihat roadmap tahun-tahun wabahnya.',
+                                currentStep: TutorialTourController.currentStepNumber,
+                                totalSteps: TutorialTourController.totalStepCount,
+                                onSkip: TutorialTourController.skip,
                                 child: _EraExploreCard(
                                   name: eras[i].name,
                                   description: eras[i].description ?? '',

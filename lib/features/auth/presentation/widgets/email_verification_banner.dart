@@ -3,19 +3,38 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_providers.dart';
 
 /// R-AUTH-03: user login tapi email belum terverifikasi tetap bisa browse,
-/// tapi diblok dari kuis/progress/card. Banner ini dipasang di
-/// Home/Profile (atau screen lain yang relevan) untuk ingetin & kasih
-/// tombol kirim ulang — BUKAN blocking dialog, biar nggak ganggu guest
-/// experience (sesuai prinsip "ramah, bukan memaksa" di Design.md §1).
+/// tapi diblok dari kuis/progress/card.
 ///
-/// Otomatis nggak nampilin apa-apa (SizedBox.shrink) kalau user guest
-/// atau sudah terverifikasi.
-class EmailVerificationBanner extends ConsumerWidget {
-  const EmailVerificationBanner({super.key});
+/// REVISI: dulu ini `EmailVerificationBanner` -- kotak besar berwarna
+/// `errorContainer` yang dipasang di Home DAN Profil (dobel, redundan
+/// dengan chip "Email terverifikasi" yang sudah ada di Profil). Sekarang
+/// disederhanakan jadi [EmailVerificationNotice]: teks kecil + tombol
+/// kirim ulang, TANPA kotak/warna latar -- ditempatkan HANYA di
+/// `ProfileScreen`, persis di slot yang sama dengan chip "Email
+/// terverifikasi" (`if (user.isEmailVerified) ... else
+/// EmailVerificationNotice()`), tepat di bawah foto profil/nama/email.
+/// Home TIDAK lagi menampilkan apa pun soal ini -- supaya tidak
+/// mengganggu konten utama Home (lihat catatan desain sebelumnya).
+///
+/// Warna pakai `Theme.of(context).colorScheme.error` (bawaan Material),
+/// BUKAN token `AppColors` kustom -- proyek ini tidak punya
+/// `AppColors.warning`/`AppColors.error` yang dikonfirmasi ada (yang
+/// dikonfirmasi cuma `success`/`destructive`/`coral`/dst di file lain),
+/// jadi dipilih yang paling aman dan pasti tersedia. Kalau tim desain
+/// sudah punya token warna warning resmi, tinggal ganti baris warna di
+/// bawah.
+///
+/// Otomatis `SizedBox.shrink()` kalau user guest atau sudah terverifikasi
+/// -- pemanggil (ProfileScreen) sudah pasti hanya merender ini saat
+/// `!user.isEmailVerified`, tapi guard ini dipertahankan supaya widget
+/// tetap aman dipakai berdiri sendiri di tempat lain nanti.
+class EmailVerificationNotice extends ConsumerWidget {
+  const EmailVerificationNotice({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final userAsync = ref.watch(currentUserProvider);
+    final warningColor = Theme.of(context).colorScheme.error;
 
     return userAsync.when(
       data: (user) {
@@ -23,59 +42,57 @@ class EmailVerificationBanner extends ConsumerWidget {
 
         final isSending = ref.watch(authControllerProvider).isLoading;
 
-        return Container(
-          width: double.infinity,
-          margin: const EdgeInsets.all(16),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.errorContainer,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Verifikasi email kamu',
-                style: Theme.of(context).textTheme.titleSmall,
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.error_outline_rounded, size: 15, color: warningColor),
+            const SizedBox(width: 6),
+            Text(
+              'Email belum diverifikasi',
+              style: TextStyle(
+                color: warningColor,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
               ),
-              const SizedBox(height: 4),
-              const Text(
-                'Cek inbox untuk mengaktifkan kuis, progress, dan '
-                'collectible card.',
-              ),
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: isSending
-                      ? null
-                      : () async {
-                          final success = await ref
-                              .read(authControllerProvider.notifier)
-                              .resendVerificationEmail();
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  success
-                                      ? 'Email verifikasi terkirim ulang.'
-                                      : 'Gagal mengirim ulang. Coba lagi.',
-                                ),
-                              ),
-                            );
-                          }
-                        },
-                  child: isSending
-                      ? const SizedBox(
-                          height: 16,
-                          width: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Kirim Ulang'),
-                ),
-              ),
-            ],
-          ),
+            ),
+            const SizedBox(width: 4),
+            isSending
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8),
+                    child: SizedBox(
+                      height: 12,
+                      width: 12,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                : TextButton(
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                      minimumSize: const Size(0, 24),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    onPressed: () async {
+                      final success = await ref
+                          .read(authControllerProvider.notifier)
+                          .resendVerificationEmail();
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              success
+                                  ? 'Email verifikasi terkirim ulang.'
+                                  : 'Gagal mengirim ulang. Coba lagi.',
+                            ),
+                          ),
+                        );
+                      }
+                    },
+                    child: const Text(
+                      'Kirim ulang',
+                      style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+          ],
         );
       },
       loading: () => const SizedBox.shrink(),

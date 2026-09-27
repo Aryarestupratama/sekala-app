@@ -6,6 +6,7 @@ import 'package:showcaseview/showcaseview.dart';
 
 import '../auth/presentation/providers/auth_providers.dart';
 import '../../core/router/auth_state.dart';
+import '../../core/theme/app_colors.dart';
 import 'tutorial_keys.dart';
 
 /// Satu "langkah" tur = 1 screen/tab, berisi showcase key apa saja yang
@@ -47,6 +48,32 @@ class TutorialStep {
 /// sebelumnya yang sudah pernah lihat, karena SharedPreferences memang
 /// per-device/per-install).
 const _prefsKeyHasSeenTutorial = 'has_seen_onboarding_tutorial';
+
+/// Konstanta timing tur — SEMUA nilai di bawah ini hasil trial-error
+/// empiris terhadap perilaku package `showcaseview`/kondisi device tim
+/// saat pengembangan, BUKAN dihitung dari SLA API sebenarnya (misal p99
+/// latency endpoint era/roadmap/vaccine-list). Kalau di masa depan ada
+/// laporan tur "kepotong"/timeout di jaringan lambat, yang perlu dinaikkan
+/// LEBIH DULU adalah *MaxAttempts (memperpanjang total waktu tunggu),
+/// bukan intervalnya (interval yang lebih besar cuma bikin tur terasa
+/// lebih lambat responsnya tanpa menambah toleransi nyata).
+///
+/// - [_readyKeyPollInterval]/[_readyKeyMaxAttempts]: polling
+///   `readyKey.currentContext` (nunggu layar selesai fetch API). ~8 detik
+///   total.
+/// - [_showCaseRetryInterval]/[_showCaseRetryMaxAttempts]: retry
+///   `ShowcaseView.get().startShowCase()` (lihat catatan panjang di
+///   `_tryStartShowCaseWithRetry`). ~8 detik total.
+/// - [_branchSettleDelay]: jeda setelah `goBranch()` sebelum `push()`
+///   berikutnya, supaya branch baru sempat settle dulu.
+/// - [_transitionFadeDuration]: durasi fade scrim saat pindah tab/route
+///   di dalam tur (lihat `_withFadeTransition`).
+const _readyKeyPollInterval = Duration(milliseconds: 100);
+const _readyKeyMaxAttempts = 80;
+const _showCaseRetryInterval = Duration(milliseconds: 200);
+const _showCaseRetryMaxAttempts = 40;
+const _branchSettleDelay = Duration(milliseconds: 50);
+const _transitionFadeDuration = Duration(milliseconds: 160);
 
 class TutorialTourController {
   TutorialTourController._();
@@ -90,6 +117,14 @@ class TutorialTourController {
   ];
 
   static int _currentStepIndex = 0;
+
+  /// Nomor step tur SAAT INI (1-based) & total step -- dipakai UI tooltip
+  /// buat indikator progres ("2/5", lihat `tutorialShowcase()`). Kalau
+  /// tidak ada tur berjalan, `currentStepNumber` tetap balikin nilai step
+  /// terakhir yang aktif (aman dipanggil kapan saja, tinggal pemanggil
+  /// yang memutuskan mau ditampilkan atau tidak).
+  static int get currentStepNumber => _currentStepIndex + 1;
+  static int get totalStepCount => _steps.length;
 
   // "Nomor tiket" tur yang sedang aktif. Tiap `start()` menaikkan angka ini
   // -- kalau ada tur LAMA yang masih jalan (mis. auto-start yang masih
@@ -195,19 +230,31 @@ class TutorialTourController {
       // dimulai dari situ). Tanpa ini, step Profil di akhir tur bisa
       // nampilin HelpSupportScreen yang masih ketumpuk di atas, bukan
       // ProfileScreen yang jadi target Showcase.
-      shell.goBranch(step.branchIndex!, initialLocation: true);
+      final didRun = await _withFadeTransition(runId, context, () {
+        shell.goBranch(step.branchIndex!, initialLocation: true);
+      });
+      if (!didRun) {
+        debugPrint('[Tutorial] (runId=$runId) BERHENTI: dibatalkan/unmount selagi fade goBranch');
+        return;
+      }
       debugPrint('[Tutorial] (runId=$runId) goBranch(${step.branchIndex}, initialLocation: true) dipanggil');
     }
 
     if (step.pushRoute != null) {
       // Tunggu 1 frame supaya goBranch di atas selesai settle dulu sebelum
       // push route baru di branch yang baru aktif.
-      await Future<void>.delayed(const Duration(milliseconds: 50));
+      await Future<void>.delayed(_branchSettleDelay);
       if (runId != _runId || !context.mounted) {
         debugPrint('[Tutorial] (runId=$runId) BERHENTI: dibatalkan/unmount setelah delay push');
         return;
       }
-      context.push(step.pushRoute!);
+      final didRun = await _withFadeTransition(runId, context, () {
+        context.push(step.pushRoute!);
+      });
+      if (!didRun) {
+        debugPrint('[Tutorial] (runId=$runId) BERHENTI: dibatalkan/unmount selagi fade push');
+        return;
+      }
       debugPrint('[Tutorial] (runId=$runId) push(${step.pushRoute}) dipanggil');
     }
 
@@ -265,16 +312,82 @@ class TutorialTourController {
   /// punya `.currentContext` (artinya widget target beneran udah selesai
   /// di-build -- misal setelah fetch API selesai), maksimal ~8 detik
   /// sebelum dianggap timeout.
+  /// Bungkus 1 aksi navigasi instan ([action] -- pemanggilan `goBranch()`
+  /// atau `push()`) dengan scrim fade-in -> aksi -> fade-out, supaya
+  /// pindah tab/route di tengah tur tidak terasa "kepotong" mendadak.
+  ///
+  /// SENGAJA scrim polos (bukan animasi halaman sungguhan) -- `goBranch()`
+  /// pindah `IndexedStack` (instan by design, tidak ada hook animasi resmi
+  /// dari `StatefulNavigationShell`) dan `push()` sudah dapat transisi
+  /// bawaan go_router/Material sendiri; scrim ini cuma menutupi momen
+  /// potong itu dengan fade pendek supaya terasa disengaja, bukan glitch.
+  ///
+  /// Return `false` kalau tur dibatalkan/context unmount di tengah proses
+  /// (pemanggil WAJIB berhenti, jangan lanjut ke langkah berikutnya).
+  static Future<bool> _withFadeTransition(
+    int runId,
+    BuildContext context,
+    VoidCallback action,
+  ) async {
+    final opacity = ValueNotifier<double>(0);
+    final overlay = Overlay.of(context);
+    late final OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (_) => IgnorePointer(
+        child: ValueListenableBuilder<double>(
+          valueListenable: opacity,
+          builder: (_, value, __) => AnimatedOpacity(
+            opacity: value,
+            duration: _transitionFadeDuration,
+            curve: Curves.easeInOut,
+            child: Container(color: AppColors.background),
+          ),
+        ),
+      ),
+    );
+
+    void cleanUp() {
+      entry.remove();
+      opacity.dispose();
+    }
+
+    overlay.insert(entry);
+    opacity.value = 1;
+    await Future<void>.delayed(_transitionFadeDuration);
+
+    if (runId != _runId || !context.mounted) {
+      cleanUp();
+      return false;
+    }
+
+    action();
+
+    // 1 frame supaya widget hasil `action()` sempat ke-build dulu sebelum
+    // scrim memudar -- tanpa ini user bisa sempat lihat sekilas frame
+    // lama/kosong sebelum konten baru selesai di-render.
+    await Future<void>.delayed(const Duration(milliseconds: 16));
+
+    if (runId != _runId || !context.mounted) {
+      cleanUp();
+      return false;
+    }
+
+    opacity.value = 0;
+    await Future<void>.delayed(_transitionFadeDuration);
+    cleanUp();
+    return true;
+  }
+
   static Future<bool> _waitForKeyMounted(
     int runId,
     GlobalKey key, {
-    int maxAttempts = 80,
+    int maxAttempts = _readyKeyMaxAttempts,
   }) async {
     var attempts = 0;
     while (attempts < maxAttempts) {
       if (runId != _runId) return false;
       if (key.currentContext != null) return true;
-      await Future<void>.delayed(const Duration(milliseconds: 100));
+      await Future<void>.delayed(_readyKeyPollInterval);
       attempts++;
     }
     return false;
@@ -288,7 +401,7 @@ class TutorialTourController {
   static Future<bool> _tryStartShowCaseWithRetry(
     int runId,
     List<GlobalKey> keys, {
-    int maxAttempts = 40,
+    int maxAttempts = _showCaseRetryMaxAttempts,
   }) async {
     var attempts = 0;
     while (attempts < maxAttempts) {
@@ -300,7 +413,7 @@ class TutorialTourController {
       // pertama dilakukan instan (0ms) tanpa delay, hasilnya selalu
       // "sukses" palsu padahal widgetnya (apalagi yang nunggu data API
       // kayak era list/roadmap) belum tentu udah kebentuk.
-      await Future<void>.delayed(const Duration(milliseconds: 200));
+      await Future<void>.delayed(_showCaseRetryInterval);
       attempts++;
       try {
         ShowcaseView.get().startShowCase(keys);
@@ -334,6 +447,24 @@ class TutorialTourController {
       return;
     }
     _goToStep(runId, _steps[_currentStepIndex]);
+  }
+
+  /// Dipanggil dari tombol "Lewati" di tooltip (parameter `onSkip` di
+  /// `tutorialShowcase()`, lihat `tutorial_showcase_style.dart`).
+  ///
+  /// `ShowcaseView.get().dismiss()` menutup overlay TAPI TIDAK memicu
+  /// `onFinish` bawaan package (`onStepFinished()` di atas tidak akan
+  /// terpanggil) -- makanya `_markSeen()` dipanggil manual di sini, bukan
+  /// mengandalkan alur finish normal. `_runId` dinaikkan lebih dulu supaya
+  /// retry/delay (`_waitForKeyMounted`/`_tryStartShowCaseWithRetry`/
+  /// `_withFadeTransition`) milik step yang sedang berjalan langsung sadar
+  /// dirinya sudah dibatalkan, sama seperti pola pembatalan tur baru di
+  /// `start()`.
+  static void skip() {
+    debugPrint('[Tutorial] skip() dipanggil di step $_currentStepIndex');
+    _runId++;
+    ShowcaseView.get().dismiss();
+    _markSeen();
   }
 
   /// Guest -> tetap tulis flag lokal (tidak punya row `users`).

@@ -11,6 +11,7 @@ import '../../../../shared/models/year.dart';
 import '../../../../shared/widgets/pressable_scale.dart';
 import '../../../onboarding/tutorial_keys.dart';
 import '../../../onboarding/tutorial_showcase_style.dart';
+import '../../../onboarding/tutorial_tour_controller.dart';
 import '../providers/history_providers.dart';
 import '../widgets/final_boss_node.dart';
 import '../widgets/roadmap_path_painter.dart';
@@ -319,6 +320,9 @@ class _RoadmapBodyState extends ConsumerState<_RoadmapBody> with SingleTickerPro
                                               title: 'Node Tahun',
                                               description:
                                                   'Tiap tahun berisi beberapa bagian bacaan yang harus dibaca berurutan. Ketuk untuk mulai membaca.',
+                                              currentStep: TutorialTourController.currentStepNumber,
+                                              totalSteps: TutorialTourController.totalStepCount,
+                                              onSkip: TutorialTourController.skip,
                                               child: YearNode(
                                                 year: years[i],
                                                 state: widget.stateOf(years[i]),
@@ -557,6 +561,13 @@ class _Header extends StatelessWidget {
                   title: 'Apa itu Wabah?',
                   description:
                       'Belum familiar dengan istilah wabah? Ketuk ikon ini kapan saja untuk membaca penjelasannya.',
+                  // Sama step (3/5) dengan showcase roadmapYearNode di atas —
+                  // keduanya key dari TutorialStep yang sama (lihat
+                  // tutorial_tour_controller.dart), jadi progres tidak naik
+                  // di antara keduanya, baru naik setelah step ini selesai.
+                  currentStep: TutorialTourController.currentStepNumber,
+                  totalSteps: TutorialTourController.totalStepCount,
+                  onSkip: TutorialTourController.skip,
                   child: Container(
                     width: 40,
                     height: 40,
