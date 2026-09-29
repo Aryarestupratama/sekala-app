@@ -63,11 +63,34 @@ class MainShell extends ConsumerStatefulWidget {
   ConsumerState<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends ConsumerState<MainShell> {
+class _MainShellState extends ConsumerState<MainShell>
+    with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _syncActiveTab();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// BUGFIX: verifikasi email terjadi DI LUAR app (browser/aplikasi email),
+  /// jadi app tidak tahu status `isEmailVerified` sudah berubah. Saat app
+  /// kembali ke foreground, refetch `/me` — `badgeListProvider` &
+  /// `cardListProvider` meng-`watch` flag verifikasinya, jadi keduanya ikut
+  /// fetch ulang otomatis begitu berubah false -> true (tanpa perlu tombol
+  /// "Coba lagi"). Hanya untuk user login; guest tidak punya row user.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) return;
+    if (ref.read(authNotifierProvider).status != AuthStatus.authenticated) {
+      return;
+    }
+    ref.invalidate(currentUserProvider);
   }
 
   @override

@@ -6,6 +6,7 @@ import '../../../../shared/models/era.dart';
 import '../../../../shared/models/era_quiz_start.dart';
 import '../../../../shared/models/era_quiz_question_option.dart';
 import '../../../../shared/widgets/pressable_scale.dart';
+import '../../../../shared/widgets/rich_body_text.dart';
 import '../../../history/presentation/providers/history_providers.dart';
 import '../providers/era_quiz_providers.dart';
 import '../widgets/era_quiz_option_tile.dart';
@@ -266,7 +267,7 @@ class _EraQuizScreenState extends ConsumerState<EraQuizScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
+                              RichBodyText(
                                 current.question,
                                 style: const TextStyle(
                                   fontSize: 15.5,

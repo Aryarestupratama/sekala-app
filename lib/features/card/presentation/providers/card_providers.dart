@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sekala_app/features/auth/presentation/providers/auth_providers.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../shared/models/card_list_response.dart';
 import '../../../../shared/models/vaccine_detail.dart';
@@ -30,7 +31,12 @@ final cardRepositoryProvider = Provider<CardRepository>((ref) {
 /// pull-to-refresh manual di VaccineListScreen). Pola sama dengan bugfix
 /// `caseStudyControllerProvider` sebelumnya — dihapus `.autoDispose`-nya,
 /// provider ini aman hidup selama app berjalan (bukan `.family`).
-final cardListProvider = FutureProvider<CardListResponse>((ref) {
+final cardListProvider = FutureProvider<CardListResponse>((ref) async {
+  // BUGFIX: sama seperti badgeListProvider — ikut rebuild saat status
+  // verifikasi email berubah, tanpa perlu "Coba lagi" manual.
+  await ref.watch(
+    currentUserProvider.selectAsync((u) => u?.isEmailVerified),
+  );
   return ref.watch(cardRepositoryProvider).fetchCards();
 });
 

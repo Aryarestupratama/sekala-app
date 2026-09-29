@@ -12,11 +12,13 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/models/content_block.dart';
 import '../../../../shared/models/content_block_type.dart';
 import '../../../../shared/widgets/pressable_scale.dart';
+import '../../../../shared/widgets/rich_body_text.dart';
 
 /// Render satu ContentBlock sesuai tipenya (CMS-02, Schema.md §2.5).
 ///
 /// CATATAN KETERBATASAN MVP:
-/// - `text` di-render sebagai plain text. Schema.md bilang kolomnya "bisa
+/// - `text` di-render lewat `RichBodyText` (paragraf + list bernomor/bullet,
+///   bold/italic belum). Schema.md bilang kolomnya "bisa
 ///   berisi HTML" (dari rich text editor CMS-03) — kalau admin nyimpen
 ///   HTML beneran, tag-nya bakal kelihatan mentah di sini. Perlu nambah
 ///   package `flutter_html` kalau mau render HTML proper.
@@ -39,7 +41,7 @@ class ContentBlockView extends StatelessWidget {
       case ContentBlockType.text:
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Text(block.content, style: Theme.of(context).textTheme.bodyLarge),
+          child: RichBodyText(block.content, style: Theme.of(context).textTheme.bodyLarge),
         );
 
       case ContentBlockType.image:

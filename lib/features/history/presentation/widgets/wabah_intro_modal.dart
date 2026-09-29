@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/models/wabah_intro.dart';
+import '../../../../shared/widgets/rich_body_text.dart';
 import '../providers/wabah_intro_providers.dart';
 
 /// Tampilkan modal ini (bottom sheet) untuk konten "Apa itu Wabah".
@@ -16,6 +17,9 @@ Future<void> showWabahIntroModal(BuildContext context, WidgetRef ref) {
   return showModalBottomSheet(
     context: context,
     isScrollControlled: true,
+    constraints: BoxConstraints(
+      maxHeight: MediaQuery.of(context).size.height * 0.85,
+    ),
     backgroundColor: Colors.white,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -198,12 +202,16 @@ class _ContentState extends State<_Content> with SingleTickerProviderStateMixin 
           ),
           const SizedBox(height: 14),
           if (widget.intro?.content != null)
-            Text(
-              widget.intro!.content!,
-              style: const TextStyle(
-                fontSize: 14,
-                height: 1.5,
-                color: AppColors.textSecondary,
+            Flexible(
+              child: SingleChildScrollView(
+                child: RichBodyText(
+                  widget.intro!.content!,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    height: 1.5,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
               ),
             ),
           const SizedBox(height: 20),

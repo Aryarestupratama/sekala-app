@@ -1,15 +1,18 @@
 class ApiConstants {
   ApiConstants._();
 
-  // Ganti sesuai environment kamu.
-  // Emulator Android pakai 10.0.2.2 untuk akses localhost host.
-  // Kalau test di Chrome/desktop, localhost biasa juga jalan.
-  // static const String baseUrl = 'http://10.0.2.2:8000/api';
-  static const String baseUrl = 'http://127.0.0.1:8000/api';
+  // Default = production. Untuk development lokal, override saat run:
+  //   flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8000/api
+  static const String baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'https://sekalaapp.my.id/api',
+  );
 
   static const String tokenKey = 'sekala_auth_token';
   static const String userRoleKey = 'sekala_user_role';
 
-  static const Duration connectTimeout = Duration(seconds: 15);
-  static const Duration receiveTimeout = Duration(seconds: 15);
+  // Shared hosting kadang lambat di request pertama (cold start),
+  // jadi timeout dinaikkan dari 15 ke 30 detik.
+  static const Duration connectTimeout = Duration(seconds: 30);
+  static const Duration receiveTimeout = Duration(seconds: 30);
 }

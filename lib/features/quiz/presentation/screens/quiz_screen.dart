@@ -11,6 +11,7 @@ import '../../../../shared/models/quiz_question.dart';
 import '../../../../shared/models/quiz_question_option.dart';
 import '../../../../shared/models/quiz_show_response.dart';
 import '../../../../shared/widgets/pressable_scale.dart';
+import '../../../../shared/widgets/rich_body_text.dart';
 import '../../../card/presentation/providers/card_providers.dart';
 import '../providers/quiz_providers.dart';
 
@@ -756,9 +757,9 @@ class _QuizBodyState extends ConsumerState<_QuizBody> {
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: AppColors.border),
                 ),
-                child: Text(
+                child: RichBodyText(
                   _currentQuestion.question,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, height: 1.3),
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, height: 1.3, color: AppColors.ink),
                 ),
               ),
               const SizedBox(height: 20),
@@ -951,7 +952,7 @@ class _ExplanationBox extends StatelessWidget {
                   style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: color),
                 ),
                 const SizedBox(height: 4),
-                Text(
+                RichBodyText(
                   explanation,
                   style: const TextStyle(fontSize: 13, height: 1.4, color: AppColors.ink),
                 ),

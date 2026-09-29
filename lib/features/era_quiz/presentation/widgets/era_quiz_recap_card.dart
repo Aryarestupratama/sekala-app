@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/models/era_quiz_recap_item.dart';
 import '../../../../shared/models/era_quiz_recap_option.dart';
+import '../../../../shared/widgets/rich_body_text.dart';
 
 /// Satu kartu soal di layar Rekap (ERAQUIZ-04). Logika highlight opsi
 /// MENGIKUTI shape asli `EraQuizRecapItem` (dikonfirmasi ke
@@ -91,7 +92,7 @@ class EraQuizRecapCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          Text(
+          RichBodyText(
             item.question,
             style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700, color: AppColors.ink, height: 1.4),
           ),
@@ -203,7 +204,7 @@ class EraQuizRecapCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 6),
-          Text(
+          RichBodyText(
             item.explanation,
             style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary, height: 1.45),
           ),
