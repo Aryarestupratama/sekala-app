@@ -37,6 +37,7 @@ class CaseStudyBadgeView extends StatelessWidget {
     required this.onNext,
     required this.accent,
     this.onRetry,
+    this.notes = const [],
   });
 
   final String wabahName;
@@ -48,6 +49,11 @@ class CaseStudyBadgeView extends StatelessWidget {
   /// oren hardcode di medali, glow, dan pil nama badge.
   final Color accent;
   final VoidCallback? onRetry;
+
+  /// Catatan reward tambahan (badge baru masuk koleksi, border terbuka).
+  /// Sebelumnya berupa SnackBar 4 detik yang menutupi tombol "Lanjut" —
+  /// dua reward berarti tombol terblokir ~8 detik. Sekarang inline & tetap.
+  final List<({IconData icon, String text})> notes;
 
   @override
   Widget build(BuildContext context) {
@@ -73,7 +79,17 @@ class CaseStudyBadgeView extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          caseStudyReveal(context, 0, _BadgeMedallion(badge: badge, accent: accent)),
+                          caseStudyReveal(
+                            context,
+                            0,
+                            Semantics(
+                              image: true,
+                              label: badge.name.trim().isEmpty ? 'Badge' : 'Badge ${badge.name}',
+                              child: ExcludeSemantics(
+                                child: _BadgeMedallion(badge: badge, accent: accent),
+                              ),
+                            ),
+                          ),
                           const SizedBox(height: 24),
                           caseStudyReveal(
                             context,
@@ -94,7 +110,7 @@ class CaseStudyBadgeView extends StatelessWidget {
                                   textAlign: TextAlign.center,
                                   style: AppTextStyles.caption.copyWith(
                                     color: AppColors.ink,
-                                    fontSize: 11.5,
+                                    fontSize: 12.5,
                                     fontWeight: FontWeight.w700,
                                     letterSpacing: 1.2,
                                   ),
@@ -121,7 +137,7 @@ class CaseStudyBadgeView extends StatelessWidget {
                                 description.trim(),
                                 textAlign: TextAlign.center,
                                 style: AppTextStyles.body.copyWith(
-                                  fontSize: 15,
+                                  fontSize: 16,
                                   height: 1.6,
                                   color: AppColors.textSecondary,
                                 ),
@@ -134,6 +150,21 @@ class CaseStudyBadgeView extends StatelessWidget {
                             4,
                             _BadgeNamePill(name: badge.name, accent: accent),
                           ),
+                          if (notes.isNotEmpty) ...[
+                            const SizedBox(height: 16),
+                            caseStudyReveal(
+                              context,
+                              5,
+                              Semantics(
+                                liveRegion: true,
+                                child: Column(
+                                  children: [
+                                    for (final n in notes) _RewardNote(icon: n.icon, text: n.text),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -146,7 +177,7 @@ class CaseStudyBadgeView extends StatelessWidget {
                   kCaseStudyHPad, 8, kCaseStudyHPad, 20),
               child: caseStudyReveal(
                 context,
-                5,
+                6,
                 Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -161,6 +192,7 @@ class CaseStudyBadgeView extends StatelessWidget {
                         child: Text(
                           CaseStudyTexts.badgeRetryCta,
                           style: AppTextStyles.caption.copyWith(
+                            fontSize: 14,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -283,9 +315,7 @@ class _BadgeNamePill extends StatelessWidget {
   Widget build(BuildContext context) {
     if (name.trim().isEmpty) return const SizedBox.shrink();
 
-    final onAccent = ThemeData.estimateBrightnessForColor(accent) == Brightness.dark
-        ? Colors.white
-        : AppColors.ink;
+    final onAccent = caseStudyOnColor(accent);
 
     return Container(
       constraints: const BoxConstraints(minHeight: 52, maxWidth: 320),
@@ -299,7 +329,7 @@ class _BadgeNamePill extends StatelessWidget {
         textAlign: TextAlign.center,
         style: AppTextStyles.button.copyWith(
           color: onAccent,
-          fontSize: 15,
+          fontSize: 16,
           fontWeight: FontWeight.w700,
         ),
       ),
@@ -335,6 +365,42 @@ class _NextButton extends StatelessWidget {
             const Icon(Icons.arrow_forward_rounded, size: 18),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Satu baris catatan reward (mis. "Border SEKALA terbuka!").
+class _RewardNote extends StatelessWidget {
+  const _RewardNote({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 360),
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 20, color: AppColors.ink),
+          const SizedBox(width: 10),
+          Flexible(
+            child: Text(
+              text,
+              style: AppTextStyles.body.copyWith(fontSize: 14, height: 1.4),
+            ),
+          ),
+        ],
       ),
     );
   }

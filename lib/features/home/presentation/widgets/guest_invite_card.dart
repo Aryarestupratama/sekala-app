@@ -2,96 +2,113 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/pressable_scale.dart';
 
-/// Design.md §3.2: untuk guest, kartu progress diganti ajakan
-/// "Masuk untuk melacak progress bacaanmu".
+/// Design.md §3.2: untuk guest, ajakan masuk/daftar.
 ///
-/// REDESIGN: dari `Card` tint tipis jadi kartu gradasi warna gamify yang
-/// lebih tegas, dengan ikon besar di kanan sebagai aksen visual dan
-/// tombol pill putih (bukan FilledButton default) supaya kontras di atas
-/// warna. Seluruh kartu bisa ditekan (bukan cuma tombolnya).
+/// REVISI (design review):
+/// - COPY SALAH: "collectible card tokoh sejarah" sudah usang — koleksinya
+///   sekarang kartu VAKSIN (PRD §4.6), plus ada badge.
+/// - KONTRAS: teks putih di atas ungu `AppColors.gamify` (#9985FB) ~3.0:1
+///   (dan lebih rendah di ujung gradasi) — gagal AA 4.5:1. Sekarang teks
+///   Ink (~6.6:1) dan tombol pill Ink dengan teks putih.
+/// - Teks bodySmall 12sp -> bodyMedium 14sp.
+/// - Label tombol "Masuk atau daftar": tombol ini membuka layar Masuk/Daftar,
+///   bukan hanya Masuk (mayoritas guest adalah user baru).
+/// - Semantics: satu tombol; ikon dekoratif disembunyikan dari screen reader.
 class GuestInviteCard extends StatelessWidget {
   const GuestInviteCard({super.key, required this.onTap});
 
   final VoidCallback onTap;
 
+  static const _title = 'Simpan progres belajarmu';
+  static const _body =
+      'Masuk atau daftar untuk melacak bacaan, mengerjakan kuis, '
+      'dan mengoleksi kartu vaksin serta badge.';
+
   @override
   Widget build(BuildContext context) {
-    return PressableScale(
+    final textTheme = Theme.of(context).textTheme;
+
+    return Semantics(
+      button: true,
       onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(22),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              AppColors.gamify,
-              AppColors.gamify.withValues(alpha: 0.78),
+      label: '$_title. $_body',
+      excludeSemantics: true,
+      child: PressableScale(
+        onTap: onTap,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(22),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppColors.gamify,
+                Color.lerp(AppColors.gamify, Colors.white, 0.25)!,
+              ],
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.gamify.withValues(alpha: 0.28),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
             ],
           ),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.gamify.withValues(alpha: 0.28),
-              blurRadius: 20,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
-        padding: const EdgeInsets.fromLTRB(18, 18, 8, 18),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Buka semua fitur',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
-                        ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Masuk untuk melacak progress bacaan, ikut kuis, '
-                    'dan kumpulkan collectible card tokoh sejarah.',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.white.withValues(alpha: 0.92),
-                          height: 1.35,
-                        ),
-                  ),
-                  const SizedBox(height: 14),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 18,
-                        vertical: 10,
+          padding: const EdgeInsets.fromLTRB(18, 18, 8, 18),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _title,
+                      style: textTheme.titleMedium?.copyWith(
+                        color: AppColors.ink,
+                        fontWeight: FontWeight.w800,
                       ),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _body,
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: AppColors.ink.withValues(alpha: 0.85),
+                        height: 1.4,
                       ),
-                      child: Text(
-                        'Masuk sekarang',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.gamify,
+                    ),
+                    const SizedBox(height: 14),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.ink,
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                        child: const Text(
+                          'Masuk atau daftar',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(width: 4),
-            Icon(
-              Icons.lock_open_rounded,
-              color: Colors.white.withValues(alpha: 0.35),
-              size: 56,
-            ),
-          ],
+              const SizedBox(width: 4),
+              Icon(
+                Icons.lock_open_rounded,
+                color: AppColors.ink.withValues(alpha: 0.18),
+                size: 56,
+              ),
+            ],
+          ),
         ),
       ),
     );

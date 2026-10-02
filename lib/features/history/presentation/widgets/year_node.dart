@@ -39,16 +39,39 @@ class YearNode extends StatelessWidget {
   final double? nodeX;
   final double? screenWidth;
 
+  String get _semanticLabel {
+    final started = year.sections.any((s) => s.completed);
+    final action = started ? 'lanjut membaca' : 'mulai membaca';
+    return switch (state) {
+      YearNodeState.completed => 'Tahun ${year.year}, ${year.title}. Selesai.',
+      YearNodeState.current =>
+        'Tahun ${year.year}, ${year.title}. Terbuka, ketuk untuk $action.',
+      YearNodeState.locked =>
+        'Tahun ${year.year}. Terkunci, selesaikan tahun sebelumnya dulu.',
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
-    switch (state) {
-      case YearNodeState.completed:
-        return _CompletedNode(year: year, accent: accent, onTap: onTap, nodeX: nodeX, screenWidth: screenWidth);
-      case YearNodeState.current:
-        return _CurrentNode(year: year, accent: accent, onTap: onTap, nodeX: nodeX, screenWidth: screenWidth);
-      case YearNodeState.locked:
-        return _LockedNode(year: year, onTap: onTap, nodeX: nodeX, screenWidth: screenWidth);
-    }
+    final Widget node = switch (state) {
+      YearNodeState.completed => _CompletedNode(
+          year: year, accent: accent, onTap: onTap, nodeX: nodeX, screenWidth: screenWidth),
+      YearNodeState.current => _CurrentNode(
+          year: year, accent: accent, onTap: onTap, nodeX: nodeX, screenWidth: screenWidth),
+      YearNodeState.locked => _LockedNode(
+          year: year, onTap: onTap, nodeX: nodeX, screenWidth: screenWidth),
+    };
+
+    // Status node (selesai / terbuka / terkunci) sebelumnya hanya terbaca
+    // lewat ikon & warna -> screen reader tidak tahu. Sekarang satu tombol
+    // dengan label lengkap.
+    return Semantics(
+      button: true,
+      onTap: onTap,
+      label: _semanticLabel,
+      excludeSemantics: true,
+      child: node,
+    );
   }
 }
 
@@ -114,9 +137,9 @@ class _CompletedNode extends StatelessWidget {
                 child: Text(
                   '${year.year}',
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: AppColors.ink,
                     fontWeight: FontWeight.bold,
-                    fontSize: 16,
+                    fontSize: 17,
                   ),
                 ),
               ),
@@ -193,6 +216,18 @@ class _CurrentNodeState extends State<_CurrentNode> with SingleTickerProviderSta
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Hormati "reduce motion": node aktif diam, tidak memantul terus.
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _controller.stop();
+      _controller.value = 0;
+    } else if (!_controller.isAnimating) {
+      _controller.repeat(reverse: true);
+    }
+  }
+
+  @override
   void dispose() {
     _controller.dispose();
     super.dispose();
@@ -236,10 +271,10 @@ class _CurrentNodeState extends State<_CurrentNode> with SingleTickerProviderSta
               alignment: Alignment.center,
               child: Text(
                 '${widget.year.year}',
-                style: TextStyle(
-                  color: widget.accent,
+                style: const TextStyle(
+                  color: AppColors.ink,
                   fontWeight: FontWeight.bold,
-                  fontSize: 18,
+                  fontSize: 19,
                 ),
               ),
             ),
@@ -268,13 +303,13 @@ class _CurrentNodeState extends State<_CurrentNode> with SingleTickerProviderSta
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
-                      fontSize: 11,
+                      fontSize: 13,
                     ),
                   ),
                   const SizedBox(height: 1),
                   Text(
                     '$ctaLabel →',
-                    style: const TextStyle(color: Colors.white70, fontSize: 9.5),
+                    style: const TextStyle(color: Colors.white, fontSize: 12),
                   ),
                 ],
               ),
@@ -315,12 +350,12 @@ class _LockedNode extends StatelessWidget {
                 Text(
                   '${year.year}',
                   style: const TextStyle(
-                    color: AppColors.textDisabled,
+                    color: AppColors.textSecondary,
                     fontWeight: FontWeight.bold,
-                    fontSize: 14,
+                    fontSize: 15,
                   ),
                 ),
-                const Icon(Icons.lock_rounded, size: 14, color: AppColors.textDisabled),
+                const Icon(Icons.lock_rounded, size: 16, color: AppColors.textSecondary),
               ],
             ),
           ),
@@ -357,12 +392,12 @@ class _YearLabel extends StatelessWidget {
       child: Text(
         text,
         textAlign: TextAlign.center,
-        maxLines: 1,
+        maxLines: 2,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
-          fontSize: 12,
+          fontSize: 13,
           fontWeight: FontWeight.w600,
-          color: dimmed ? AppColors.textDisabled : AppColors.ink,
+          color: dimmed ? AppColors.textSecondary : AppColors.ink,
         ),
       ),
     );

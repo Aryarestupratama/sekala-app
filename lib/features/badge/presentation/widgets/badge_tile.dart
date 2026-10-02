@@ -30,11 +30,16 @@ class BadgeTile extends StatelessWidget {
 
   bool get _needsGlow => badge.unlocked && badge.unseen;
 
+  String get _semanticLabel {
+    final status = !badge.unlocked ? 'Terkunci' : (badge.unseen ? 'Terbuka, baru' : 'Terbuka');
+    return 'Badge ${badge.name}, ${badge.year.title}. $status.';
+  }
+
   @override
   Widget build(BuildContext context) {
     final locked = !badge.unlocked;
 
-    final card = PressableScale(
+    final card = Semantics(button: onTap != null, label: _semanticLabel, onTap: onTap, excludeSemantics: true, child: PressableScale(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(12),
@@ -72,14 +77,14 @@ class BadgeTile extends StatelessWidget {
                       right: 4,
                       bottom: 4,
                       child: Container(
-                        padding: const EdgeInsets.all(4),
+                        padding: const EdgeInsets.all(5),
                         decoration: const BoxDecoration(
                           color: Colors.black54,
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(
                           Icons.lock_outline_rounded,
-                          size: 12,
+                          size: 14,
                           color: Colors.white,
                         ),
                       ),
@@ -97,11 +102,12 @@ class BadgeTile extends StatelessWidget {
                             BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
                           ],
                         ),
+                        // Teks Ink: putih di atas Purple (gamify) hanya ~3.0:1.
                         child: const Text(
                           'Baru!',
                           style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
+                            color: AppColors.ink,
+                            fontSize: 11.5,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 0.2,
                           ),
@@ -119,7 +125,7 @@ class BadgeTile extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontWeight: FontWeight.w700,
-                fontSize: 12.5,
+                fontSize: 14,
                 color: locked ? AppColors.textSecondary : AppColors.ink,
               ),
             ),
@@ -129,12 +135,14 @@ class BadgeTile extends StatelessWidget {
               textAlign: TextAlign.center,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 10.5, color: AppColors.textDisabled),
+              // Judul wabah = info penting (badge ini milik wabah apa), bukan
+              // dekorasi: dulu 10.5sp abu-abu pudar (~2.5:1).
+              style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
             ),
           ],
         ),
       ),
-    );
+    ));
 
     // Glow cuma dipasang kalau perlu — badge locked/sudah-dilihat nggak
     // ke-overhead animasi looping sama sekali. Sama pola dengan
@@ -186,13 +194,28 @@ class _PulsingGlow extends StatefulWidget {
 class _PulsingGlowState extends State<_PulsingGlow> with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
 
+  bool _started = false;
+
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1400),
-    )..repeat();
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_started) return;
+    _started = true;
+    // Hormati "reduce motion": glow statis, tidak berdenyut terus.
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _controller.value = 0.5;
+    } else {
+      _controller.repeat();
+    }
   }
 
   @override

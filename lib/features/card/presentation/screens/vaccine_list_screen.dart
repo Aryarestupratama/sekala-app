@@ -17,6 +17,19 @@ import '../../../onboarding/tutorial_tour_controller.dart';
 import '../providers/card_providers.dart';
 import '../widgets/vaccine_tile.dart';
 
+/// Putih atau Ink di atas [bg], mana yang rasio kontras WCAG-nya lebih
+/// tinggi. Putih di atas Sky/Orange/Green/Purple (gamify) hanya ~1.6:1 /
+/// ~2.0:1 / ~2.9:1 / ~3.0:1; Ink lolos di semuanya.
+Color _onColor(Color bg) {
+  final l = bg.computeLuminance();
+  final white = 1.05 / (l + 0.05);
+  final ink = (l + 0.05) / (AppColors.ink.computeLuminance() + 0.05);
+  return white >= ink ? Colors.white : AppColors.ink;
+}
+
+/// Purple mentah di atas track abu hanya ~2.4:1 (grafis butuh 3:1).
+final Color _kGamifyStrong = Color.lerp(AppColors.gamify, AppColors.ink, 0.35)!;
+
 enum _VaccineFilter { all, unlocked, locked }
 
 /// GET /api/cards — CARD-01. Rute ini hanya bisa dicapai user login
@@ -105,7 +118,7 @@ class _VaccineListScreenState extends ConsumerState<VaccineListScreen> {
     try {
       for (var i = 0; i < pending.length; i++) {
         if (!mounted) return;
-        await showGeneralDialog<void>(
+        final skipAll = await showGeneralDialog<bool>(
           context: context,
           barrierDismissible: false,
           barrierColor: Colors.black87,
@@ -118,6 +131,9 @@ class _VaccineListScreenState extends ConsumerState<VaccineListScreen> {
           transitionBuilder: (context, animation, _, child) =>
               FadeTransition(opacity: animation, child: child),
         );
+        // "Lewati semua": sisa vaksin tetap `unseen` (glow "Baru!" di grid
+        // tetap menyala sampai detailnya dibuka), hanya animasinya dilewati.
+        if (skipAll == true) break;
       }
     } finally {
       // Reset di `finally` (bukan cuma di akhir loop) supaya kalau widget
@@ -125,6 +141,14 @@ class _VaccineListScreenState extends ConsumerState<VaccineListScreen> {
       // kebuka lagi untuk percobaan berikutnya alih-alih nyangkut true.
       if (mounted) _revealQueueRunning = false;
     }
+  }
+
+  String _emptyMessage() {
+    if (_filter == _VaccineFilter.unlocked && _eraSlug == null) {
+      return 'Belum ada vaksin terbuka. Tuntaskan satu tahun (lulus kuisnya) '
+          'di roadmap untuk membuka vaksin terkait.';
+    }
+    return 'Belum ada vaksin di kategori ini.';
   }
 
   /// Dipanggil pas user beneran ketuk kartu vaksin unlocked (mau yang
@@ -203,8 +227,17 @@ class _VaccineListScreenState extends ConsumerState<VaccineListScreen> {
           });
 
           final filtered = _applyFilter(response.data);
+          final reduceMotion = MediaQuery.disableAnimationsOf(context);
+          // Teks besar butuh tile lebih tinggi; rasio tetap membuat teks terpotong.
+          final textScale = MediaQuery.textScalerOf(context).scale(1.0).clamp(1.0, 2.0).toDouble();
+          final gridRatio = 0.75 / (1 + (textScale - 1) * 0.4);
           return RefreshIndicator(
-            onRefresh: () async => ref.invalidate(cardListProvider),
+            onRefresh: () async {
+              ref.invalidate(cardListProvider);
+              try {
+                await ref.read(cardListProvider.future);
+              } catch (_) {}
+            },
             child: CustomScrollView(
               slivers: [
                 SliverToBoxAdapter(
@@ -227,14 +260,14 @@ class _VaccineListScreenState extends ConsumerState<VaccineListScreen> {
                                   ? 0.0
                                   : response.meta.unlocked / response.meta.total,
                             ),
-                            duration: const Duration(milliseconds: 700),
+                            duration: reduceMotion ? Duration.zero : const Duration(milliseconds: 700),
                             curve: Curves.easeOutCubic,
                             builder: (context, value, _) {
                               return LinearProgressIndicator(
                                 value: value,
                                 minHeight: 6,
                                 backgroundColor: AppColors.border,
-                                valueColor: const AlwaysStoppedAnimation(AppColors.gamify),
+                                valueColor: AlwaysStoppedAnimation(_kGamifyStrong),
                               );
                             },
                           ),
@@ -245,7 +278,7 @@ class _VaccineListScreenState extends ConsumerState<VaccineListScreen> {
                 ),
                 SliverToBoxAdapter(
                   child: SizedBox(
-                    height: 44,
+                    height: 48,
                     child: ListView(
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -278,7 +311,7 @@ class _VaccineListScreenState extends ConsumerState<VaccineListScreen> {
                 if (response.meta.eras.isNotEmpty)
                   SliverToBoxAdapter(
                     child: SizedBox(
-                      height: 44,
+                      height: 56,
                       child: ListView(
                         scrollDirection: Axis.horizontal,
                         padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
@@ -318,12 +351,12 @@ class _VaccineListScreenState extends ConsumerState<VaccineListScreen> {
                             ),
                             const SizedBox(height: 12),
                             Text(
-                              'Belum ada vaksin di kategori ini.',
+                              _emptyMessage(),
                               textAlign: TextAlign.center,
                               style: Theme.of(context)
                                   .textTheme
                                   .bodyMedium
-                                  ?.copyWith(color: AppColors.textSecondary),
+                                  ?.copyWith(color: AppColors.textSecondary, fontSize: 15, height: 1.4),
                             ),
                           ],
                         ),
@@ -334,11 +367,11 @@ class _VaccineListScreenState extends ConsumerState<VaccineListScreen> {
                   SliverPadding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     sliver: SliverGrid(
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: 2,
                         mainAxisSpacing: 12,
                         crossAxisSpacing: 12,
-                        childAspectRatio: 0.75,
+                        childAspectRatio: gridRatio,
                       ),
                       delegate: SliverChildBuilderDelegate(
                         (context, index) {
@@ -353,7 +386,7 @@ class _VaccineListScreenState extends ConsumerState<VaccineListScreen> {
                                 : () => ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
                                         content: Text(
-                                          'Belum terbuka — selesaikan wabah terkait dulu.',
+                                          'Belum terbuka — tuntaskan wabah terkait dulu (lulus kuis tahunnya).',
                                         ),
                                       ),
                                     ),
@@ -392,34 +425,8 @@ class _VaccineListScreenState extends ConsumerState<VaccineListScreen> {
             ),
           );
         },
-        loading: () => Center(child: CircularProgressIndicator(color: AppColors.gamify)),
-        error: (error, _) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.error_outline_rounded, size: 40, color: AppColors.textSecondary.withValues(alpha: 0.6)),
-                const SizedBox(height: 12),
-                Text(
-                  'Gagal memuat data: $error',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: AppColors.textSecondary),
-                ),
-                const SizedBox(height: 16),
-                InkWell(
-                  onTap: () => ref.invalidate(cardListProvider),
-                  borderRadius: BorderRadius.circular(20),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                    decoration: BoxDecoration(color: AppColors.ink, borderRadius: BorderRadius.circular(20)),
-                    child: const Text('Coba Lagi', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
+        loading: () => const Center(child: CircularProgressIndicator(color: AppColors.ink)),
+        error: (error, _) => _VaccineError(onRetry: () => ref.invalidate(cardListProvider)),
       ),
     );
   }
@@ -437,32 +444,81 @@ class _FilterChip extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
-  // Warna saat selected — default gamify (dipakai chip status Semua/
-  // Terbuka/Terkunci, tidak berubah). Chip era mengoper warna per-era
-  // (EraAccents.ofSlug) supaya visually konsisten dengan Design.md §5.4
-  // (Kolonial=Orange, Kemerdekaan=Green, Modern=Sky).
+  // Warna saat selected — default gamify (chip status). Chip era mengoper
+  // warna per-era (EraAccents.ofSlug), Design.md §5.4.
   final Color color;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
-      child: Container(
-        alignment: Alignment.center,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        decoration: BoxDecoration(
-          color: selected ? color : AppColors.surface,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: selected ? color : AppColors.border),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: selected ? Colors.white : AppColors.textSecondary,
-            fontWeight: FontWeight.w600,
-            fontSize: 13,
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: Container(
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: selected ? color : AppColors.surface,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: selected ? color : AppColors.border),
           ),
+          child: Text(
+            label,
+            style: TextStyle(
+              // Dulu selalu putih saat terpilih: ~1.6:1 di atas Sky, ~2.0:1
+              // di atas Orange, ~2.9:1 di atas Green.
+              color: selected ? _onColor(color) : AppColors.textSecondary,
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Gagal memuat koleksi vaksin. Dulu: `Gagal memuat data: $error` (exception
+/// mentah) + tombol "Coba Lagi" tanpa semantik setinggi ~38dp.
+class _VaccineError extends StatelessWidget {
+  const _VaccineError({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.cloud_off_rounded, size: 40, color: AppColors.textSecondary),
+            const SizedBox(height: 12),
+            const Text(
+              'Koleksi vaksin belum bisa dimuat',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Periksa koneksi internetmu, lalu coba lagi.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 15, height: 1.4, color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 16),
+            FilledButton(
+              onPressed: onRetry,
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.ink,
+                minimumSize: const Size(140, 48),
+                shape: const StadiumBorder(),
+              ),
+              child: const Text('Coba lagi', style: TextStyle(fontWeight: FontWeight.w700)),
+            ),
+          ],
         ),
       ),
     );
@@ -550,6 +606,12 @@ class _VaccineRevealDialogState extends State<_VaccineRevealDialog>
 
   void _reveal() {
     if (_controller.value != 0) return; // lagi/udah jalan, cegah re-trigger
+    if (MediaQuery.disableAnimationsOf(context)) {
+      // Reduce motion: tanpa flip & confetti, langsung versi terbuka.
+      _confettiPlayed = true;
+      _controller.value = 1.0;
+      return;
+    }
     _controller.forward();
   }
 
@@ -587,6 +649,7 @@ class _VaccineRevealDialogState extends State<_VaccineRevealDialog>
   Widget build(BuildContext context) {
     final vaccine = widget.vaccine;
     final isLastInQueue = widget.index == widget.total;
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
 
     return Material(
       color: Colors.black.withValues(alpha: 0.92),
@@ -620,15 +683,22 @@ class _VaccineRevealDialogState extends State<_VaccineRevealDialog>
                     Text(
                       'Vaksin baru ${widget.index} dari ${widget.total}',
                       style: const TextStyle(
-                        color: Colors.white70,
+                        color: Colors.white,
                         fontWeight: FontWeight.w600,
-                        fontSize: 13,
+                        fontSize: 15,
                         letterSpacing: 0.3,
                       ),
                     ),
                     const SizedBox(height: 20),
                   ],
-                  GestureDetector(
+                  Semantics(
+                    button: !_showingBack,
+                    label: _showingBack
+                        ? 'Vaksin terbuka: ${vaccine.name}'
+                        : 'Vaksin baru masih terkunci. Ketuk dua kali untuk membukanya.',
+                    onTap: _showingBack ? null : _reveal,
+                    excludeSemantics: true,
+                    child: GestureDetector(
                     onTap: _reveal,
                     child: SizedBox(
                       width: 220,
@@ -655,7 +725,7 @@ class _VaccineRevealDialogState extends State<_VaccineRevealDialog>
                               ..setEntry(3, 2, 0.0018) // perspective — biar flip-nya kerasa 3D, bukan gepeng
                               ..rotateY(displayAngle)
                               ..scale(scale),
-                            child: t == 0
+                            child: (t == 0 && !reduceMotion)
                                 ? child
                                     // Idle: locked card "berdenyut" pelan
                                     // mengundang ketukan — cuma diputar
@@ -672,7 +742,7 @@ class _VaccineRevealDialogState extends State<_VaccineRevealDialog>
                         },
                       ),
                     ),
-                  ),
+                  )),
                   const SizedBox(height: 20),
                   Text(
                     _showingBack ? vaccine.name : 'Ketuk untuk membuka',
@@ -689,13 +759,33 @@ class _VaccineRevealDialogState extends State<_VaccineRevealDialog>
                       onPressed: () => Navigator.of(context).pop(),
                       style: FilledButton.styleFrom(
                         backgroundColor: AppColors.gamify,
+                        // Putih di atas Purple hanya ~3.0:1; Ink ~6.6:1.
+                        foregroundColor: AppColors.ink,
+                        minimumSize: const Size(140, 48),
                         padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                       ),
-                      child: Text(isLastInQueue ? 'Selesai' : 'Lanjut'),
-                    ).animate().fadeIn(duration: 250.ms).slideY(begin: 0.2, end: 0)
+                      child: Text(
+                        isLastInQueue ? 'Selesai' : 'Lanjut',
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                      ),
+                    ).animate(value: reduceMotion ? 1.0 : null).fadeIn(duration: 250.ms).slideY(begin: 0.2, end: 0)
                   else
                     const SizedBox(height: 48), // reserve ruang, cegah layout "loncat"
+                  if (widget.total > 1 && !isLastInQueue) ...[
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(48, 48),
+                      ),
+                      child: const Text(
+                        'Lewati semua',
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

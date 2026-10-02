@@ -11,6 +11,20 @@ import '../../../../shared/widgets/pressable_scale.dart';
 import '../../../history/presentation/providers/history_providers.dart';
 import '../providers/year_summary_providers.dart';
 
+/// Warna teks/ikon di atas [bg]: putih atau Ink, mana yang rasio kontrasnya
+/// lebih tinggi. Putih di atas warna era gagal AA (Sky ~1.6:1, Orange ~2.0:1,
+/// Green ~2.9:1); Ink lolos di ketiganya (~12:1, ~10:1, ~6.6:1).
+Color _onColor(Color bg) {
+  final l = bg.computeLuminance();
+  final white = 1.05 / (l + 0.05);
+  final ink = (l + 0.05) / (AppColors.ink.computeLuminance() + 0.05);
+  return white >= ink ? Colors.white : AppColors.ink;
+}
+
+/// Aksen era yang digelapkan ke arah Ink untuk teks kecil / grafis di atas
+/// latar terang (Sky mentah hanya ~1.6:1 di atas putih).
+Color _accentStrong(Color accent) => Color.lerp(accent, AppColors.ink, 0.45)!;
+
 /// Halaman Rangkuman Wabah — muncul setelah SELURUH section dalam satu
 /// `year` completed (Design.md §3.3 poin 4, INFO-04).
 ///
@@ -83,49 +97,27 @@ class YearSummaryScreen extends ConsumerWidget {
         accent: accent,
       );
     } else if (yearAsync.hasError && !yearAsync.hasValue) {
-      body = Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.error_outline_rounded, size: 40, color: AppColors.textSecondary.withValues(alpha: 0.6)),
-              const SizedBox(height: 12),
-              Text(
-                'Gagal memuat data tahun: ${yearAsync.error}',
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: AppColors.textSecondary),
-              ),
-            ],
-          ),
-        ),
+      body = _StatusMessage(
+        icon: Icons.cloud_off_rounded,
+        title: 'Data tahun belum bisa dimuat',
+        message: 'Periksa koneksi internetmu, lalu coba lagi.',
+        onRetry: () => ref.invalidate(yearsProvider(eraSlug)),
       );
     } else if (attemptAsync.hasError && !attemptAsync.hasValue) {
       // Termasuk kasus 403 (section belum semua completed) atau 404
-      // (rangkuman belum published admin) — pesan generik dari
-      // ApiException, sama pola dengan QuizScreen.
-      body = Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.lock_outline_rounded, size: 40, color: AppColors.textSecondary.withValues(alpha: 0.6)),
-              const SizedBox(height: 12),
-              Text(
-                'Rangkuman belum bisa diakses: ${attemptAsync.error}',
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: AppColors.textSecondary),
-              ),
-            ],
-          ),
-        ),
+      // (rangkuman belum published admin). Dulu: teks exception mentah.
+      body = _StatusMessage(
+        icon: Icons.lock_outline_rounded,
+        title: 'Rangkuman belum bisa dibuka',
+        message: 'Pastikan semua materi tahun ini sudah selesai. '
+            'Kalau sudah, periksa koneksimu lalu coba lagi.',
+        onRetry: () => ref.invalidate(yearSummaryAttemptProvider(yearId)),
       );
     } else {
       // Belum pernah punya data sama sekali (initial load) -> baru di sini
       // spinner boleh menggantikan seluruh body, karena belum ada State
       // penting yang bisa hilang.
-      body = Center(child: CircularProgressIndicator(color: accent));
+      body = const Center(child: CircularProgressIndicator(color: AppColors.ink));
     }
 
     return Scaffold(
@@ -257,7 +249,7 @@ class _ChoiceView extends StatelessWidget {
           margin: const EdgeInsets.only(bottom: 16),
           decoration: BoxDecoration(color: accent.withValues(alpha: 0.12), shape: BoxShape.circle),
           alignment: Alignment.center,
-          child: Icon(Icons.fact_check_rounded, size: 40, color: accent),
+          child: Icon(Icons.fact_check_rounded, size: 40, color: _accentStrong(accent)),
         ),
         const Text(
           'Kamu sudah menyelesaikan rangkuman wabah ini.',
@@ -268,10 +260,10 @@ class _ChoiceView extends StatelessWidget {
         const Text(
           'Mau lihat rangkumannya lagi, atau kerjakan ulang dari awal?',
           textAlign: TextAlign.center,
-          style: TextStyle(color: AppColors.textSecondary),
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 15),
         ),
         const SizedBox(height: 28),
-        PressableScale(
+        Semantics(button: true, child: PressableScale(
           onTap: () => Navigator.of(context).push(
             MaterialPageRoute<void>(
               builder: (_) => Scaffold(
@@ -306,9 +298,9 @@ class _ChoiceView extends StatelessWidget {
               style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
             ),
           ),
-        ),
+        )),
         const SizedBox(height: 12),
-        PressableScale(
+        Semantics(button: true, child: PressableScale(
           onTap: onRetake,
           child: Container(
             width: double.infinity,
@@ -320,7 +312,7 @@ class _ChoiceView extends StatelessWidget {
             alignment: Alignment.center,
             child: const Text('Kerjakan Ulang', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
-        ),
+        )),
       ],
     );
   }
@@ -398,6 +390,36 @@ class _SummaryAttemptFlowState extends ConsumerState<_SummaryAttemptFlow> {
   YearSummaryPoint get _currentPoint => _points[_index];
   bool get _isLastPoint => _index == _points.length - 1;
   bool get _isAnswered => _isCorrect != null;
+
+  /// Jawaban baru dikirim sekaligus setelah poin ke-7, jadi keluar di tengah
+  /// jalan membuang semuanya. Sebelumnya tanpa konfirmasi.
+  bool get _hasProgress => _answers.isNotEmpty || _isChecking || _isSubmitting;
+
+  Future<void> _confirmLeave() async {
+    final leave = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Keluar dari rangkuman?'),
+        content: const Text(
+          'Jawabanmu di rangkuman ini belum tersimpan dan akan hilang.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Lanjut mengerjakan'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.ink),
+            child: const Text('Keluar'),
+          ),
+        ],
+      ),
+    );
+    if (leave == true && mounted) {
+      context.go(widget.eraSlug.isEmpty ? '/history' : '/history/${widget.eraSlug}');
+    }
+  }
 
   Future<void> _selectOption(int optionId) async {
     if (_isAnswered || _isChecking) return;
@@ -482,8 +504,15 @@ class _SummaryAttemptFlowState extends ConsumerState<_SummaryAttemptFlow> {
     ref.watch(yearSummaryControllerProvider);
 
     final total = _points.length;
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
 
-    return Column(
+    return PopScope(
+      canPop: !_hasProgress,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        _confirmLeave();
+      },
+      child: Column(
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -492,11 +521,11 @@ class _SummaryAttemptFlowState extends ConsumerState<_SummaryAttemptFlow> {
               for (var i = 0; i < total; i++) ...[
                 Expanded(
                   child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 260),
+                    duration: reduceMotion ? Duration.zero : const Duration(milliseconds: 260),
                     curve: Curves.easeOut,
                     height: 6,
                     decoration: BoxDecoration(
-                      color: i <= _index ? widget.accent : AppColors.border,
+                      color: i <= _index ? _accentStrong(widget.accent) : AppColors.border,
                       borderRadius: BorderRadius.circular(4),
                     ),
                   ),
@@ -512,7 +541,7 @@ class _SummaryAttemptFlowState extends ConsumerState<_SummaryAttemptFlow> {
             alignment: Alignment.centerLeft,
             child: Text(
               'Poin ${_index + 1} dari $total',
-              style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+              style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
             ),
           ),
         ),
@@ -522,7 +551,7 @@ class _SummaryAttemptFlowState extends ConsumerState<_SummaryAttemptFlow> {
             children: [
               const Text(
                 'Pilih kalimat yang paling sesuai dengan materi yang sudah kamu baca:',
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
               ),
               const SizedBox(height: 12),
               // R-SUM-02: opsi yang MASIH tampil tergantung status jawab —
@@ -558,7 +587,10 @@ class _SummaryAttemptFlowState extends ConsumerState<_SummaryAttemptFlow> {
               ],
               if (_isAnswered) ...[
                 const SizedBox(height: 8),
-                _ExplanationBox(isCorrect: _isCorrect!).animate().fadeIn(duration: 200.ms).slideY(begin: 0.08, end: 0),
+                _ExplanationBox(isCorrect: _isCorrect!)
+                    .animate(value: reduceMotion ? 1.0 : null)
+                    .fadeIn(duration: 200.ms)
+                    .slideY(begin: 0.08, end: 0),
               ],
             ],
           ),
@@ -571,7 +603,7 @@ class _SummaryAttemptFlowState extends ConsumerState<_SummaryAttemptFlow> {
               final busy = _isChecking || _isSubmitting;
               return Opacity(
                 opacity: disabled && !busy ? 0.5 : 1.0,
-                child: PressableScale(
+                child: Semantics(button: true, enabled: !disabled, child: PressableScale(
                   onTap: disabled ? null : _onPrimaryButtonTap,
                   child: Container(
                     width: double.infinity,
@@ -579,23 +611,23 @@ class _SummaryAttemptFlowState extends ConsumerState<_SummaryAttemptFlow> {
                     decoration: BoxDecoration(color: widget.accent, borderRadius: BorderRadius.circular(28)),
                     alignment: Alignment.center,
                     child: busy
-                        ? const SizedBox(
+                        ? SizedBox(
                             height: 20,
                             width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            child: CircularProgressIndicator(strokeWidth: 2, color: _onColor(widget.accent)),
                           )
                         : Text(
                             _isLastPoint ? 'Lihat Rangkuman Lengkap' : 'Lanjut',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.white),
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: _onColor(widget.accent)),
                           ),
                   ),
-                ),
+                )),
               );
             },
           ),
         ),
       ],
-    );
+    ));
   }
 }
 
@@ -614,12 +646,18 @@ class _SummaryOptionTile extends StatelessWidget {
   final _OptionVisualState state;
   final VoidCallback onTap;
 
+  String get _semanticLabel => switch (state) {
+        _OptionVisualState.correct => 'Kalimat yang benar: $label',
+        _OptionVisualState.wrongSelected => 'Pilihanmu, kurang tepat: $label',
+        _OptionVisualState.neutral => label,
+      };
+
   @override
   Widget build(BuildContext context) {
     Color borderColor = isSelected ? AppColors.ink : AppColors.border;
     Color? bgColor;
     IconData icon = isSelected ? Icons.radio_button_checked : Icons.radio_button_off;
-    Color iconColor = isSelected ? AppColors.ink : AppColors.textDisabled;
+    Color iconColor = isSelected ? AppColors.ink : AppColors.textSecondary;
 
     if (state == _OptionVisualState.correct) {
       borderColor = AppColors.success;
@@ -635,7 +673,13 @@ class _SummaryOptionTile extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: InkWell(
+      child: Semantics(
+        button: state == _OptionVisualState.neutral,
+        selected: isSelected,
+        label: _semanticLabel,
+        onTap: state == _OptionVisualState.neutral ? onTap : null,
+        excludeSemantics: true,
+        child: InkWell(
         borderRadius: BorderRadius.circular(14),
         onTap: state == _OptionVisualState.neutral ? onTap : null,
         child: Container(
@@ -649,13 +693,13 @@ class _SummaryOptionTile extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(icon, size: 20, color: iconColor),
+              Icon(icon, size: 22, color: iconColor),
               const SizedBox(width: 12),
-              Expanded(child: Text(label, style: const TextStyle(fontSize: 15, height: 1.3))),
+              Expanded(child: Text(label, style: const TextStyle(fontSize: 16, height: 1.35))),
             ],
           ),
         ),
-      ),
+      )),
     );
   }
 }
@@ -668,7 +712,7 @@ class _ExplanationBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = isCorrect ? AppColors.success : AppColors.coral;
-    return Container(
+    return Semantics(liveRegion: true, child: Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -683,12 +727,14 @@ class _ExplanationBox extends StatelessWidget {
           Expanded(
             child: Text(
               isCorrect ? 'Tepat sekali!' : 'Kurang tepat — ini kalimat yang benar.',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: color),
+              // Teks Ink (hijau/coral di atas tint hanya ~2.9:1 / ~2.3:1); status
+              // tetap terbaca dari ikon + border berwarna.
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.ink),
             ),
           ),
         ],
       ),
-    );
+    ));
   }
 }
 
@@ -716,14 +762,18 @@ class _FullSummaryView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
       children: [
         Row(
           children: [
             Text(
-              '${eraSlug[0].toUpperCase()}${eraSlug.substring(1)} · ${year.year}',
-              style: TextStyle(color: accent, fontWeight: FontWeight.bold, fontSize: 13),
+              // eraSlug bisa kosong (query `era` tidak terkirim) -> dulu RangeError.
+              eraSlug.isEmpty
+                  ? '${year.year}'
+                  : '${eraSlug[0].toUpperCase()}${eraSlug.substring(1)} · ${year.year}',
+              style: TextStyle(color: _accentStrong(accent), fontWeight: FontWeight.bold, fontSize: 14),
             ),
           ],
         ),
@@ -748,19 +798,19 @@ class _FullSummaryView extends StatelessWidget {
                 Expanded(
                   child: Text(
                     'Sempurna! Kamu benar di semua poin percobaan pertama.',
-                    style: TextStyle(fontWeight: FontWeight.w600),
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
                   ),
                 ),
               ],
             ),
-          ).animate().fadeIn(duration: 250.ms).scale(begin: const Offset(0.96, 0.96)),
+          ).animate(value: reduceMotion ? 1.0 : null).fadeIn(duration: 250.ms).scale(begin: const Offset(0.96, 0.96)),
           const SizedBox(height: 16),
         ],
 
         const Text(
           'RANGKUMAN',
           style: TextStyle(
-            fontSize: 11,
+            fontSize: 12.5,
             fontWeight: FontWeight.bold,
             color: AppColors.textSecondary,
             letterSpacing: 0.5,
@@ -786,7 +836,7 @@ class _FullSummaryView extends StatelessWidget {
             ),
             child: Text(
               fullSummary.join(' '),
-              style: const TextStyle(fontSize: 15, height: 1.6),
+              style: const TextStyle(fontSize: 16, height: 1.65),
             ),
           ),
 
@@ -803,7 +853,7 @@ class _FullSummaryView extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.format_quote_rounded, color: accent, size: 20),
+                Icon(Icons.format_quote_rounded, color: _accentStrong(accent), size: 22),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
@@ -824,7 +874,7 @@ class _FullSummaryView extends StatelessWidget {
           const Text(
             'REFERENSI',
             style: TextStyle(
-              fontSize: 11,
+              fontSize: 12.5,
               fontWeight: FontWeight.bold,
               color: AppColors.textSecondary,
               letterSpacing: 0.5,
@@ -837,11 +887,11 @@ class _FullSummaryView extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('${i + 1}. ', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                  Text('${i + 1}. ', style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
                   Expanded(
                     child: Text(
                       year.references[i],
-                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 12, height: 1.4),
+                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 13, height: 1.4),
                     ),
                   ),
                 ],
@@ -854,7 +904,7 @@ class _FullSummaryView extends StatelessWidget {
           const Text(
             'VAKSIN TERKAIT',
             style: TextStyle(
-              fontSize: 11,
+              fontSize: 12.5,
               fontWeight: FontWeight.bold,
               color: AppColors.textSecondary,
               letterSpacing: 0.5,
@@ -876,9 +926,9 @@ class _FullSummaryView extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.vaccines_rounded, size: 14, color: AppColors.gamify),
+                      const Icon(Icons.vaccines_rounded, size: 16, color: AppColors.gamify),
                       const SizedBox(width: 6),
-                      Text(v.name, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+                      Text(v.name, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
                     ],
                   ),
                 ),
@@ -903,7 +953,7 @@ class _FullSummaryView extends StatelessWidget {
               const Text(
                 'LANGKAH TERAKHIR',
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 12.5,
                   fontWeight: FontWeight.bold,
                   color: AppColors.textSecondary,
                   letterSpacing: 0.5,
@@ -912,12 +962,12 @@ class _FullSummaryView extends StatelessWidget {
               const SizedBox(height: 6),
               const Text(
                 'Kerjakan kuis singkat untuk menyelesaikan wabah ini.',
-                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
               ),
               const SizedBox(height: 4),
               const Text(
                 'Kuis berskor — nilai minimum kelulusan 75%. Boleh dikerjakan ulang kalau belum lulus.',
-                style: TextStyle(fontSize: 12, color: AppColors.textSecondary, fontStyle: FontStyle.italic),
+                style: TextStyle(fontSize: 13.5, color: AppColors.textSecondary, fontStyle: FontStyle.italic),
               ),
               const SizedBox(height: 16),
               Builder(
@@ -929,7 +979,7 @@ class _FullSummaryView extends StatelessWidget {
                   // mati.
                   return Opacity(
                     opacity: quizUnlocked ? 1.0 : 0.5,
-                    child: PressableScale(
+                    child: Semantics(button: true, enabled: quizUnlocked, child: PressableScale(
                       onTap: !quizUnlocked
                           ? null
                           : () => context.go(
@@ -948,7 +998,7 @@ class _FullSummaryView extends StatelessWidget {
                           ],
                         ),
                       ),
-                    ),
+                    )),
                   );
                 },
               ),
@@ -956,6 +1006,60 @@ class _FullSummaryView extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Pesan status layar penuh (error / terkunci) dengan tombol ulang.
+class _StatusMessage extends StatelessWidget {
+  const _StatusMessage({
+    required this.icon,
+    required this.title,
+    required this.message,
+    this.onRetry,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 40, color: AppColors.textSecondary),
+            const SizedBox(height: 12),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 15, height: 1.4, color: AppColors.textSecondary),
+            ),
+            if (onRetry != null) ...[
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: onRetry,
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.ink,
+                  minimumSize: const Size(140, 48),
+                  shape: const StadiumBorder(),
+                ),
+                child: const Text('Coba lagi', style: TextStyle(fontWeight: FontWeight.w700)),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }

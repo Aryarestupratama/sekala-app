@@ -84,7 +84,10 @@ class CaseStudyBriefingView extends StatelessWidget {
                     caseStudyReveal(
                       context,
                       3,
-                      Text(description, style: AppTextStyles.bodySecondary),
+                      Text(
+                        description,
+                        style: AppTextStyles.bodySecondary.copyWith(fontSize: 16, height: 1.6),
+                      ),
                     ),
                     const SizedBox(height: 24),
                     caseStudyReveal(
@@ -126,7 +129,7 @@ class _ChallengeCallout extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bodyStyle = AppTextStyles.body.copyWith(
-      fontSize: 14,
+      fontSize: 15,
       height: 1.55,
       fontWeight: FontWeight.w500,
     );

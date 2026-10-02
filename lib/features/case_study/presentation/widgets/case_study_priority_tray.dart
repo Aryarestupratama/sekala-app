@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../case_study_texts.dart';
+import 'case_study_common.dart';
 
 /// Isi 1 slot yang sudah terisi (label huruf + judul singkat opsi).
 class CaseStudyTraySlot {
@@ -21,7 +22,7 @@ class CaseStudyTraySlot {
 /// - [onReleaseSlot]: tap slot yang terisi untuk melepasnya.
 /// - [onReset]: tombol "Susun ulang" (nonaktif kalau semua slot kosong).
 ///
-/// Tinggi total ~142px (dipakai `CaseStudyDecisionView` untuk extent
+/// Tinggi total ~154px (dipakai `CaseStudyDecisionView` untuk extent
 /// header yang di-pin) — ubah keduanya bersamaan kalau tinggi slot berubah.
 class CaseStudyPriorityTray extends StatelessWidget {
   const CaseStudyPriorityTray({
@@ -55,13 +56,13 @@ class CaseStudyPriorityTray extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SizedBox(
-            height: 32,
+            height: 44,
             child: Row(
               children: [
                 Text(
                   CaseStudyTexts.priorityHeading,
                   style: AppTextStyles.body.copyWith(
-                    fontSize: 13,
+                    fontSize: 14,
                     fontWeight: FontWeight.w600,
                     height: 1.2,
                   ),
@@ -69,16 +70,16 @@ class CaseStudyPriorityTray extends StatelessWidget {
                 const Spacer(),
                 TextButton.icon(
                   onPressed: hasAny ? onReset : null,
-                  icon: const Icon(Icons.refresh_rounded, size: 16),
+                  icon: const Icon(Icons.refresh_rounded, size: 18),
                   label: const Text(CaseStudyTexts.resetCta),
                   style: TextButton.styleFrom(
                     foregroundColor: AppColors.ink,
                     disabledForegroundColor: AppColors.textDisabled,
                     padding: const EdgeInsets.symmetric(horizontal: 8),
-                    minimumSize: const Size(0, 32),
+                    minimumSize: const Size(0, 44),
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     textStyle: AppTextStyles.caption.copyWith(
-                      fontSize: 12.5,
+                      fontSize: 13.5,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -205,7 +206,7 @@ class _FilledSlot extends StatelessWidget {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: AppTextStyles.body.copyWith(
-                  fontSize: 11,
+                  fontSize: 12,
                   fontWeight: FontWeight.w500,
                   height: 1.2,
                 ),
@@ -240,9 +241,9 @@ class _EmptySlot extends StatelessWidget {
             Text(
               CaseStudyTexts.slotEmpty,
               style: AppTextStyles.body.copyWith(
-                fontSize: 11,
+                fontSize: 12,
                 height: 1.2,
-                color: AppColors.textDisabled,
+                color: AppColors.textSecondary,
               ),
             ),
           ],
@@ -261,12 +262,10 @@ class _NumberDot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final onAccent = ThemeData.estimateBrightnessForColor(accent) == Brightness.dark
-        ? Colors.white
-        : AppColors.textSecondary;
+    final onAccent = caseStudyOnColor(accent);
     return Container(
-      width: 22,
-      height: 22,
+      width: 24,
+      height: 24,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
@@ -276,7 +275,7 @@ class _NumberDot extends StatelessWidget {
       child: Text(
         '$number',
         style: AppTextStyles.caption.copyWith(
-          fontSize: 11,
+          fontSize: 12,
           fontWeight: FontWeight.w700,
           color: filled ? onAccent : AppColors.textSecondary,
         ),

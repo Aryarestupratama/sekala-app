@@ -46,14 +46,36 @@ class _WabahIntroSheetContent extends ConsumerWidget {
           // pesan singkat -- bukan blank/crash, tapi juga tidak ada
           // fallback konten karena memang tidak ada apa-apa untuk
           // ditampilkan tanpa data dari backend.
-          error: (_, __) => const SizedBox(
-            height: 140,
-            child: Center(
-              child: Text(
-                'Gagal memuat konten. Coba lagi nanti.',
-                style: TextStyle(color: AppColors.textSecondary),
+          error: (_, __) => Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const _DragHandle(),
+              const SizedBox(height: 4),
+              const Text(
+                'Penjelasan wabah belum bisa dimuat',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
               ),
-            ),
+              const SizedBox(height: 6),
+              const Text(
+                'Periksa koneksi internetmu, lalu coba lagi.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                height: 50,
+                child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.ink,
+                    shape: const StadiumBorder(),
+                  ),
+                  onPressed: () => ref.invalidate(wabahIntroProvider),
+                  child: const Text('Coba lagi', style: TextStyle(fontWeight: FontWeight.w700)),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -207,8 +229,8 @@ class _ContentState extends State<_Content> with SingleTickerProviderStateMixin 
                 child: RichBodyText(
                   widget.intro!.content!,
                   style: const TextStyle(
-                    fontSize: 14,
-                    height: 1.5,
+                    fontSize: 16,
+                    height: 1.55,
                     color: AppColors.textSecondary,
                   ),
                 ),

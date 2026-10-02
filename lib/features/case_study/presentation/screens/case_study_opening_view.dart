@@ -159,7 +159,7 @@ class _InfoCard extends StatelessWidget {
           Text(
             body,
             style: AppTextStyles.body.copyWith(
-              fontSize: 14,
+              fontSize: 15,
               height: 1.5,
               color: AppColors.ink.withValues(alpha: 0.85),
             ),

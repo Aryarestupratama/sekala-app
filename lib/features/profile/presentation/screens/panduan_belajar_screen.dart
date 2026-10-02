@@ -1,36 +1,42 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../widgets/info_section_list.dart';
 
 /// Teks statis (hardcode) sesuai keputusan: cukup teks biasa, tidak perlu
 /// dikelola lewat CMS/Admin Panel. Kalau nanti isinya sering berubah dan
 /// perlu diedit tanpa release app baru, baru pertimbangkan pindah ke pola
 /// singleton CMS seperti `wabah_intro` dulu.
 ///
-/// REDESIGN: sama pola dengan `AboutSekalaScreen` — tiap section jadi kartu
-/// dengan ikon dan muncul fade-up bertahap. Isi teks TIDAK berubah.
-class PanduanBelajarScreen extends StatefulWidget {
+/// REVISI ISI (mohon ditinjau tim konten) — panduan lama sudah tidak sesuai
+/// dengan aplikasi:
+/// - "Koleksi Card ... menuntaskan setiap materi": vaksin terbuka saat TAHUN
+///   tuntas (lulus kuis tahun), bukan tiap materi; menu bernama Koleksi
+///   Vaksin, bukan "Koleksi Card"/"Filter Koleksi".
+/// - "Roadmap Sumatif" / "Rekap Jawaban Sumatif": di aplikasi tombolnya
+///   node Kuis Sumatif di ujung roadmap era dan "Lihat Rekapan".
+/// - "Kerjakan kuis formatif setelah satu materi": kuis tahun dikerjakan
+///   setelah semua materi + Rangkuman Interaktif.
+/// - Studi Kasus, Rangkuman Interaktif, Badge, dan Border SEKALA belum
+///   disebut sama sekali.
+class PanduanBelajarScreen extends StatelessWidget {
   const PanduanBelajarScreen({super.key});
 
-  @override
-  State<PanduanBelajarScreen> createState() => _PanduanBelajarScreenState();
-}
-
-class _PanduanBelajarScreenState extends State<PanduanBelajarScreen> with SingleTickerProviderStateMixin {
-  static const _sections = <_GuideSection>[
-    _GuideSection(
+  static const _sections = <InfoSection>[
+    InfoSection(
       icon: Icons.route_outlined,
       title: 'Urutan Belajar',
       body:
           'Mulai perjalanan dari era paling awal hingga era modern secara '
           'bertahap.\n\n'
-          '• Ikuti urutan era dengan mempelajari materi mulai dari era '
-          'kolonial, kemerdekaan, hingga modern. Selesaikan satu era '
-          'terlebih dahulu sebelum melanjutkan ke era berikutnya.\n'
-          '• Telusuri timeline melalui Perjalanan Era untuk melihat '
-          'gambaran umum urutan peristiwa sebelum masuk ke materi.',
+          '• Sebaiknya ikuti urutan era: kolonial, kemerdekaan, lalu '
+          'modern. Selesaikan satu era sebelum lanjut ke era berikutnya.\n'
+          '• Di dalam satu era, tahun terbuka berurutan: tahun berikutnya '
+          'terbuka setelah tahun sebelumnya tuntas.\n'
+          '• Telusuri roadmap era untuk melihat gambaran urutan peristiwa '
+          'sebelum masuk ke materi.',
     ),
-    _GuideSection(
+    InfoSection(
       icon: Icons.menu_book_outlined,
       title: 'Membaca Materi',
       body:
@@ -38,60 +44,57 @@ class _PanduanBelajarScreenState extends State<PanduanBelajarScreen> with Single
           'untuk memperkuat pemahaman.\n\n'
           '• Ikuti alur materi mulai dari identitas penyakit, awal '
           'kemunculan, karakteristik, dampak, hingga respons pemerintah.\n'
-          '• Amati media berupa gambar dan video untuk membantu '
-          'memvisualisasikan peristiwa sejarah yang dibahas.\n'
-          '• Cek ringkasan di akhir materi untuk mengingat kembali '
-          'poin-poin penting sebelum melanjutkan ke kuis.',
+          '• Amati gambar dan video untuk membantu memvisualisasikan '
+          'peristiwa sejarah yang dibahas.\n'
+          '• Geser tombol di bagian bawah layar untuk lanjut ke materi '
+          'berikutnya. Progresmu hanya tersimpan kalau kamu sudah login '
+          'dan email-mu terverifikasi.',
     ),
-    _GuideSection(
+    InfoSection(
+      icon: Icons.psychology_alt_outlined,
+      title: 'Studi Kasus',
+      body:
+          'Latih cara berpikir sebagai pengambil keputusan penanganan '
+          'wabah.\n\n'
+          '• Baca briefing kasus, lalu susun tiga prioritas penanganan '
+          'dari opsi yang tersedia.\n'
+          '• Urutan harus tepat agar berhasil. Kamu boleh mencoba lagi '
+          'sebanyak yang kamu mau.\n'
+          '• Tuliskan alasan pilihanmu. Itu bagian dari proses belajar.\n'
+          '• Berhasil? Kamu mendapat badge untuk wabah tersebut.',
+    ),
+    InfoSection(
       icon: Icons.quiz_outlined,
-      title: 'Mengerjakan Kuis',
+      title: 'Rangkuman dan Kuis',
       body:
-          'Uji pemahaman setelah mempelajari setiap materi dan '
-          'menyelesaikan satu era.\n\n'
-          '• Kerjakan kuis formatif setelah satu materi selesai untuk '
-          'mengukur pemahaman dan perhatikan feedback pada setiap '
-          'jawaban.\n'
-          '• Baca kasus dengan saksama dan hubungkan informasi dari '
-          'beberapa bagian materi sebelum menentukan jawaban.\n'
-          '• Kerjakan kuis sumatif setelah seluruh materi dalam satu era '
-          'selesai melalui Roadmap Sumatif untuk menguji pemahaman secara '
+          'Uji pemahaman setelah semua materi satu tahun selesai, lalu '
+          'tutup satu era dengan kuis sumatif.\n\n'
+          '• Kerjakan Rangkuman Interaktif: pilih kalimat yang benar di '
+          'setiap poin dan perhatikan penjelasannya, lalu baca rangkuman '
+          'lengkapnya.\n'
+          '• Lanjut ke kuis tahun. Kamu lulus dengan nilai 75% ke atas '
+          'dan boleh mengulang kapan saja. Tahun dinyatakan tuntas setelah '
+          'kuis lulus.\n'
+          '• Setelah semua tahun dalam satu era tuntas, kerjakan Kuis '
+          'Sumatif Era di ujung roadmap untuk menguji pemahaman secara '
           'menyeluruh.\n'
-          '• Cek hasil melalui Rekap Jawaban Sumatif untuk melihat kembali '
-          'jawaban dan hasil belajar.',
+          '• Lihat pembahasan lengkap lewat tombol Lihat Rekapan di '
+          'halaman hasil.',
     ),
-    _GuideSection(
+    InfoSection(
       icon: Icons.style_outlined,
-      title: 'Koleksi Card',
+      title: 'Koleksi',
       body:
-          'Kumpulkan dan lengkapi kartu selama perjalanan belajar di '
-          'setiap era.\n\n'
-          '• Kumpulkan card dengan menuntaskan setiap materi untuk '
-          'mendapatkan collectible card berisi informasi vaksin terkait '
-          'wabah tersebut.\n'
-          '• Lihat koleksi melalui menu Koleksi Card untuk melihat '
-          'seluruh kartu yang telah dikumpulkan.\n'
-          '• Gunakan filter pada Filter Koleksi untuk mengelompokkan '
-          'kartu berdasarkan era.',
+          'Kumpulkan vaksin dan badge selama perjalanan belajarmu.\n\n'
+          '• Vaksin terbuka otomatis begitu tahun terkait tuntas (lulus '
+          'kuisnya). Lihat semuanya di tab Koleksi dan saring berdasarkan '
+          'status atau era.\n'
+          '• Badge didapat dari menyelesaikan studi kasus dengan benar. '
+          'Lihat di Profil, menu Koleksi Badge.\n'
+          '• Kumpulkan semua badge untuk membuka Border SEKALA, lalu pasang '
+          'di foto profilmu lewat menu Profil.',
     ),
   ];
-
-  late final AnimationController _entrance = AnimationController(
-    vsync: this,
-    duration: Duration(milliseconds: 400 + _sections.length * 100),
-  )..forward();
-
-  @override
-  void dispose() {
-    _entrance.dispose();
-    super.dispose();
-  }
-
-  Animation<double> _slot(int index) {
-    final start = (index / _sections.length * 0.7).clamp(0.0, 0.85);
-    final end = (start + 0.35).clamp(0.15, 1.0);
-    return CurvedAnimation(parent: _entrance, curve: Interval(start, end, curve: Curves.easeOutCubic));
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -103,70 +106,7 @@ class _PanduanBelajarScreenState extends State<PanduanBelajarScreen> with Single
         surfaceTintColor: Colors.transparent,
         title: const Text('Panduan Belajar', style: TextStyle(fontWeight: FontWeight.w800)),
       ),
-      body: ListView.separated(
-        padding: const EdgeInsets.all(16),
-        itemCount: _sections.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
-        itemBuilder: (context, index) {
-          final section = _sections[index];
-          final animation = _slot(index);
-          return AnimatedBuilder(
-            animation: animation,
-            builder: (context, child) {
-              return Opacity(
-                opacity: animation.value.clamp(0.0, 1.0),
-                child: Transform.translate(
-                  offset: Offset(0, (1 - animation.value) * 14),
-                  child: child,
-                ),
-              );
-            },
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(color: AppColors.ink.withValues(alpha: 0.08), shape: BoxShape.circle),
-                        alignment: Alignment.center,
-                        child: Icon(section.icon, size: 18, color: AppColors.ink),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          section.title,
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    section.body,
-                    style: const TextStyle(color: AppColors.textSecondary, height: 1.5),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
+      body: const InfoSectionList(sections: _sections),
     );
   }
-}
-
-class _GuideSection {
-  const _GuideSection({required this.icon, required this.title, required this.body});
-  final IconData icon;
-  final String title;
-  final String body;
 }

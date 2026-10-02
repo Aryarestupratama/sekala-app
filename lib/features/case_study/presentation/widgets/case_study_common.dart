@@ -7,6 +7,18 @@ import '../../../../core/theme/app_text_styles.dart';
 /// Padding horizontal standar semua layar Studi Kasus.
 const double kCaseStudyHPad = 24;
 
+/// Warna teks/ikon di atas [bg]: putih atau Ink, mana yang rasio kontras
+/// WCAG-nya lebih tinggi. `ThemeData.estimateBrightnessForColor` keliru
+/// untuk Green era Kemerdekaan (#4BA95F): menganggapnya "gelap" sehingga
+/// teks putih (~2.9:1), padahal Ink ~6.6:1. Sky (~12:1) dan Orange (~10:1)
+/// juga otomatis memakai Ink.
+Color caseStudyOnColor(Color bg) {
+  final l = bg.computeLuminance();
+  final white = 1.05 / (l + 0.05);
+  final ink = (l + 0.05) / (AppColors.ink.computeLuminance() + 0.05);
+  return white >= ink ? Colors.white : AppColors.ink;
+}
+
 /// Fade + geser tipis berurutan per [index] (delay 70ms/urutan). Dilewati
 /// kalau user mematikan animasi di pengaturan aksesibilitas OS.
 Widget caseStudyReveal(BuildContext context, int index, Widget child) {
@@ -34,9 +46,9 @@ class CaseStudyBackButton extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           child: const SizedBox(
-            width: 40,
-            height: 40,
-            child: Icon(Icons.arrow_back_rounded, size: 20, color: AppColors.ink),
+            width: 48,
+            height: 48,
+            child: Icon(Icons.arrow_back_rounded, size: 22, color: AppColors.ink),
           ),
         ),
       ),
@@ -79,7 +91,7 @@ class CaseStudyEyebrow extends StatelessWidget {
       text,
       style: AppTextStyles.caption.copyWith(
         color: AppColors.ink,
-        fontSize: 11.5,
+        fontSize: 12.5,
         fontWeight: FontWeight.w700,
         letterSpacing: letterSpacing,
       ),
@@ -115,12 +127,9 @@ class CaseStudyPrimaryButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final active = loading || onTap != null;
-    // Kontras teks/ikon dihitung dari kecerahan [color], bukan
-    // di-hardcode ink — warna era ada yang gelap (mis. Kemerdekaan),
-    // teks hitam di atasnya tidak akan kebaca.
-    final onColor = ThemeData.estimateBrightnessForColor(color) == Brightness.dark
-        ? Colors.white
-        : AppColors.ink;
+    // Kontras teks/ikon dihitung dari rasio WCAG terhadap [color]
+    // (lihat [caseStudyOnColor]), bukan tebakan "gelap/terang".
+    final onColor = caseStudyOnColor(color);
     final fg = active ? onColor : AppColors.textDisabled;
 
     return SizedBox(

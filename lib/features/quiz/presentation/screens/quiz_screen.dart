@@ -15,6 +15,25 @@ import '../../../../shared/widgets/rich_body_text.dart';
 import '../../../card/presentation/providers/card_providers.dart';
 import '../providers/quiz_providers.dart';
 
+/// Warna teks/ikon di atas [bg]: putih atau Ink, mana yang rasio kontrasnya
+/// lebih tinggi (`estimateBrightnessForColor` salah untuk Green era
+/// Kemerdekaan: putih ~2.9:1, Ink ~6.6:1).
+Color _onColor(Color bg) {
+  final l = bg.computeLuminance();
+  final white = 1.05 / (l + 0.05);
+  final ink = (l + 0.05) / (AppColors.ink.computeLuminance() + 0.05);
+  return white >= ink ? Colors.white : AppColors.ink;
+}
+
+/// Aksen era yang digelapkan untuk grafis / teks kecil di atas latar terang
+/// (Sky mentah hanya ~1.6:1 di atas putih).
+Color _accentStrong(Color accent) => Color.lerp(accent, AppColors.ink, 0.45)!;
+
+/// Merah untuk teks error — AppColors.coral di atas latar terang hanya ~2.2:1.
+const Color _kErrorText = Color(0xFFB3261D);
+
+String _roadmapPath(String eraSlug) => eraSlug.isEmpty ? '/history' : '/history/$eraSlug';
+
 /// Halaman Kuis in-app (Design.md §3.3 poin 5, mockup referensi Image 3).
 ///
 /// REVISI BESAR (kuis formatif kini berskor + passing grade 75% + boleh
@@ -54,44 +73,37 @@ class QuizScreen extends ConsumerWidget {
     final quizAsync = ref.watch(quizProvider(yearId));
     final accent = EraAccents.ofSlug(eraSlug);
 
+    // `hasValue` (bukan `.when(loading:)`): selama refresh di background,
+    // data lama tetap dipakai sehingga State lokal _QuizFlow (hasil gagal /
+    // lulus yang sedang ditampilkan) tidak ikut di-dispose.
+    final Widget body;
+    if (quizAsync.hasValue) {
+      final response = quizAsync.value!;
+      if (!response.quiz.isPublished || response.quiz.questions.isEmpty) {
+        body = _QuizUnavailable(eraSlug: eraSlug);
+      } else {
+        body = _QuizFlow(
+          response: response,
+          yearId: yearId,
+          eraSlug: eraSlug,
+          yearTitle: yearTitle,
+          accent: accent,
+        );
+      }
+    } else if (quizAsync.hasError) {
+      // Termasuk kasus 403 (R-QUIZ-02: belum semua section completed).
+      // Dulu: "Kuis belum bisa diakses: $error" (exception mentah).
+      body = _QuizStatus(
+        eraSlug: eraSlug,
+        onRetry: () => ref.invalidate(quizProvider(yearId)),
+      );
+    } else {
+      body = const Center(child: CircularProgressIndicator(color: AppColors.ink));
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: quizAsync.when(
-          data: (response) {
-            if (!response.quiz.isPublished || response.quiz.questions.isEmpty) {
-              return _QuizUnavailable(eraSlug: eraSlug);
-            }
-            return _QuizFlow(
-              response: response,
-              yearId: yearId,
-              eraSlug: eraSlug,
-              yearTitle: yearTitle,
-              accent: accent,
-            );
-          },
-          loading: () => Center(child: CircularProgressIndicator(color: accent)),
-          // Termasuk kasus 403 (R-QUIZ-02: belum semua section completed)
-          // — tampil sebagai pesan error generik dari ApiException.
-          error: (error, _) => Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.lock_outline_rounded, size: 40, color: AppColors.textSecondary.withValues(alpha: 0.6)),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Kuis belum bisa diakses: $error',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: AppColors.textSecondary),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
+      body: SafeArea(child: body),
     );
   }
 }
@@ -107,7 +119,7 @@ void _safeBack(BuildContext context, String eraSlug) {
   if (context.canPop()) {
     context.pop();
   } else {
-    context.go('/history/$eraSlug');
+    context.go(_roadmapPath(eraSlug));
   }
 }
 
@@ -125,12 +137,12 @@ class _QuizUnavailable extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.quiz_rounded, size: 40, color: AppColors.textDisabled),
+            const Icon(Icons.quiz_rounded, size: 40, color: AppColors.textSecondary),
             const SizedBox(height: 12),
             const Text(
               'Kuis untuk wabah ini belum tersedia.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textSecondary),
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 15),
             ),
             const SizedBox(height: 16),
             TextButton(onPressed: () => _safeBack(context, eraSlug), child: const Text('Kembali')),
@@ -176,6 +188,13 @@ class _QuizFlowState extends ConsumerState<_QuizFlow> {
   bool _showFailedResult = false;
   double? _failedScore;
 
+  /// Diset true begitu soal terakhir dijawab dan LULUS. Dulu: langsung
+  /// pindah ke roadmap + SnackBar sekilas, sehingga skor kelulusan tidak
+  /// pernah terlihat (user gagal melihat skor, user lulus tidak).
+  bool _showPassedResult = false;
+  double? _passedScore;
+  int _passedVaccineCount = 0;
+
   Future<void> _startOrRetry() async {
     if (widget.response.failed) {
       // R-QUIZ-08: attempt yang gagal wajib di-retry dulu (reset ke
@@ -189,6 +208,14 @@ class _QuizFlowState extends ConsumerState<_QuizFlow> {
     });
   }
 
+  void _onPassed(double? score, int unlockedVaccineCount) {
+    setState(() {
+      _showPassedResult = true;
+      _passedScore = score;
+      _passedVaccineCount = unlockedVaccineCount;
+    });
+  }
+
   void _onFailed(double score) {
     setState(() {
       _showFailedResult = true;
@@ -198,21 +225,34 @@ class _QuizFlowState extends ConsumerState<_QuizFlow> {
 
   @override
   Widget build(BuildContext context) {
+    if (_showPassedResult) {
+      return _RoadmapBackGuard(
+        eraSlug: widget.eraSlug,
+        child: _PassedResultView(
+          score: _passedScore,
+          passingGrade: widget.response.passingGrade,
+          vaccineCount: _passedVaccineCount,
+          accent: widget.accent,
+          eraSlug: widget.eraSlug,
+        ),
+      );
+    }
+
     if (widget.response.passed) {
       // Sudah lulus sebelumnya — tampilkan ringkasan final, TIDAK ada
       // jalan untuk menjawab lagi (backend juga menolak retry kalau
       // sudah lulus).
-      return _QuizIntro(
+      return _RoadmapBackGuard(eraSlug: widget.eraSlug, child: _QuizIntro(
         response: widget.response,
         yearTitle: widget.yearTitle,
         eraSlug: widget.eraSlug,
         accent: widget.accent,
         onPrimaryPressed: null, // tidak ada aksi, sudah final
-      );
+      ));
     }
 
     if (_showFailedResult && _failedScore != null) {
-      return _FailedResultView(
+      return _RoadmapBackGuard(eraSlug: widget.eraSlug, child: _FailedResultView(
         score: _failedScore!,
         passingGrade: widget.response.passingGrade,
         isRetrying: ref.watch(quizRetryControllerProvider).isLoading,
@@ -225,25 +265,29 @@ class _QuizFlowState extends ConsumerState<_QuizFlow> {
               _showFailedResult = false;
               _failedScore = null;
             });
+          } else if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Gagal memulai ulang kuis. Periksa koneksimu lalu coba lagi.')),
+            );
           }
         },
         onExit: () => _safeBack(context, widget.eraSlug),
-      );
+      ));
     }
 
     if (!_entered) {
       final retryState = ref.watch(quizRetryControllerProvider);
-      return _QuizIntro(
+      return _RoadmapBackGuard(eraSlug: widget.eraSlug, child: _QuizIntro(
         response: widget.response,
         yearTitle: widget.yearTitle,
         eraSlug: widget.eraSlug,
         accent: widget.accent,
         isLoading: retryState.isLoading,
         errorText: retryState.hasError
-            ? 'Gagal memulai ulang kuis: ${retryState.error}'
+            ? 'Gagal memulai ulang kuis. Periksa koneksimu lalu coba lagi.'
             : null,
         onPrimaryPressed: _startOrRetry,
-      );
+      ));
     }
 
     return _QuizBody(
@@ -253,6 +297,7 @@ class _QuizFlowState extends ConsumerState<_QuizFlow> {
       yearTitle: widget.yearTitle,
       accent: widget.accent,
       onFailed: _onFailed,
+      onPassed: _onPassed,
     );
   }
 }
@@ -294,19 +339,19 @@ class _QuizIntro extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Center(
-        child: Column(
+        child: SingleChildScrollView(child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               response.passed ? Icons.emoji_events_rounded : Icons.quiz_rounded,
               size: 44,
-              color: response.passed ? AppColors.success : accent,
+              color: _accentStrong(accent),
             ),
             const SizedBox(height: 16),
             Text(
               yearTitle == null ? 'Kuis' : 'Kuis · $yearTitle',
               textAlign: TextAlign.center,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 19),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
             ),
             const SizedBox(height: 12),
             _InfoRow(label: 'Jumlah soal', value: '${response.questionCount} soal'),
@@ -317,12 +362,11 @@ class _QuizIntro extends StatelessWidget {
               _InfoRow(
                 label: response.passed ? 'Skor kamu' : 'Skor terakhir',
                 value: '${response.latestScore!.round()}%',
-                valueColor: response.passed ? AppColors.success : AppColors.coral,
               ),
             ],
             const SizedBox(height: 20),
             if (errorText != null) ...[
-              Text(errorText!, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.coral, fontSize: 12.5)),
+              Text(errorText!, textAlign: TextAlign.center, style: const TextStyle(color: _kErrorText, fontSize: 14)),
               const SizedBox(height: 12),
             ],
             if (onPrimaryPressed != null)
@@ -335,7 +379,7 @@ class _QuizIntro extends StatelessWidget {
             else
               const Text(
                 'Kamu sudah lulus kuis ini.',
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 15),
               ),
             const SizedBox(height: 12),
             // FIX (bug: tombol "Kembali" di layar sudah lulus tidak
@@ -347,11 +391,11 @@ class _QuizIntro extends StatelessWidget {
             // ke roadmap (bukan presisi pop ke layar sebelumnya), langsung
             // context.go() saja tanpa coba pop() dulu — selalu pasti jalan.
             TextButton(
-              onPressed: () => context.go('/history/$eraSlug'),
+              onPressed: () => context.go(_roadmapPath(eraSlug)),
               child: const Text('Kembali'),
             ),
           ],
-        ),
+        )),
       ),
     );
   }
@@ -369,10 +413,10 @@ class _InfoRow extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text('$label: ', style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+        Text('$label: ', style: const TextStyle(color: AppColors.textSecondary, fontSize: 15)),
         Text(
           value,
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: valueColor ?? AppColors.ink),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: valueColor ?? AppColors.ink),
         ),
       ],
     );
@@ -403,13 +447,11 @@ class _PrimaryCta extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final active = loading || onTap != null;
-    final onColor = ThemeData.estimateBrightnessForColor(color) == Brightness.dark
-        ? Colors.white
-        : AppColors.ink;
+    final onColor = _onColor(color);
 
     return Opacity(
       opacity: active ? 1.0 : 0.5,
-      child: PressableScale(
+      child: Semantics(button: true, enabled: onTap != null && !loading, child: PressableScale(
         onTap: loading ? null : onTap,
         child: Container(
           width: double.infinity,
@@ -429,12 +471,12 @@ class _PrimaryCta extends StatelessWidget {
                   label,
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: 15,
+                    fontSize: 16,
                     color: active ? onColor : AppColors.textDisabled,
                   ),
                 ),
         ),
-      ),
+      )),
     );
   }
 }
@@ -463,20 +505,20 @@ class _FailedResultView extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Center(
-        child: Column(
+        child: SingleChildScrollView(child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.refresh_rounded, size: 44, color: AppColors.coral),
+            const Icon(Icons.refresh_rounded, size: 44, color: AppColors.ink),
             const SizedBox(height: 16),
             const Text(
               'Belum Lulus',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 19),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
             ),
             const SizedBox(height: 8),
             Text(
               'Skor kamu ${score.round()}%, minimal $passingGrade% untuk lulus. Yuk coba lagi!',
               textAlign: TextAlign.center,
-              style: const TextStyle(color: AppColors.textSecondary, fontSize: 13.5),
+              style: const TextStyle(color: AppColors.textSecondary, fontSize: 15, height: 1.4),
             ),
             const SizedBox(height: 24),
             _PrimaryCta(
@@ -488,7 +530,7 @@ class _FailedResultView extends StatelessWidget {
             const SizedBox(height: 12),
             TextButton(onPressed: onExit, child: const Text('Keluar dari kuis')),
           ],
-        ),
+        )),
       ),
     );
   }
@@ -500,6 +542,7 @@ class _QuizBody extends ConsumerStatefulWidget {
     required this.yearId,
     required this.eraSlug,
     required this.onFailed,
+    required this.onPassed,
     required this.accent,
     this.yearTitle,
   });
@@ -516,6 +559,10 @@ class _QuizBody extends ConsumerStatefulWidget {
   /// retry (separation of concerns, sama pola dengan `onFinished`
   /// implisit lewat context.go() untuk kasus lulus).
   final void Function(double score) onFailed;
+
+  /// Dipanggil begitu soal terakhir dijawab dan LULUS: skor akhir + jumlah
+  /// vaksin yang baru terbuka. Parent menampilkan `_PassedResultView`.
+  final void Function(double? score, int unlockedVaccineCount) onPassed;
 
   @override
   ConsumerState<_QuizBody> createState() => _QuizBodyState();
@@ -635,21 +682,13 @@ class _QuizBodyState extends ConsumerState<_QuizBody> {
 
   void _finish() {
     // R-QUIZ-09: LULUS (skor >= 75%) — year completed, vaksin (kalau ada)
-    // otomatis ter-unlock. Kalau ada vaksin baru terbuka, tampilkan
-    // banner kecil di atas (Design.md §3.3 poin 6) via root Overlay —
-    // dipasang SEBELUM navigate supaya tetap hidup lintas halaman
-    // (QuizScreen sendiri bakal di-dispose begitu context.go() dipanggil).
+    // otomatis ter-unlock. Daftar kartu di-refresh, lalu parent menampilkan
+    // layar hasil (skor + vaksin baru). Dulu: banner overlay + SnackBar
+    // sekilas sambil langsung pindah ke roadmap.
     if (_newlyUnlockedVaccineIds.isNotEmpty) {
       ref.invalidate(cardListProvider);
-      _showVaccineUnlockBanner(context, _newlyUnlockedVaccineIds.length);
-      context.go('/history/${widget.eraSlug}');
-      return;
     }
-
-    context.go('/history/${widget.eraSlug}');
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Selamat, kamu lulus kuis ini!')),
-    );
+    widget.onPassed(_result?.finalScore, _newlyUnlockedVaccineIds.length);
   }
 
   void _confirmExit() {
@@ -694,14 +733,24 @@ class _QuizBodyState extends ConsumerState<_QuizBody> {
 
     final total = _questions.length;
     final isLastAndCompleted = _isAnswered && _result!.quizCompleted;
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
 
-    return Column(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _confirmExit();
+      },
+      child: Column(
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
           child: Row(
             children: [
-              IconButton(icon: const Icon(Icons.close_rounded), onPressed: _confirmExit),
+              IconButton(
+                tooltip: 'Keluar dari kuis',
+                icon: const Icon(Icons.close_rounded),
+                onPressed: _confirmExit,
+              ),
               const SizedBox(width: 4),
               Expanded(
                 child: Text(
@@ -721,11 +770,11 @@ class _QuizBodyState extends ConsumerState<_QuizBody> {
               for (var i = 0; i < total; i++) ...[
                 Expanded(
                   child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 260),
+                    duration: reduceMotion ? Duration.zero : const Duration(milliseconds: 260),
                     curve: Curves.easeOut,
                     height: 6,
                     decoration: BoxDecoration(
-                      color: i <= _index ? widget.accent : AppColors.border,
+                      color: i <= _index ? _accentStrong(widget.accent) : AppColors.border,
                       borderRadius: BorderRadius.circular(4),
                     ),
                   ),
@@ -741,7 +790,7 @@ class _QuizBodyState extends ConsumerState<_QuizBody> {
             alignment: Alignment.centerLeft,
             child: Text(
               'Soal ${_index + 1} dari $total',
-              style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+              style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
             ),
           ),
         ),
@@ -784,7 +833,7 @@ class _QuizBodyState extends ConsumerState<_QuizBody> {
                 _ExplanationBox(
                   isCorrect: _result!.isCorrect,
                   explanation: _result!.explanation,
-                ).animate().fadeIn(duration: 200.ms).slideY(begin: 0.08, end: 0),
+                ).animate(value: reduceMotion ? 1.0 : null).fadeIn(duration: 200.ms).slideY(begin: 0.08, end: 0),
               ],
             ],
           ),
@@ -799,7 +848,7 @@ class _QuizBodyState extends ConsumerState<_QuizBody> {
           ),
         ),
       ],
-    );
+    ));
   }
 }
 
@@ -827,6 +876,14 @@ class _OptionTile extends StatelessWidget {
   final bool isAnswered;
   final VoidCallback onTap;
 
+  String get _semanticLabel {
+    if (isAnswered && isCorrectOption) {
+      return isSelected ? 'Benar: $label' : 'Jawaban yang benar: $label';
+    }
+    if (isWrongSelectedOption) return 'Pilihanmu, kurang tepat: $label';
+    return label;
+  }
+
   @override
   Widget build(BuildContext context) {
     Color borderColor = isSelected ? AppColors.ink : AppColors.border;
@@ -850,7 +907,13 @@ class _OptionTile extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: InkWell(
+      child: Semantics(
+        button: !isAnswered,
+        selected: isSelected,
+        label: _semanticLabel,
+        onTap: isAnswered ? null : onTap,
+        excludeSemantics: true,
+        child: InkWell(
         borderRadius: BorderRadius.circular(14),
         onTap: isAnswered ? null : onTap, // read-only begitu soal dijawab
         child: Container(
@@ -872,20 +935,20 @@ class _OptionTile extends StatelessWidget {
                         : (isWrongSelectedOption
                             ? Icons.cancel_rounded
                             : Icons.radio_button_off)), // netral, bukan dipilih & bukan yang benar
-                size: 20,
+                size: 22,
                 color: !isAnswered
-                    ? (isSelected ? AppColors.ink : AppColors.textDisabled)
+                    ? (isSelected ? AppColors.ink : AppColors.textSecondary)
                     : (isCorrectOption
                         ? AppColors.success
-                        : (isWrongSelectedOption ? AppColors.coral : AppColors.textDisabled)),
+                        : (isWrongSelectedOption ? AppColors.coral : AppColors.textSecondary)),
               ),
               const SizedBox(width: 12),
-              Expanded(child: Text(label, style: const TextStyle(fontSize: 15))),
+              Expanded(child: Text(label, style: const TextStyle(fontSize: 16, height: 1.35))),
               if (trailingBadge != null) trailingBadge,
             ],
           ),
         ),
-      ),
+      )),
     );
   }
 }
@@ -906,7 +969,8 @@ class _Badge extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color),
+        // Teks Ink: hijau/coral di atas tint hanya ~2.9:1 / ~2.3:1.
+        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.ink),
       ),
     );
   }
@@ -926,7 +990,7 @@ class _ExplanationBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = isCorrect ? AppColors.success : AppColors.coral;
-    return Container(
+    return Semantics(liveRegion: true, child: Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -949,128 +1013,187 @@ class _ExplanationBox extends StatelessWidget {
               children: [
                 Text(
                   isCorrect ? 'Benar!' : 'Kurang tepat',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: color),
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.ink),
                 ),
                 const SizedBox(height: 4),
                 RichBodyText(
                   explanation,
-                  style: const TextStyle(fontSize: 13, height: 1.4, color: AppColors.ink),
+                  style: const TextStyle(fontSize: 14.5, height: 1.45, color: AppColors.ink),
                 ),
               ],
             ),
           ),
         ],
       ),
+    ));
+  }
+}
+
+/// System back (Android / swipe-back iOS) di layar non-soal -> roadmap era.
+/// Layar ini dicapai lewat `context.go`, jadi tumpukan navigasinya tidak
+/// bisa diandalkan (pop bisa menutup app). Layar soal punya PopScope sendiri
+/// dengan dialog konfirmasi.
+class _RoadmapBackGuard extends StatelessWidget {
+  const _RoadmapBackGuard({required this.eraSlug, required this.child});
+
+  final String eraSlug;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) context.go(_roadmapPath(eraSlug));
+      },
+      child: child,
     );
   }
 }
 
-/// Banner "Kamu telah membuka X koleksi vaksin baru!" — dipasang ke root
-/// Overlay (bukan Scaffold/SnackBar biasa) supaya tetap tampil walau
-/// halaman yang manggilnya (QuizScreen) sudah di-dispose begitu
-/// `context.go()` pindah ke roadmap era. Auto-dismiss sendiri setelah
-/// beberapa detik; tap banner langsung ke halaman Koleksi Vaksin.
-void _showVaccineUnlockBanner(BuildContext context, int count) {
-  final overlay = Overlay.of(context, rootOverlay: true);
-  late OverlayEntry entry;
-  entry = OverlayEntry(
-    builder: (context) => _VaccineUnlockBanner(
-      count: count,
-      onDismissed: () => entry.remove(),
-    ),
-  );
-  overlay.insert(entry);
-}
+/// Hasil kuis LULUS: skor, penanda tuntas, dan (kalau ada) vaksin baru.
+/// Menggantikan banner overlay 3,5 detik + SnackBar yang dulu hilang
+/// bersamaan dengan pindah ke roadmap.
+class _PassedResultView extends StatelessWidget {
+  const _PassedResultView({
+    required this.score,
+    required this.passingGrade,
+    required this.vaccineCount,
+    required this.accent,
+    required this.eraSlug,
+  });
 
-class _VaccineUnlockBanner extends StatefulWidget {
-  const _VaccineUnlockBanner({required this.count, required this.onDismissed});
-
-  final int count;
-  final VoidCallback onDismissed;
-
-  @override
-  State<_VaccineUnlockBanner> createState() => _VaccineUnlockBannerState();
-}
-
-class _VaccineUnlockBannerState extends State<_VaccineUnlockBanner> {
-  bool _visible = false;
-
-  @override
-  void initState() {
-    super.initState();
-    // Tunda 1 frame biar transisi slide-in kepakai (bukan langsung
-    // full-visible tanpa animasi).
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) setState(() => _visible = true);
-    });
-    Future.delayed(const Duration(milliseconds: 3200), () {
-      if (mounted) setState(() => _visible = false);
-    });
-    Future.delayed(const Duration(milliseconds: 3700), widget.onDismissed);
-  }
+  final double? score;
+  final int passingGrade;
+  final int vaccineCount;
+  final Color accent;
+  final String eraSlug;
 
   @override
   Widget build(BuildContext context) {
-    return Positioned(
-      top: 0,
-      left: 0,
-      right: 0,
-      child: SafeArea(
-        child: AnimatedSlide(
-          duration: const Duration(milliseconds: 350),
-          curve: Curves.easeOutCubic,
-          offset: _visible ? Offset.zero : const Offset(0, -1.2),
-          child: AnimatedOpacity(
-            duration: const Duration(milliseconds: 250),
-            opacity: _visible ? 1 : 0,
-            // PENTING: banner ini dipasang ke root Overlay (bukan lewat
-            // Scaffold/MaterialApp biasa), jadi TIDAK ada ancestor
-            // `Material` yang biasanya nyediain DefaultTextStyle sesuai
-            // Theme (bodyMedium dsb) — tanpa ini, Text di dalamnya jatuh
-            // ke default mentah (font besar & rata tanpa styling), inilah
-            // penyebab bug font gede tanpa style. `type: transparency`
-            // biar nggak nambah background putih tak terduga, warnanya
-            // tetap dari Container di bawah.
-            child: Material(
-              type: MaterialType.transparency,
-              child: GestureDetector(
-                // Dari mana pun quiz ini dipanggil, /cards selalu valid buat
-                // user login terverifikasi (satu-satunya yang bisa sampai ke
-                // layar ini, R-QUIZ-02/09) — jadi aman diarahkan langsung.
-                onTap: () => context.go('/cards'),
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  decoration: BoxDecoration(
-                    color: AppColors.gamify,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: const [
-                      BoxShadow(color: Colors.black26, blurRadius: 12, offset: Offset(0, 4)),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.vaccines_rounded, color: Colors.white),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Kamu telah membuka ${widget.count} koleksi vaksin baru!',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                            height: 1.3,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Center(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.emoji_events_rounded, size: 56, color: _accentStrong(accent)),
+              const SizedBox(height: 16),
+              Semantics(
+                liveRegion: true,
+                child: const Text(
+                  'Lulus!',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
                 ),
               ),
-            ),
+              const SizedBox(height: 8),
+              Text(
+                // Skor bisa null kalau backend tidak mengirim `final_score` untuk
+                // jalur lulus; jangan menampilkan "0%" palsu.
+                score == null
+                    ? 'Kamu mencapai nilai minimal $passingGrade%. Wabah ini sekarang tuntas.'
+                    : 'Skor kamu ${score!.round()}% (minimal $passingGrade%). Wabah ini sekarang tuntas.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: AppColors.textSecondary, fontSize: 15, height: 1.4),
+              ),
+              if (vaccineCount > 0) ...[
+                const SizedBox(height: 20),
+                Semantics(
+                  button: true,
+                  child: PressableScale(
+                    onTap: () => context.go('/cards'),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.vaccines_rounded, color: AppColors.ink),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Kamu membuka $vaccineCount koleksi vaksin baru! Lihat koleksi',
+                              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, height: 1.3),
+                            ),
+                          ),
+                          const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 24),
+              _PrimaryCta(
+                label: 'Kembali ke roadmap',
+                color: accent,
+                onTap: () => context.go(_roadmapPath(eraSlug)),
+              ),
+            ],
           ),
         ),
-      ).animate().fadeIn(duration: 200.ms),
+      ),
+    );
+  }
+}
+
+/// Kuis belum bisa dibuka (403 / koneksi). Pesan ramah + ulang + kembali.
+class _QuizStatus extends StatelessWidget {
+  const _QuizStatus({required this.eraSlug, required this.onRetry});
+
+  final String eraSlug;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Center(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.lock_outline_rounded, size: 40, color: AppColors.textSecondary),
+              const SizedBox(height: 12),
+              const Text(
+                'Kuis belum bisa dibuka',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Pastikan semua materi dan rangkuman tahun ini sudah selesai. '
+                'Kalau sudah, periksa koneksimu lalu coba lagi.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 15, height: 1.4, color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: onRetry,
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.ink,
+                  minimumSize: const Size(140, 48),
+                  shape: const StadiumBorder(),
+                ),
+                child: const Text('Coba lagi', style: TextStyle(fontWeight: FontWeight.w700)),
+              ),
+              TextButton(
+                onPressed: () => context.go(_roadmapPath(eraSlug)),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.ink,
+                  minimumSize: const Size(140, 48),
+                ),
+                child: const Text('Kembali', style: TextStyle(fontWeight: FontWeight.w700)),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

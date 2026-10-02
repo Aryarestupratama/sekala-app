@@ -98,7 +98,7 @@ class _HelpTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PressableScale(
+    return Semantics(button: true, label: '$title. $subtitle', onTap: onTap, excludeSemantics: true, child: PressableScale(
       scale: 0.99,
       onTap: onTap,
       child: Padding(
@@ -117,17 +117,17 @@ class _HelpTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5)),
+                  Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
                   const SizedBox(height: 2),
-                  Text(subtitle, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12.5)),
+                  Text(subtitle, style: const TextStyle(color: AppColors.textSecondary, fontSize: 14)),
                 ],
               ),
             ),
             const SizedBox(width: 8),
-            const Icon(Icons.chevron_right_rounded, color: AppColors.textDisabled),
+            const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
           ],
         ),
       ),
-    );
+    ));
   }
 }

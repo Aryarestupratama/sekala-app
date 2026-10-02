@@ -30,7 +30,12 @@ class EraQuizRecapCard extends StatelessWidget {
   static const _wrongRed = Color(0xFFDC2626);
   static const _wrongRedBg = Color(0xFFFDEEEE);
 
-  static const _tagLabelStyle = TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.textSecondary);
+  // Varian lebih gelap untuk TEKS & fill tag: 1C9C5A di atas EAF8EF hanya
+  // ~3.2:1 dan DC2626 di atas FDEEEE ~4.3:1 (AA butuh 4.5:1).
+  static const _correctGreenText = Color(0xFF137A44);
+  static const _wrongRedText = Color(0xFFB91C1C);
+
+  static const _tagLabelStyle = TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: AppColors.textSecondary);
 
   @override
   Widget build(BuildContext context) {
@@ -79,12 +84,12 @@ class EraQuizRecapCard extends StatelessWidget {
                     Icon(
                       item.isCorrect ? Icons.check_rounded : Icons.close_rounded,
                       size: 12,
-                      color: item.isCorrect ? _correctGreen : _wrongRed,
+                      color: item.isCorrect ? _correctGreenText : _wrongRedText,
                     ),
                     const SizedBox(width: 3),
                     Text(
                       item.isCorrect ? 'Benar' : 'Kurang Tepat',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: item.isCorrect ? _correctGreen : _wrongRed),
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: item.isCorrect ? _correctGreenText : _wrongRedText),
                     ),
                   ],
                 ),
@@ -94,7 +99,7 @@ class EraQuizRecapCard extends StatelessWidget {
           const SizedBox(height: 10),
           RichBodyText(
             item.question,
-            style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700, color: AppColors.ink, height: 1.4),
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.ink, height: 1.4),
           ),
           const SizedBox(height: 14),
           for (final option in item.options) _buildOption(option),
@@ -105,11 +110,25 @@ class EraQuizRecapCard extends StatelessWidget {
     );
   }
 
+  static String _optionSemanticLabel(String? tag, String text) {
+    switch (tag) {
+      case 'JAWABANMU':
+        return 'Jawabanmu, benar: $text';
+      case 'KUNCI BENAR':
+        return 'Kunci jawaban yang benar: $text';
+      case 'PILIHANMU':
+        return 'Pilihanmu, kurang tepat: $text';
+      default:
+        return text;
+    }
+  }
+
   Widget _buildOption(EraQuizRecapOption option) {
     final isCorrectOption = option.id == item.correctOptionId;
     final isSelectedOption = option.id == item.selectedOptionId;
 
     String? tag;
+    Color tagBg = AppColors.textSecondary;
     Color borderColor = AppColors.border;
     Color bgColor = Colors.white;
     Color textColor = AppColors.ink;
@@ -118,28 +137,31 @@ class EraQuizRecapCard extends StatelessWidget {
 
     if (isCorrectOption && isSelectedOption) {
       tag = 'JAWABANMU';
+      tagBg = _correctGreenText;
       borderColor = _correctGreen;
       bgColor = _correctGreenBg;
-      textColor = _correctGreen;
+      textColor = AppColors.ink;
       icon = Icons.check_circle_rounded;
       iconColor = _correctGreen;
     } else if (isCorrectOption && !isSelectedOption) {
       tag = 'KUNCI BENAR';
+      tagBg = _correctGreenText;
       borderColor = _correctGreen;
       bgColor = _correctGreenBg;
-      textColor = _correctGreen;
+      textColor = AppColors.ink;
       icon = Icons.check_circle_rounded;
       iconColor = _correctGreen;
     } else if (isSelectedOption && !isCorrectOption) {
       tag = 'PILIHANMU';
+      tagBg = _wrongRedText;
       borderColor = _wrongRed;
       bgColor = _wrongRedBg;
-      textColor = _wrongRed;
+      textColor = AppColors.ink;
       icon = Icons.cancel_rounded;
       iconColor = _wrongRed;
     }
 
-    return Container(
+    return Semantics(container: true, label: _optionSemanticLabel(tag, option.optionText), excludeSemantics: true, child: Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
       decoration: BoxDecoration(
@@ -162,7 +184,7 @@ class EraQuizRecapCard extends StatelessWidget {
             child: Text(
               option.optionText,
               style: TextStyle(
-                fontSize: 13,
+                fontSize: 15,
                 fontWeight: tag != null ? FontWeight.w600 : FontWeight.w500,
                 color: tag != null ? textColor : AppColors.ink,
               ),
@@ -172,20 +194,20 @@ class EraQuizRecapCard extends StatelessWidget {
             const SizedBox(width: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(color: borderColor, borderRadius: BorderRadius.circular(20)),
+              decoration: BoxDecoration(color: tagBg, borderRadius: BorderRadius.circular(20)),
               child: Text(
                 tag,
-                style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Colors.white),
+                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
               ),
             ),
           ],
         ],
       ),
-    );
+    ));
   }
 
   Widget _buildExplanation() {
-    final color = item.isCorrect ? _correctGreen : _wrongRed;
+    final color = item.isCorrect ? _correctGreenText : _wrongRedText;
     final bg = item.isCorrect ? _correctGreenBg : _wrongRedBg;
     final title = item.isCorrect ? 'Penjelasan Jawaban' : 'Pembahasan Kunci Jawaban';
     final icon = item.isCorrect ? Icons.lightbulb_outline_rounded : Icons.error_outline_rounded;
@@ -198,15 +220,15 @@ class EraQuizRecapCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(icon, size: 14, color: color),
+              Icon(icon, size: 16, color: color),
               const SizedBox(width: 6),
-              Text(title, style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: color)),
+              Text(title, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: color)),
             ],
           ),
           const SizedBox(height: 6),
           RichBodyText(
             item.explanation,
-            style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary, height: 1.45),
+            style: const TextStyle(fontSize: 14, color: AppColors.textSecondary, height: 1.5),
           ),
         ],
       ),

@@ -31,11 +31,18 @@ class VaccineTile extends StatelessWidget {
 
   bool get _needsGlow => vaccine.unlocked && vaccine.unseen;
 
+  String get _semanticLabel {
+    if (!vaccine.unlocked) {
+      return 'Vaksin ${vaccine.name}. Terkunci. Ketuk untuk melihat cara membukanya.';
+    }
+    return 'Vaksin ${vaccine.name}. ${vaccine.unseen ? 'Terbuka, baru.' : 'Terbuka.'} Ketuk untuk melihat detail.';
+  }
+
   @override
   Widget build(BuildContext context) {
     final accent = vaccine.unlocked ? AppColors.gamify : AppColors.border;
 
-    final card = PressableScale(
+    final card = Semantics(button: true, label: _semanticLabel, onTap: onTap, excludeSemantics: true, child: PressableScale(
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
@@ -72,7 +79,7 @@ class VaccineTile extends StatelessWidget {
                         ),
                         child: const Icon(
                           Icons.lock_outline_rounded,
-                          size: 14,
+                          size: 16,
                           color: AppColors.textSecondary,
                         ),
                       ),
@@ -90,11 +97,12 @@ class VaccineTile extends StatelessWidget {
                             BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2)),
                           ],
                         ),
+                        // Teks Ink: putih di atas Purple (gamify) hanya ~3.0:1.
                         child: const Text(
                           'Baru!',
                           style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
+                            color: AppColors.ink,
+                            fontSize: 11.5,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 0.2,
                           ),
@@ -116,7 +124,7 @@ class VaccineTile extends StatelessWidget {
                     style: Theme.of(context)
                         .textTheme
                         .bodyMedium
-                        ?.copyWith(fontWeight: FontWeight.w600),
+                        ?.copyWith(fontWeight: FontWeight.w600, fontSize: 15),
                   ),
                   const SizedBox(height: 4),
                   Row(
@@ -134,6 +142,7 @@ class VaccineTile extends StatelessWidget {
                       Text(
                         vaccine.unlocked ? 'TERBUKA' : 'TERKUNCI',
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              fontSize: 12.5,
                               color: AppColors.textSecondary,
                               letterSpacing: 0.4,
                             ),
@@ -146,7 +155,7 @@ class VaccineTile extends StatelessWidget {
           ],
         ),
       ),
-    );
+    ));
 
     // Glow cuma dipasang kalau perlu — item locked/sudah-dilihat nggak
     // ke-overhead animasi looping sama sekali.
@@ -188,13 +197,28 @@ class _PulsingGlow extends StatefulWidget {
 class _PulsingGlowState extends State<_PulsingGlow> with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
 
+  bool _started = false;
+
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1400),
-    )..repeat();
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_started) return;
+    _started = true;
+    // Hormati "reduce motion": glow statis, tidak berdenyut terus.
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _controller.value = 0.5;
+    } else {
+      _controller.repeat();
+    }
   }
 
   @override

@@ -9,6 +9,7 @@ import '../../../../shared/widgets/pressable_scale.dart';
 import '../../../../shared/widgets/rich_body_text.dart';
 import '../../../history/presentation/providers/history_providers.dart';
 import '../providers/era_quiz_providers.dart';
+import '../widgets/era_quiz_colors.dart';
 import '../widgets/era_quiz_option_tile.dart';
 
 /// GET /api/eras/{era}/quiz + POST .../attempt — ERAQUIZ-01–04.
@@ -69,6 +70,46 @@ class _EraQuizScreenState extends ConsumerState<EraQuizScreen> {
     setState(() => _currentIndex = index);
   }
 
+  /// Tombol X / back sistem sebelumnya langsung keluar: 20 soal berisi
+  /// jawaban hanya hidup di State lokal ini, jadi keluar di soal ke-15
+  /// membuang semuanya tanpa peringatan.
+  Future<void> _confirmExit(Era? era) async {
+    if (_answers.isEmpty) {
+      _leave(era);
+      return;
+    }
+    final leave = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Keluar dari kuis sumatif?'),
+        content: const Text(
+          'Jawabanmu belum dikirim dan akan hilang. Kamu bisa mengerjakan '
+          'ulang kapan saja, tapi soalnya akan diacak lagi.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Lanjut mengerjakan'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.ink),
+            child: const Text('Keluar'),
+          ),
+        ],
+      ),
+    );
+    if (leave == true && mounted) _leave(era);
+  }
+
+  void _leave(Era? era) {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go(era == null ? '/history' : '/history/${era.slug}');
+    }
+  }
+
   Future<void> _start() async {
     setState(() => _started = true);
     await ref.read(eraQuizSessionControllerProvider.notifier).start(widget.eraId);
@@ -114,9 +155,13 @@ class _EraQuizScreenState extends ConsumerState<EraQuizScreen> {
     // exception (mis. 422 validasi "answers harus tepat 20", 403 belum
     // unlocked, dsb). Tampilkan pesan error asli ke user, jangan biarkan
     // tombol cuma balik ke kondisi semula tanpa penjelasan.
-    final error = ref.read(eraQuizSubmitControllerProvider).error;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Gagal mengirim jawaban: $error')),
+      const SnackBar(
+        content: Text(
+          'Jawaban belum terkirim. Jawabanmu masih ada di layar ini, '
+          'periksa koneksimu lalu tekan Kirim Jawaban lagi.',
+        ),
+      ),
     );
   }
 
@@ -156,34 +201,26 @@ class _EraQuizScreenState extends ConsumerState<EraQuizScreen> {
 
     final submitState = ref.watch(eraQuizSubmitControllerProvider);
 
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _confirmExit(era);
+      },
+      child: Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: sessionState.when(
-          loading: () => Center(child: CircularProgressIndicator(color: accent)),
-          error: (error, _) => Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.error_outline_rounded, size: 40, color: AppColors.textSecondary.withValues(alpha: 0.6)),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Gagal memuat kuis sumatif: $error',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: AppColors.textSecondary),
-                  ),
-                ],
-              ),
-            ),
+          loading: () => const Center(child: CircularProgressIndicator(color: AppColors.ink)),
+          error: (error, _) => _EraQuizStatus(
+            onRetry: () => ref.read(eraQuizSessionControllerProvider.notifier).start(widget.eraId),
+            onBack: () => _leave(era),
           ),
           data: (EraQuizStart? quiz) {
             if (quiz == null) {
               // Belum sempat start() atau sudah di-clear() (mis. abis
               // submit) — seharusnya jarang kejadian karena _started
               // sudah true di titik ini, tapi jaring pengaman.
-              return Center(child: CircularProgressIndicator(color: accent));
+              return const Center(child: CircularProgressIndicator(color: AppColors.ink));
             }
 
             // FIX (bug): dulu di-sort ulang by `order` di sini — itu
@@ -201,7 +238,7 @@ class _EraQuizScreenState extends ConsumerState<EraQuizScreen> {
                   child: Text(
                     'Kuis sumatif ini belum punya soal.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: AppColors.textSecondary),
+                    style: TextStyle(color: AppColors.textSecondary, fontSize: 15),
                   ),
                 ),
               );
@@ -219,15 +256,18 @@ class _EraQuizScreenState extends ConsumerState<EraQuizScreen> {
             final current = questions[_currentIndex];
             final isLast = _currentIndex == total - 1;
             final answeredCount = _answers.length;
-            final percent = (((_currentIndex + 1) / total) * 100).round();
             final isSubmitting = submitState.isLoading;
 
             return Column(
               children: [
-                _Header(eraName: era?.name, accent: accent, onClose: () => context.pop()),
+                _Header(eraName: era?.name, accent: accent, onClose: () => _confirmExit(era)),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                  child: _ProgressSegments(total: total, currentIndex: _currentIndex, accent: accent),
+                  child: _ProgressSegments(
+                    answered: [for (final id in questionIds) _answers.containsKey(id)],
+                    currentIndex: _currentIndex,
+                    accent: accent,
+                  ),
                 ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
@@ -236,11 +276,13 @@ class _EraQuizScreenState extends ConsumerState<EraQuizScreen> {
                     children: [
                       Text(
                         'Soal ${_currentIndex + 1} dari $total',
-                        style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary, fontWeight: FontWeight.w600),
+                        style: const TextStyle(fontSize: 14, color: AppColors.textSecondary, fontWeight: FontWeight.w600),
                       ),
+                      // Yang penting bagi user: berapa soal yang sudah dijawab
+                      // (bukan posisi halaman dalam persen).
                       Text(
-                        '$percent% Selesai',
-                        style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary, fontWeight: FontWeight.w600),
+                        'Terjawab $answeredCount dari $total',
+                        style: const TextStyle(fontSize: 14, color: AppColors.textSecondary, fontWeight: FontWeight.w600),
                       ),
                     ],
                   ),
@@ -270,7 +312,7 @@ class _EraQuizScreenState extends ConsumerState<EraQuizScreen> {
                               RichBodyText(
                                 current.question,
                                 style: const TextStyle(
-                                  fontSize: 15.5,
+                                  fontSize: 17,
                                   fontWeight: FontWeight.w700,
                                   color: AppColors.ink,
                                   height: 1.4,
@@ -287,12 +329,14 @@ class _EraQuizScreenState extends ConsumerState<EraQuizScreen> {
                               const SizedBox(height: 6),
                               Row(
                                 children: [
-                                  const Icon(Icons.lock_outline_rounded, size: 13, color: AppColors.textDisabled),
-                                  const SizedBox(width: 6),
+                                  const Icon(Icons.info_outline_rounded, size: 16, color: AppColors.textSecondary),
+                                  const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
-                                      'Jawaban tersimpan sementara · bisa diubah sebelum submit',
-                                      style: const TextStyle(fontSize: 11, color: AppColors.textDisabled),
+                                      // Dulu: "Jawaban tersimpan sementara" + ikon gembok —
+                                      // menyesatkan: jawaban hanya ada di layar ini.
+                                      'Jawabanmu belum dikirim. Kamu masih bisa mengubahnya sebelum menekan Kirim Jawaban.',
+                                      style: const TextStyle(fontSize: 13, height: 1.4, color: AppColors.textSecondary),
                                     ),
                                   ),
                                 ],
@@ -319,7 +363,7 @@ class _EraQuizScreenState extends ConsumerState<EraQuizScreen> {
           },
         ),
       ),
-    );
+    ));
   }
 }
 
@@ -341,7 +385,7 @@ class _EraQuizIntro extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Center(
-        child: Column(
+        child: SingleChildScrollView(child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
@@ -349,13 +393,13 @@ class _EraQuizIntro extends StatelessWidget {
               height: 88,
               decoration: BoxDecoration(color: accent.withValues(alpha: 0.12), shape: BoxShape.circle),
               alignment: Alignment.center,
-              child: Icon(Icons.military_tech_rounded, size: 40, color: accent),
+              child: Icon(Icons.military_tech_rounded, size: 40, color: eraQuizAccentStrong(accent)),
             ),
             const SizedBox(height: 20),
             Text(
               'Kuis Sumatif${eraName != null ? ': $eraName' : ''}',
               textAlign: TextAlign.center,
-              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 19),
+              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 20),
             ),
             const SizedBox(height: 14),
             Container(
@@ -377,10 +421,10 @@ class _EraQuizIntro extends StatelessWidget {
             const Text(
               'Soal diambil acak dari kuis-kuis tahun di era ini. Kamu boleh mengerjakan ulang kapan saja.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 12.5, height: 1.4),
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 14.5, height: 1.4),
             ),
             const SizedBox(height: 28),
-            PressableScale(
+            Semantics(button: true, child: PressableScale(
               onTap: onStart,
               child: Container(
                 width: double.infinity,
@@ -391,18 +435,16 @@ class _EraQuizIntro extends StatelessWidget {
                   'Mulai Kuis',
                   style: TextStyle(
                     fontWeight: FontWeight.w700,
-                    fontSize: 15,
-                    color: ThemeData.estimateBrightnessForColor(accent) == Brightness.dark
-                        ? Colors.white
-                        : AppColors.ink,
+                    fontSize: 16,
+                    color: eraQuizOnColor(accent),
                   ),
                 ),
               ),
-            ),
+            )),
             const SizedBox(height: 12),
             TextButton(onPressed: () => Navigator.of(context).maybePop(), child: const Text('Kembali')),
           ],
-        ),
+        )),
       ),
     );
   }
@@ -420,13 +462,13 @@ class _InfoLine extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(label, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+        Text(label, style: const TextStyle(color: AppColors.textSecondary, fontSize: 15)),
         const SizedBox(width: 6),
         Text(
           value,
           style: TextStyle(
             fontWeight: FontWeight.w700,
-            fontSize: 13,
+            fontSize: 15,
             color: emphasize ? AppColors.ink : AppColors.textSecondary,
           ),
         ),
@@ -448,21 +490,21 @@ class _Header extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       child: Row(
         children: [
-          PressableScale(
+          Semantics(button: true, label: 'Tutup kuis', child: PressableScale(
             onTap: onClose,
             child: Container(
-              width: 34,
-              height: 34,
+              width: 48,
+              height: 48,
               decoration: BoxDecoration(color: AppColors.ink.withValues(alpha: 0.06), shape: BoxShape.circle),
-              child: const Icon(Icons.close_rounded, size: 19, color: AppColors.ink),
+              child: const Icon(Icons.close_rounded, size: 22, color: AppColors.ink),
             ),
-          ),
+          )),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
               'Kuis Sumatif: ${eraName ?? '...'}',
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.ink),
+              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: AppColors.ink),
             ),
           ),
         ],
@@ -471,31 +513,44 @@ class _Header extends StatelessWidget {
   }
 }
 
+/// Segmen per soal: terjawab = aksen era (digelapkan), soal yang sedang
+/// dibuka = Ink, belum dijawab = abu. Dulu segmen hanya menandai posisi
+/// halaman, jadi 20 segmen tidak memberi tahu soal mana yang masih kosong.
 class _ProgressSegments extends StatelessWidget {
-  const _ProgressSegments({required this.total, required this.currentIndex, required this.accent});
+  const _ProgressSegments({required this.answered, required this.currentIndex, required this.accent});
 
-  final int total;
+  final List<bool> answered;
   final int currentIndex;
   final Color accent;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        for (var i = 0; i < total; i++)
-          Expanded(
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 220),
-              curve: Curves.easeOut,
-              height: 5,
-              margin: EdgeInsets.only(right: i == total - 1 ? 0 : 4),
-              decoration: BoxDecoration(
-                color: i <= currentIndex ? accent : AppColors.border,
-                borderRadius: BorderRadius.circular(3),
+    final duration = MediaQuery.disableAnimationsOf(context)
+        ? Duration.zero
+        : const Duration(milliseconds: 220);
+    final total = answered.length;
+    final strong = eraQuizAccentStrong(accent);
+
+    return ExcludeSemantics(
+      child: Row(
+        children: [
+          for (var i = 0; i < total; i++)
+            Expanded(
+              child: AnimatedContainer(
+                duration: duration,
+                curve: Curves.easeOut,
+                height: i == currentIndex ? 8 : 5,
+                margin: EdgeInsets.only(right: i == total - 1 ? 0 : 4),
+                decoration: BoxDecoration(
+                  color: i == currentIndex
+                      ? AppColors.ink
+                      : (answered[i] ? strong : AppColors.border),
+                  borderRadius: BorderRadius.circular(3),
+                ),
               ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -537,13 +592,13 @@ class _BottomBar extends StatelessWidget {
               if (!isFirst)
                 TextButton.icon(
                   onPressed: isSubmitting ? null : onPrevious,
-                  icon: const Icon(Icons.arrow_back_rounded, size: 16, color: AppColors.ink),
-                  label: const Text('Sebelumnya', style: TextStyle(color: AppColors.ink, fontWeight: FontWeight.w600)),
+                  icon: const Icon(Icons.arrow_back_rounded, size: 18, color: AppColors.ink),
+                  label: const Text('Sebelumnya', style: TextStyle(color: AppColors.ink, fontWeight: FontWeight.w600, fontSize: 15)),
                 )
               else
                 const SizedBox(width: 1),
               const Spacer(),
-              PressableScale(
+              Semantics(button: true, enabled: !isSubmitting, child: PressableScale(
                 onTap: isSubmitting ? null : onPrimary,
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
@@ -559,23 +614,75 @@ class _BottomBar extends StatelessWidget {
                           children: [
                             Text(
                               isLast ? 'Kirim Jawaban' : 'Selanjutnya',
-                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13.5),
+                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15),
                             ),
                             const SizedBox(width: 6),
-                            Icon(isLast ? Icons.check_rounded : Icons.arrow_forward_rounded, size: 16, color: Colors.white),
+                            Icon(isLast ? Icons.check_rounded : Icons.arrow_forward_rounded, size: 18, color: Colors.white),
                           ],
                         ),
                 ),
-              ),
+              )),
             ],
           ),
           const SizedBox(height: 10),
           Text(
             'Hasil & pembahasan lengkap akan ditampilkan setelah seluruh $total soal dijawab.',
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 11, color: AppColors.textDisabled, fontStyle: FontStyle.italic),
+            style: const TextStyle(fontSize: 13, height: 1.35, color: AppColors.textSecondary),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Gagal memuat soal. Dulu: teks exception mentah tanpa tombol apa pun.
+class _EraQuizStatus extends StatelessWidget {
+  const _EraQuizStatus({required this.onRetry, required this.onBack});
+
+  final VoidCallback onRetry;
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Center(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.cloud_off_rounded, size: 40, color: AppColors.textSecondary),
+              const SizedBox(height: 12),
+              const Text(
+                'Kuis sumatif belum bisa dimuat',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Periksa koneksi internetmu, lalu coba lagi.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 15, height: 1.4, color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: onRetry,
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.ink,
+                  minimumSize: const Size(140, 48),
+                  shape: const StadiumBorder(),
+                ),
+                child: const Text('Coba lagi', style: TextStyle(fontWeight: FontWeight.w700)),
+              ),
+              TextButton(
+                onPressed: onBack,
+                style: TextButton.styleFrom(foregroundColor: AppColors.ink, minimumSize: const Size(140, 48)),
+                child: const Text('Kembali', style: TextStyle(fontWeight: FontWeight.w700)),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

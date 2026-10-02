@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -81,6 +82,8 @@ class _CaseStudyShellScreenState extends ConsumerState<CaseStudyShellScreen> {
   /// tidak hilang kalau provider di-invalidate dari luar.
   CaseStudyBadge? _activeBadge;
   String _activeDescription = '';
+  bool _badgeNewlyUnlocked = false;
+  bool _borderUnlocked = false;
 
   void _initStageFrom(CaseStudyDetail detail) {
     if (_stage != null) return; // hanya sekali, saat data pertama datang.
@@ -109,6 +112,7 @@ class _CaseStudyShellScreenState extends ConsumerState<CaseStudyShellScreen> {
 
   void _onCorrect(CaseStudySubmitResult result) {
     final badgeDescription = result.badge?.description?.trim();
+    HapticFeedback.mediumImpact();
     setState(() {
       _activeBadge = result.badge;
       // Fallback: kalau admin tidak mengisi deskripsi badge, pakai
@@ -117,69 +121,29 @@ class _CaseStudyShellScreenState extends ConsumerState<CaseStudyShellScreen> {
           (badgeDescription != null && badgeDescription.isNotEmpty)
               ? badgeDescription
               : result.feedback;
+      // Reward (badge baru / border terbuka) kini ditampilkan INLINE di
+      // layar Badge, bukan SnackBar: SnackBar 4 detik menutupi tombol
+      // "Lanjut ke materi berikutnya", dan dua reward berarti ~8 detik
+      // tombol terblokir. `badgeNewlyUnlocked` membedakan badge baru dari
+      // retake yang kebetulan benar lagi (retake tidak menampilkan catatan).
+      _badgeNewlyUnlocked = result.badgeNewlyUnlocked;
+      _borderUnlocked = result.borderUnlocked;
       _stage = _Stage.badge;
     });
-
-    // Notifikasi terpisah dari layar Badge itu sendiri — badge per wabah,
-    // border lintas-wabah, dan (nanti) vaksin adalah 3 reward berbeda,
-    // jangan dicampur jadi satu tampilan. postFrameCallback supaya
-    // SnackBar muncul SETELAH CaseStudyBadgeView ter-render (setState di
-    // atas baru dijadwalkan, belum tentu context masih attach ke tree yang
-    // sama kalau ditampilkan sinkron di sini).
-    //
-    // `badgeNewlyUnlocked` (dari `UserProgress::wasRecentlyCreated` sisi
-    // backend) membedakan "baru pertama kali dapat badge ini" dari
-    // "retake yang kebetulan benar lagi" — retake TIDAK menampilkan
-    // notifikasi lagi (badge-nya memang sudah lama didapat, cuma layar
-    // Badge yang ditampilkan ulang sebagai konfirmasi visual).
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-
-      if (result.badgeNewlyUnlocked) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: AppColors.gamify,
-            content: Row(
-              children: [
-                const Icon(Icons.military_tech_rounded,
-                    color: Colors.white, size: 20),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Badge "${result.badge?.name ?? ''}" berhasil didapat! Lihat di Koleksi Badge.',
-                    style: const TextStyle(
-                        color: Colors.white, fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ],
-            ),
-            duration: const Duration(seconds: 4),
-          ),
-        );
-      }
-
-      if (result.borderUnlocked) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            backgroundColor: AppColors.gamify,
-            content: Row(
-              children: [
-                Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 20),
-                SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Border SEKALA terbuka! Pasang di foto profilmu.',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ],
-            ),
-            duration: Duration(seconds: 4),
-          ),
-        );
-      }
-    });
   }
+
+  List<({IconData icon, String text})> _rewardNotes(CaseStudyBadge badge) => [
+        if (_badgeNewlyUnlocked)
+          (
+            icon: Icons.military_tech_rounded,
+            text: 'Badge "${badge.name}" berhasil didapat! Lihat di Koleksi Badge.',
+          ),
+        if (_borderUnlocked)
+          (
+            icon: Icons.auto_awesome_rounded,
+            text: 'Border SEKALA terbuka! Pasang di foto profilmu.',
+          ),
+      ];
 
   /// "Kerjakan ulang studi kasus" dari layar Badge (jalur sudah completed)
   /// — balik ke Opening, TANPA refetch (opsi masih sama, dari cache
@@ -190,6 +154,8 @@ class _CaseStudyShellScreenState extends ConsumerState<CaseStudyShellScreen> {
       _stage = _Stage.opening;
       _activeBadge = null;
       _activeDescription = '';
+      _badgeNewlyUnlocked = false;
+      _borderUnlocked = false;
     });
   }
 
@@ -244,7 +210,7 @@ class _CaseStudyShellScreenState extends ConsumerState<CaseStudyShellScreen> {
       );
     }
     if (!detailAsync.hasValue) {
-      return _CaseStudyLoadingScaffold(accent: accent);
+      return _CaseStudyLoadingScaffold(onBack: _goBack);
     }
 
     final detail = detailAsync.value!;
@@ -257,7 +223,27 @@ class _CaseStudyShellScreenState extends ConsumerState<CaseStudyShellScreen> {
     final year = yearAsync.valueOrNull;
     final wabahName = year?.title ?? '';
 
-    return _buildStage(detail, wabahName, year, accent);
+    // Tombol back sistem (Android / swipe-back iOS) sebelumnya hanya
+    // ditangani layar Keputusan. Layar lain membiarkan route di-pop —
+    // padahal route ini dicapai lewat `context.go`, jadi tumpukan
+    // navigasinya tidak bisa diandalkan (bisa menutup app).
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        switch (_stage) {
+          case _Stage.decision:
+            return; // ditangani PopScope milik CaseStudyDecisionView.
+          case _Stage.briefing:
+            setState(() => _stage = _Stage.opening);
+          case _Stage.opening:
+          case _Stage.badge:
+          case null:
+            _goBack();
+        }
+      },
+      child: _buildStage(detail, wabahName, year, accent),
+    );
   }
 
   Widget _buildStage(CaseStudyDetail detail, String wabahName, Year? year, Color accent) {
@@ -309,6 +295,7 @@ class _CaseStudyShellScreenState extends ConsumerState<CaseStudyShellScreen> {
           description: _activeDescription,
           onNext: () => _goNext(year),
           accent: accent,
+          notes: _rewardNotes(badge),
           // Tombol "Kerjakan ulang" HANYA muncul kalau memang masuk lewat
           // jalur "sudah completed" (detail.completed true) — bukan
           // momen baru saja submit benar pertama kali.
@@ -319,15 +306,34 @@ class _CaseStudyShellScreenState extends ConsumerState<CaseStudyShellScreen> {
 }
 
 class _CaseStudyLoadingScaffold extends StatelessWidget {
-  const _CaseStudyLoadingScaffold({this.accent});
+  const _CaseStudyLoadingScaffold({required this.onBack});
 
-  final Color? accent;
+  final VoidCallback onBack;
 
   @override
   Widget build(BuildContext context) {
+    // Tombol kembali ada sejak loading: sebelumnya user terjebak menunggu
+    // di koneksi lambat. Spinner Ink (spinner warna era Sky nyaris tak
+    // terlihat di latar terang).
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Center(child: CircularProgressIndicator(color: accent)),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+              kCaseStudyHPad - 4, 12, kCaseStudyHPad, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CaseStudyBackButton(onTap: onBack),
+              const Expanded(
+                child: Center(
+                  child: CircularProgressIndicator(color: AppColors.ink),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -375,10 +381,16 @@ class _CaseStudyErrorScaffold extends StatelessWidget {
                         color: AppColors.textSecondary,
                       ),
                       const SizedBox(height: 12),
-                      Text(
-                        'Gagal memuat studi kasus: $error',
+                      const Text(
+                        'Studi kasus belum bisa dimuat',
                         textAlign: TextAlign.center,
-                        style: AppTextStyles.bodySecondary,
+                        style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Periksa koneksi internetmu, lalu coba lagi.',
+                        textAlign: TextAlign.center,
+                        style: AppTextStyles.bodySecondary.copyWith(fontSize: 15),
                       ),
                       const SizedBox(height: 20),
                       CaseStudyPrimaryButton(

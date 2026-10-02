@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/network/api_exception.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/models/user.dart';
 import '../../../../shared/widgets/pressable_scale.dart';
@@ -18,6 +19,10 @@ import '../../../badge/presentation/providers/badge_providers.dart';
 import '../../../badge/presentation/screens/badge_list_screen.dart';
 import '../providers/avatar_providers.dart';
 import '../widgets/profile_avatar.dart';
+
+/// Merah untuk teks/ikon destruktif — AppColors.destructive di atas latar
+/// terang hanya ~4.0-4.2:1; ini ~6.5:1.
+const Color _kDangerText = Color(0xFFB3261D);
 
 /// Design.md §3.5 — avatar inisial, badge verifikasi, 2 stat card, menu
 /// pengaturan, tombol Keluar sebagai text button merah.
@@ -41,12 +46,26 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
   late final AnimationController _entrance = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 700),
-  )..forward();
+  );
+  bool _entranceStarted = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_entranceStarted) return;
+    _entranceStarted = true;
+    // Hormati "reduce motion": konten langsung tampil penuh.
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _entrance.value = 1;
+    } else {
+      _entrance.forward();
+    }
   }
 
   @override
@@ -95,7 +114,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             child: const Text('Keluar',
-                style: TextStyle(color: AppColors.destructive)),
+                style: TextStyle(color: _kDangerText, fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -118,9 +137,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     ref.listen(avatarControllerProvider, (previous, next) {
       next.whenOrNull(
         error: (error, _) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Gagal memproses foto/border: $error')),
-          );
+          // Dulu: "Gagal memproses foto/border: $error" (exception mentah).
+          final message = error is ApiException
+              ? error.message
+              : 'Foto atau border belum bisa diproses. Coba lagi.';
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
         },
       );
     });
@@ -207,7 +228,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                           style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
                         ),
                         const SizedBox(height: 2),
-                        Text(user.email, style: const TextStyle(color: AppColors.textSecondary)),
+                        Text(user.email, style: const TextStyle(color: AppColors.textSecondary, fontSize: 15)),
                         const SizedBox(height: 12),
                         // Field dikonfirmasi dari shared/models/user.dart:
                         // backend kirim `is_email_verified` (bool langsung).
@@ -223,9 +244,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                               children: [
                                 Icon(Icons.check_circle_rounded, size: 16, color: AppColors.success),
                                 SizedBox(width: 6),
+                                // Teks Ink: hijau di atas tint-nya hanya ~2.9:1.
                                 Text(
                                   'Email terverifikasi',
-                                  style: TextStyle(color: AppColors.success, fontWeight: FontWeight.w600),
+                                  style: TextStyle(color: AppColors.ink, fontWeight: FontWeight.w600, fontSize: 14),
                                 ),
                               ],
                             ),
@@ -241,11 +263,43 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                 },
                 loading: () => const Padding(
                   padding: EdgeInsets.all(24),
-                  child: Center(child: CircularProgressIndicator()),
+                  child: Center(child: CircularProgressIndicator(color: AppColors.ink)),
                 ),
-                error: (error, _) => Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Text('Gagal memuat data akun: $error'),
+                error: (error, _) => Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Column(
+                    children: [
+                      const Icon(Icons.cloud_off_rounded, size: 36, color: AppColors.textSecondary),
+                      const SizedBox(height: 10),
+                      const Text(
+                        'Data akunmu belum bisa dimuat',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Periksa koneksi internetmu, lalu coba lagi.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                      ),
+                      const SizedBox(height: 12),
+                      FilledButton(
+                        onPressed: () => ref.invalidate(currentUserProvider),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.ink,
+                          minimumSize: const Size(140, 48),
+                          shape: const StadiumBorder(),
+                        ),
+                        child: const Text('Coba lagi', style: TextStyle(fontWeight: FontWeight.w700)),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -260,7 +314,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                     child: _StatCard(
                       icon: Icons.menu_book_rounded,
                       value: yearsRead,
-                      unit: 'tahun dibaca',
+                      unit: 'tahun tuntas',
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -353,14 +407,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
               child: Center(
                 child: TextButton.icon(
                   onPressed: isLoggingOut ? null : () => _confirmLogout(context, ref),
+                  style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
                   icon: isLoggingOut
                       ? const SizedBox(
                           height: 16,
                           width: 16,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Icon(Icons.logout_rounded, color: AppColors.destructive),
-                  label: const Text('Keluar', style: TextStyle(color: AppColors.destructive, fontWeight: FontWeight.w700)),
+                      : const Icon(Icons.logout_rounded, color: _kDangerText),
+                  label: const Text(
+                    'Keluar',
+                    style: TextStyle(color: _kDangerText, fontWeight: FontWeight.w700, fontSize: 15),
+                  ),
                 ),
               ),
             ),
@@ -405,43 +463,50 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 14),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(color: AppColors.ink.withValues(alpha: 0.08), shape: BoxShape.circle),
-            alignment: Alignment.center,
-            child: Icon(icon, size: 17, color: AppColors.ink),
-          ),
-          const SizedBox(height: 10),
-          value == null
-              ? const Text('—', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18))
-              : TweenAnimationBuilder<int>(
-                  tween: IntTween(begin: 0, end: value),
-                  duration: const Duration(milliseconds: 700),
-                  curve: Curves.easeOutCubic,
-                  builder: (context, v, _) => Text(
-                    '$v',
-                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+
+    return Semantics(
+      container: true,
+      label: value == null ? '$unit: belum tersedia' : '$value $unit',
+      excludeSemantics: true,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 14),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(color: AppColors.ink.withValues(alpha: 0.08), shape: BoxShape.circle),
+              alignment: Alignment.center,
+              child: Icon(icon, size: 18, color: AppColors.ink),
+            ),
+            const SizedBox(height: 10),
+            value == null
+                ? const Text('—', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 22))
+                : TweenAnimationBuilder<int>(
+                    tween: IntTween(begin: 0, end: value),
+                    duration: reduceMotion ? Duration.zero : const Duration(milliseconds: 700),
+                    curve: Curves.easeOutCubic,
+                    builder: (context, v, _) => Text(
+                      '$v',
+                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 22),
+                    ),
                   ),
-                ),
-          const SizedBox(height: 2),
-          Text(
-            unit,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: AppColors.textSecondary, fontSize: 12.5),
-          ),
-        ],
+            const SizedBox(height: 2),
+            Text(
+              unit,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -459,40 +524,60 @@ class _FrameToggleTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isBusy = ref.watch(avatarControllerProvider).isLoading;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Row(
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: AppColors.gamify.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
-            ),
-            alignment: Alignment.center,
-            child: const Icon(Icons.auto_awesome_rounded, size: 18, color: AppColors.gamify),
-          ),
-          const SizedBox(width: 14),
-          const Expanded(
-            child: Text(
-              'Pasang Border SEKALA',
-              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14.5),
-            ),
-          ),
-          isBusy
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : Switch(
-                  value: user.frameEquipped,
-                  activeColor: AppColors.gamify,
-                  onChanged: (value) =>
-                      ref.read(avatarControllerProvider.notifier).toggleFrame(value),
+    void toggle(bool value) => ref.read(avatarControllerProvider.notifier).toggleFrame(value);
+
+    // MergeSemantics: label + switch dibacakan sebagai satu kontrol
+    // ("Pasang Border SEKALA, saklar, aktif"). Seluruh baris bisa diketuk,
+    // bukan hanya saklar kecilnya.
+    return MergeSemantics(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: isBusy ? null : () => toggle(!user.frameEquipped),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: AppColors.gamify.withValues(alpha: 0.18),
+                  shape: BoxShape.circle,
                 ),
-        ],
+                alignment: Alignment.center,
+                child: const Icon(Icons.auto_awesome_rounded, size: 18, color: AppColors.ink),
+              ),
+              const SizedBox(width: 14),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Pasang Border SEKALA',
+                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Tampil melingkari foto profilmu',
+                      style: TextStyle(fontSize: 13.5, color: AppColors.textSecondary),
+                    ),
+                  ],
+                ),
+              ),
+              isBusy
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.ink),
+                    )
+                  : Switch(
+                      value: user.frameEquipped,
+                      activeColor: AppColors.gamify,
+                      onChanged: toggle,
+                    ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -521,7 +606,7 @@ class _MenuTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PressableScale(
+    return Semantics(button: true, label: showDot ? '$label, ada yang baru' : label, onTap: onTap, excludeSemantics: true, child: PressableScale(
       scale: 0.99,
       onTap: onTap,
       child: Padding(
@@ -543,14 +628,14 @@ class _MenuTile extends StatelessWidget {
                   Flexible(
                     child: Text(
                       label,
-                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14.5),
+                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
                     ),
                   ),
                   if (showDot) ...[
                     const SizedBox(width: 6),
                     Container(
-                      width: 8,
-                      height: 8,
+                      width: 10,
+                      height: 10,
                       decoration: const BoxDecoration(
                         color: AppColors.coral,
                         shape: BoxShape.circle,
@@ -564,10 +649,10 @@ class _MenuTile extends StatelessWidget {
               Text(trailing!, style: const TextStyle(color: AppColors.textSecondary)),
               const SizedBox(width: 4),
             ],
-            const Icon(Icons.chevron_right_rounded, color: AppColors.textDisabled),
+            const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
           ],
         ),
       ),
-    );
+    ));
   }
 }

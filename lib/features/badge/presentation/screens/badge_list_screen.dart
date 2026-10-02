@@ -2,9 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/models/badge_card.dart';
 import '../../../../shared/widgets/pressable_scale.dart';
+import '../../../auth/presentation/providers/auth_providers.dart';
 import '../providers/badge_providers.dart';
 import '../widgets/badge_tile.dart';
 
@@ -29,6 +31,9 @@ class BadgeListScreen extends ConsumerStatefulWidget {
   ConsumerState<BadgeListScreen> createState() => _BadgeListScreenState();
 }
 
+/// Purple (gamify) mentah di atas track abu hanya ~2.4:1 (grafis butuh 3:1).
+final Color _kGamifyStrong = Color.lerp(AppColors.gamify, AppColors.ink, 0.35)!;
+
 class _BadgeListScreenState extends ConsumerState<BadgeListScreen> {
   _BadgeFilter _filter = _BadgeFilter.all;
   String? _eraSlug; // null = Semua Era
@@ -51,6 +56,14 @@ class _BadgeListScreenState extends ConsumerState<BadgeListScreen> {
   /// `unseen == false` (termasuk badge locked, yang memang selalu
   /// `unseen == false` — lihat BadgeResource.php) tidak memicu request
   /// sama sekali.
+  String _emptyMessage() {
+    if (_filter == _BadgeFilter.unlocked && _eraSlug == null) {
+      return 'Belum ada badge terbuka. Selesaikan studi kasus (materi ke-8 '
+          'di setiap tahun) di roadmap untuk mendapatkannya.';
+    }
+    return 'Belum ada badge di kategori ini.';
+  }
+
   void _showBadgeDetail(BadgeCard badge) {
     if (badge.unseen) {
       unawaited(
@@ -62,6 +75,7 @@ class _BadgeListScreenState extends ConsumerState<BadgeListScreen> {
 
     showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
       backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -73,6 +87,9 @@ class _BadgeListScreenState extends ConsumerState<BadgeListScreen> {
   @override
   Widget build(BuildContext context) {
     final badgesAsync = ref.watch(badgeListProvider);
+    // `frameUnlocked` permanen (R-FRAME-01), tidak sama dengan "semua badge
+    // terkumpul sekarang" kalau admin menambah studi kasus baru.
+    final user = ref.watch(currentUserProvider).valueOrNull;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -95,9 +112,18 @@ class _BadgeListScreenState extends ConsumerState<BadgeListScreen> {
           }
 
           final filtered = _applyFilter(response.data);
+          // Teks besar butuh tile lebih tinggi; rasio tetap membuat teks terpotong.
+          final textScale = MediaQuery.textScalerOf(context).scale(1.0).clamp(1.0, 2.0).toDouble();
+          final gridRatio = 0.85 / (1 + (textScale - 1) * 0.4);
 
           return RefreshIndicator(
-            onRefresh: () async => ref.invalidate(badgeListProvider),
+            onRefresh: () async {
+              ref.invalidate(badgeListProvider);
+              ref.invalidate(currentUserProvider);
+              try {
+                await ref.read(badgeListProvider.future);
+              } catch (_) {}
+            },
             child: CustomScrollView(
               slivers: [
                 SliverToBoxAdapter(
@@ -122,16 +148,28 @@ class _BadgeListScreenState extends ConsumerState<BadgeListScreen> {
                                 : response.meta.unlocked / response.meta.total,
                             minHeight: 6,
                             backgroundColor: AppColors.border,
-                            valueColor: const AlwaysStoppedAnimation(AppColors.gamify),
+                            valueColor: AlwaysStoppedAnimation(_kGamifyStrong),
                           ),
                         ),
                       ],
                     ),
                   ),
                 ),
+                // BARU: tujuan akhir koleksi (R-FRAME-01 sudah ada di backend:
+                // semua badge terkumpul -> Border SEKALA terbuka permanen).
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+                    child: _BorderRewardCard(
+                      unlocked: response.meta.unlocked,
+                      total: response.meta.total,
+                      borderUnlocked: user?.frameUnlocked == true,
+                    ),
+                  ),
+                ),
                 SliverToBoxAdapter(
                   child: SizedBox(
-                    height: 44,
+                    height: 48,
                     child: ListView(
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -160,7 +198,7 @@ class _BadgeListScreenState extends ConsumerState<BadgeListScreen> {
                 if (eras.length > 1)
                   SliverToBoxAdapter(
                     child: SizedBox(
-                      height: 44,
+                      height: 56,
                       child: ListView(
                         scrollDirection: Axis.horizontal,
                         padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
@@ -199,12 +237,12 @@ class _BadgeListScreenState extends ConsumerState<BadgeListScreen> {
                             ),
                             const SizedBox(height: 12),
                             Text(
-                              'Belum ada badge di kategori ini.',
+                              _emptyMessage(),
                               textAlign: TextAlign.center,
                               style: Theme.of(context)
                                   .textTheme
                                   .bodyMedium
-                                  ?.copyWith(color: AppColors.textSecondary),
+                                  ?.copyWith(color: AppColors.textSecondary, fontSize: 15, height: 1.4),
                             ),
                           ],
                         ),
@@ -215,11 +253,11 @@ class _BadgeListScreenState extends ConsumerState<BadgeListScreen> {
                   SliverPadding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     sliver: SliverGrid(
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: 2,
                         mainAxisSpacing: 12,
                         crossAxisSpacing: 12,
-                        childAspectRatio: 0.85,
+                        childAspectRatio: gridRatio,
                       ),
                       delegate: SliverChildBuilderDelegate(
                         (context, index) {
@@ -238,34 +276,8 @@ class _BadgeListScreenState extends ConsumerState<BadgeListScreen> {
             ),
           );
         },
-        loading: () => Center(child: CircularProgressIndicator(color: AppColors.gamify)),
-        error: (error, _) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.error_outline_rounded,
-                    size: 40, color: AppColors.textSecondary.withValues(alpha: 0.6)),
-                const SizedBox(height: 12),
-                Text(
-                  'Gagal memuat data: $error',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: AppColors.textSecondary),
-                ),
-                const SizedBox(height: 16),
-                PressableScale(
-                  onTap: () => ref.invalidate(badgeListProvider),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                    decoration: BoxDecoration(color: AppColors.ink, borderRadius: BorderRadius.circular(20)),
-                    child: const Text('Coba Lagi', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
+        loading: () => const Center(child: CircularProgressIndicator(color: AppColors.ink)),
+        error: (error, _) => _BadgeError(onRetry: () => ref.invalidate(badgeListProvider)),
       ),
     );
   }
@@ -293,6 +305,13 @@ class _BadgeDetailSheetState extends State<_BadgeDetailSheet> with SingleTickerP
   )..forward();
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Hormati "reduce motion": konten sheet langsung tampil penuh.
+    if (MediaQuery.disableAnimationsOf(context)) _entrance.value = 1;
+  }
+
+  @override
   void dispose() {
     _entrance.dispose();
     super.dispose();
@@ -318,7 +337,7 @@ class _BadgeDetailSheetState extends State<_BadgeDetailSheet> with SingleTickerP
               ),
             );
           },
-          child: Column(
+          child: SingleChildScrollView(child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -351,23 +370,42 @@ class _BadgeDetailSheetState extends State<_BadgeDetailSheet> with SingleTickerP
               const SizedBox(height: 4),
               Text(
                 '${badge.era.name} \u00b7 ${badge.year.title}',
-                style: const TextStyle(color: AppColors.textSecondary, fontSize: 12.5),
+                style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
               ),
               const SizedBox(height: 12),
               if (locked)
                 const Text(
                   'Selesaikan studi kasus wabah ini dengan tepat untuk membuka badge.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: AppColors.textSecondary),
+                  style: TextStyle(color: AppColors.textSecondary, fontSize: 15, height: 1.4),
                 )
               else if (badge.description != null && badge.description!.isNotEmpty)
                 Text(
                   badge.description!,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: AppColors.textSecondary, height: 1.4),
+                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 15, height: 1.4),
                 ),
+              if (locked) ...[
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: () {
+                    final router = GoRouter.of(context);
+                    Navigator.of(context).pop();
+                    router.go('/history/${badge.era.slug}');
+                  },
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.ink,
+                    minimumSize: const Size(double.infinity, 48),
+                    shape: const StadiumBorder(),
+                  ),
+                  child: Text(
+                    'Buka roadmap ${badge.era.name}',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ],
             ],
-          ),
+          )),
         ),
       ),
     );
@@ -386,7 +424,12 @@ class _BadgeSheetIcon extends StatelessWidget {
         color: AppColors.ink.withValues(alpha: 0.06),
         child: badge.iconUrl == null
             ? const Icon(Icons.emoji_events_outlined, size: 36, color: AppColors.textSecondary)
-            : Image.network(badge.iconUrl!, fit: BoxFit.cover),
+            : Image.network(
+                badge.iconUrl!,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) =>
+                    const Icon(Icons.emoji_events_outlined, size: 36, color: AppColors.textSecondary),
+              ),
       ),
     );
   }
@@ -407,13 +450,167 @@ class _FilterChip extends StatelessWidget {
       onSelected: (_) => onTap(),
       showCheckmark: false,
       selectedColor: AppColors.ink,
+      // Target sentuh 48dp (dulu 32dp di dalam ListView 44dp).
+      materialTapTargetSize: MaterialTapTargetSize.padded,
       labelStyle: TextStyle(
         color: selected ? Colors.white : AppColors.textSecondary,
         fontWeight: FontWeight.w600,
-        fontSize: 12.5,
+        fontSize: 14,
       ),
       backgroundColor: AppColors.surface,
       side: BorderSide(color: selected ? AppColors.ink : AppColors.border),
+    );
+  }
+}
+
+/// Tujuan akhir koleksi badge: Border SEKALA. Aturannya SUDAH ada di backend
+/// (R-FRAME-01: semua badge dari studi kasus published terkumpul -> border
+/// terbuka permanen; dicek saat studi kasus selesai, R-FRAME-02) dan toggle
+/// pasang/lepas ada di Profil — kartu ini hanya membuatnya TERLIHAT di
+/// tempat user mengumpulkan badge.
+///
+/// 3 keadaan:
+/// - [borderUnlocked] true  -> "Border SEKALA terbuka" (permanen; tetap benar
+///   walau admin menambah studi kasus baru sehingga koleksi tak lagi penuh).
+/// - semua badge terkumpul tapi flag belum terbaca -> kemungkinan data
+///   belum ter-refresh (tarik layar ke bawah).
+/// - selainnya -> tujuan + sisa badge.
+class _BorderRewardCard extends StatelessWidget {
+  const _BorderRewardCard({
+    required this.unlocked,
+    required this.total,
+    required this.borderUnlocked,
+  });
+
+  final int unlocked;
+  final int total;
+  final bool borderUnlocked;
+
+  @override
+  Widget build(BuildContext context) {
+    final allCollected = total > 0 && unlocked >= total;
+    final remaining = (total - unlocked).clamp(0, total);
+
+    final String title;
+    final String body;
+    if (borderUnlocked) {
+      title = 'Border SEKALA terbuka';
+      body = 'Pasang atau lepas border-nya di tab Profil.';
+    } else if (allCollected) {
+      title = 'Semua badge terkumpul!';
+      body = 'Border SEKALA akan muncul di tab Profil. Kalau belum, tarik '
+          'layar ini ke bawah untuk memuat ulang.';
+    } else {
+      title = 'Kumpulkan semua badge, dapatkan Border SEKALA';
+      body = total == 0
+          ? 'Border dipasang di foto profilmu.'
+          : 'Tinggal $remaining badge lagi. Border dipasang di foto profilmu.';
+    }
+
+    final reached = borderUnlocked || allCollected;
+
+    return Semantics(
+      container: true,
+      label: '$title. $body',
+      excludeSemantics: true,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: reached ? AppColors.gamify.withValues(alpha: 0.12) : AppColors.surface,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: reached ? _kGamifyStrong : AppColors.border,
+            width: reached ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: reached ? AppColors.gamify : AppColors.ink.withValues(alpha: 0.06),
+                border: reached ? null : Border.all(color: AppColors.border),
+              ),
+              alignment: Alignment.center,
+              child: Icon(
+                reached ? Icons.auto_awesome_rounded : Icons.lock_outline_rounded,
+                size: 24,
+                color: reached ? AppColors.ink : AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.ink,
+                      height: 1.3,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    body,
+                    style: const TextStyle(fontSize: 14, color: AppColors.textSecondary, height: 1.4),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Gagal memuat koleksi badge. Dulu: `Gagal memuat data: $error` (exception
+/// mentah) dan tombol "Coba Lagi" tanpa semantik dengan tinggi ~38dp.
+class _BadgeError extends StatelessWidget {
+  const _BadgeError({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.cloud_off_rounded, size: 40, color: AppColors.textSecondary),
+            const SizedBox(height: 12),
+            const Text(
+              'Koleksi badge belum bisa dimuat',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Periksa koneksi internetmu, lalu coba lagi.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 15, height: 1.4, color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 16),
+            FilledButton(
+              onPressed: onRetry,
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.ink,
+                minimumSize: const Size(140, 48),
+                shape: const StadiumBorder(),
+              ),
+              child: const Text('Coba lagi', style: TextStyle(fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

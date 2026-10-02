@@ -38,10 +38,19 @@ class _EraListScreenState extends ConsumerState<EraListScreen>
     duration: const Duration(milliseconds: 800),
   );
 
+  bool _entranceStarted = false;
+
   @override
-  void initState() {
-    super.initState();
-    _entrance.forward();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_entranceStarted) return;
+    _entranceStarted = true;
+    // Hormati "reduce motion": konten langsung tampil penuh.
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _entrance.value = 1;
+    } else {
+      _entrance.forward();
+    }
   }
 
   @override
@@ -72,9 +81,9 @@ class _EraListScreenState extends ConsumerState<EraListScreen>
     }
   }
 
-  // Kolonial & Modern pakai teks gelap di atas warna terang (Orange/Sky),
-  // Kemerdekaan (Green) cukup gelap untuk teks putih — selaras mockup.
-  static bool _isDarkTextOnSlug(String slug) => slug.toLowerCase() != 'kemerdekaan';
+  // Semua era memakai teks Ink. Putih di atas Green #4BA95F hanya ~2.9:1
+  // (AA butuh 4.5:1); Ink di atas Green ~6.6:1, Orange ~10:1, Sky ~12:1.
+  static bool _isDarkTextOnSlug(String slug) => true;
 
   @override
   Widget build(BuildContext context) {
@@ -112,6 +121,9 @@ class _EraListScreenState extends ConsumerState<EraListScreen>
             onRefresh: () async {
               ref.invalidate(erasProvider);
               ref.invalidate(homeSummaryProvider);
+              try {
+                await ref.read(erasProvider.future);
+              } catch (_) {}
             },
             // Sama seperti home_screen.dart: SingleChildScrollView+Column,
             // BUKAN ListView, supaya semua children (termasuk Showcase
@@ -235,10 +247,33 @@ class _EraListScreenState extends ConsumerState<EraListScreen>
           error: (error, _) => Center(
             child: Padding(
               padding: const EdgeInsets.all(24),
-              child: Text(
-                'Gagal memuat data: $error',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.textSecondary),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.cloud_off_rounded, size: 40, color: AppColors.textSecondary),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Daftar masa belum bisa dimuat',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Periksa koneksi internetmu, lalu coba lagi.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                  ),
+                  const SizedBox(height: 16),
+                  FilledButton(
+                    onPressed: () => ref.invalidate(erasProvider),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.ink,
+                      minimumSize: const Size(140, 48),
+                      shape: const StadiumBorder(),
+                    ),
+                    child: const Text('Coba lagi', style: TextStyle(fontWeight: FontWeight.w700)),
+                  ),
+                ],
               ),
             ),
           ),
@@ -313,24 +348,24 @@ class _EraProgressMiniCard extends StatelessWidget {
       child: Column(
         children: [
           SizedBox(
-            width: 46,
-            height: 46,
+            width: 56,
+            height: 56,
             child: Stack(
               alignment: Alignment.center,
               children: [
                 SizedBox(
-                  width: 46,
-                  height: 46,
+                  width: 56,
+                  height: 56,
                   child: CircularProgressIndicator(
                     value: 1,
-                    strokeWidth: 5,
+                    strokeWidth: 6,
                     strokeCap: StrokeCap.round,
                     valueColor: AlwaysStoppedAnimation(AppColors.border),
                   ),
                 ),
                 SizedBox(
-                  width: 46,
-                  height: 46,
+                  width: 56,
+                  height: 56,
                   child: TweenAnimationBuilder<double>(
                     tween: Tween(begin: 0, end: ratio),
                     duration: const Duration(milliseconds: 700),
@@ -338,10 +373,10 @@ class _EraProgressMiniCard extends StatelessWidget {
                     builder: (context, value, _) {
                       return CircularProgressIndicator(
                         value: value,
-                        strokeWidth: 5,
+                        strokeWidth: 6,
                         strokeCap: StrokeCap.round,
                         backgroundColor: Colors.transparent,
-                        valueColor: AlwaysStoppedAnimation(accent),
+                        valueColor: AlwaysStoppedAnimation(Color.lerp(accent, AppColors.ink, 0.45)!),
                       );
                     },
                   ),
@@ -350,7 +385,7 @@ class _EraProgressMiniCard extends StatelessWidget {
                   '$completed/$total',
                   textAlign: TextAlign.center,
                   style: const TextStyle(
-                    fontSize: 10.5,
+                    fontSize: 12.5,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -363,7 +398,8 @@ class _EraProgressMiniCard extends StatelessWidget {
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontSize: 13,
                   color: AppColors.textSecondary,
                   fontWeight: FontWeight.w600,
                 ),
@@ -374,9 +410,46 @@ class _EraProgressMiniCard extends StatelessWidget {
   }
 }
 
-/// Kartu besar gradasi per era di section "Jelajahi Masa".
+/// Pembungkus semantik: satu tombol dengan nama + deskripsi era.
 class _EraExploreCard extends StatelessWidget {
   const _EraExploreCard({
+    required this.name,
+    required this.description,
+    required this.accent,
+    required this.decorIcon,
+    required this.darkText,
+    required this.onTap,
+  });
+
+  final String name;
+  final String description;
+  final Color accent;
+  final IconData decorIcon;
+  final bool darkText;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      onTap: onTap,
+      label: description.trim().isEmpty ? name : '$name. $description',
+      excludeSemantics: true,
+      child: _EraExploreCardBody(
+        name: name,
+        description: description,
+        accent: accent,
+        decorIcon: decorIcon,
+        darkText: darkText,
+        onTap: onTap,
+      ),
+    );
+  }
+}
+
+/// Kartu besar gradasi per era di section "Jelajahi Masa".
+class _EraExploreCardBody extends StatelessWidget {
+  const _EraExploreCardBody({
     required this.name,
     required this.description,
     required this.accent,
@@ -406,7 +479,7 @@ class _EraExploreCard extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [accent, Color.lerp(accent, Colors.black, 0.18)!],
+            colors: [accent, Color.lerp(accent, Colors.white, 0.18)!],
           ),
           boxShadow: [
             BoxShadow(

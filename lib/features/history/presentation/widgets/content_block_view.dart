@@ -41,12 +41,17 @@ class ContentBlockView extends StatelessWidget {
       case ContentBlockType.text:
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 8),
-          child: RichBodyText(block.content, style: Theme.of(context).textTheme.bodyLarge),
+          child: RichBodyText(
+            block.content,
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(height: 1.6),
+          ),
         );
 
       case ContentBlockType.image:
         final imageUrl = block.resolvedUrl ?? block.content;
-        return Padding(
+        return _ImageSemantics(
+          caption: block.caption,
+          child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -76,7 +81,7 @@ class ContentBlockView extends StatelessWidget {
                 const SizedBox(height: 6),
                 Text(
                   block.caption!,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: AppColors.textSecondary,
                         fontStyle: FontStyle.italic,
                       ),
@@ -84,7 +89,7 @@ class ContentBlockView extends StatelessWidget {
               ],
             ],
           ),
-        );
+        ));
 
       case ContentBlockType.video:
         // MIGRASI YouTube -> Google Drive, lalu MIGRASI LAGI dari WebView
@@ -126,7 +131,7 @@ class ContentBlockView extends StatelessWidget {
                 const SizedBox(height: 6),
                 Text(
                   block.caption!,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: AppColors.textSecondary,
                         fontStyle: FontStyle.italic,
                       ),
@@ -138,7 +143,16 @@ class ContentBlockView extends StatelessWidget {
 
       case ContentBlockType.pdf:
         final pdfUrl = block.resolvedUrl ?? block.content;
-        return Padding(
+        return Semantics(
+          button: true,
+          label: 'Buka dokumen PDF',
+          excludeSemantics: true,
+          onTap: () => showDialog<void>(
+            context: context,
+            barrierDismissible: false,
+            builder: (_) => _PdfPreviewDialog(url: pdfUrl),
+          ),
+          child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: PressableScale(
             onTap: () => showDialog<void>(
@@ -177,7 +191,7 @@ class ContentBlockView extends StatelessWidget {
               ),
             ),
           ),
-        );
+        ));
     }
   }
 }
@@ -351,7 +365,9 @@ class _DriveVideoBlockPlayerState extends State<_DriveVideoBlockPlayer> {
 
     final controller = VideoPlayerController.networkUrl(Uri.parse(_directVideoUrl));
     try {
-      await controller.initialize();
+      // Timeout: di koneksi lambat, initialize() bisa menggantung tanpa
+      // batas dan user tidak punya jalan keluar selain scroll menjauh.
+      await controller.initialize().timeout(const Duration(seconds: 25));
       if (!mounted) {
         controller.dispose();
         return;
@@ -393,7 +409,7 @@ class _DriveVideoBlockPlayerState extends State<_DriveVideoBlockPlayer> {
         setState(() {
           _initializing = false;
           _errorMessage =
-              'Gagal memuat video. Video mungkin terlalu besar, formatnya tidak didukung, atau koneksi bermasalah.';
+              'Video belum bisa diputar. Koneksimu mungkin lambat, atau file videonya terlalu besar.';
         });
       }
     }
@@ -471,19 +487,37 @@ class _DriveVideoBlockPlayerState extends State<_DriveVideoBlockPlayer> {
         child: _errorMessage != null
             ? _UnavailableMediaCard(
                 label: _errorMessage!,
-                actionLabel: 'Buka di Drive',
-                onAction: _openInDriveApp,
+                actionLabel: 'Coba lagi',
+                onAction: _startPlayback,
+                secondaryActionLabel: 'Buka di Drive',
+                onSecondaryAction: _openInDriveApp,
               )
             : !_playing
-                ? _VideoThumbnailWithPlayButton(
-                    thumbnailUrl: _thumbnailUrl,
+                ? Semantics(
+                    button: true,
+                    label: 'Putar video',
                     onTap: () => _startPlayback(),
+                    excludeSemantics: true,
+                    child: _VideoThumbnailWithPlayButton(
+                      thumbnailUrl: _thumbnailUrl,
+                      onTap: () => _startPlayback(),
+                    ),
                   )
                 : (_initializing || _chewieController == null)
                     ? const ColoredBox(
                         color: Colors.black,
                         child: Center(
-                          child: CircularProgressIndicator(color: Colors.white),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              CircularProgressIndicator(color: Colors.white),
+                              SizedBox(height: 12),
+                              Text(
+                                'Memuat video…',
+                                style: TextStyle(color: Colors.white, fontSize: 14),
+                              ),
+                            ],
+                          ),
                         ),
                       )
                     : Chewie(controller: _chewieController!),
@@ -588,11 +622,15 @@ class _UnavailableMediaCard extends StatelessWidget {
     required this.label,
     this.actionLabel,
     this.onAction,
+    this.secondaryActionLabel,
+    this.onSecondaryAction,
   });
 
   final String label;
   final String? actionLabel;
   final VoidCallback? onAction;
+  final String? secondaryActionLabel;
+  final VoidCallback? onSecondaryAction;
 
   @override
   Widget build(BuildContext context) {
@@ -604,53 +642,90 @@ class _UnavailableMediaCard extends StatelessWidget {
         color: AppColors.border.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 34,
-                height: 34,
-                decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                alignment: Alignment.center,
-                child: const Icon(Icons.error_outline_rounded, size: 18, color: AppColors.textSecondary),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-              ),
-            ],
-          ),
-          if (actionLabel != null && onAction != null) ...[
-            const SizedBox(height: 14),
-            Align(
-              alignment: Alignment.centerRight,
-              child: PressableScale(
-                onTap: onAction,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-                  decoration: BoxDecoration(
-                    color: AppColors.ink,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.open_in_new_rounded, size: 15, color: Colors.white),
-                      const SizedBox(width: 6),
-                      Text(
-                        actionLabel!,
-                        style: const TextStyle(color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.w700),
+      // Scroll kecil: di dalam AspectRatio 16:9 dengan font besar, isi kartu
+      // bisa lebih tinggi dari kotaknya; lebih baik bisa di-scroll daripada
+      // terpotong.
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                  alignment: Alignment.center,
+                  child: const Icon(Icons.error_outline_rounded, size: 18, color: AppColors.textSecondary),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                ),
+              ],
+            ),
+            if (actionLabel != null && onAction != null) ...[
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Wrap(
+                  alignment: WrapAlignment.end,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 8,
+                  runSpacing: 4,
+                  children: [
+                    if (secondaryActionLabel != null && onSecondaryAction != null)
+                      TextButton(
+                        onPressed: onSecondaryAction,
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.ink,
+                          minimumSize: const Size(48, 48),
+                        ),
+                        child: Text(
+                          secondaryActionLabel!,
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                        ),
                       ),
-                    ],
-                  ),
+                    FilledButton(
+                      onPressed: onAction,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.ink,
+                        minimumSize: const Size(48, 48),
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        shape: const StadiumBorder(),
+                      ),
+                      child: Text(
+                        actionLabel!,
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
+            ],
           ],
-        ],
+        ),
       ),
+    );
+  }
+}
+
+/// Alt text gambar: CMS belum punya kolom khusus, jadi caption dipakai
+/// sebagai label untuk screen reader (fallback generik kalau kosong).
+class _ImageSemantics extends StatelessWidget {
+  const _ImageSemantics({required this.caption, required this.child});
+
+  final String? caption;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = caption?.trim() ?? '';
+    return Semantics(
+      image: true,
+      label: text.isEmpty ? 'Gambar ilustrasi materi' : text,
+      excludeSemantics: true,
+      child: child,
     );
   }
 }

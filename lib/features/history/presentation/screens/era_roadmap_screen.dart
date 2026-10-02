@@ -144,18 +144,9 @@ class EraRoadmapScreen extends ConsumerWidget {
           bottomPadding: _bottomPadding,
           xFractions: _xFractions,
         ),
-        loading: () => Center(
-          child: CircularProgressIndicator(color: accent),
-        ),
-        error: (error, _) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Text(
-              'Gagal memuat data: $error',
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: AppColors.textSecondary),
-            ),
-          ),
+        loading: () => const _RoadmapStatus(),
+        error: (error, _) => _RoadmapStatus(
+          onRetry: () => ref.invalidate(yearsProvider(eraSlug)),
         ),
       ),
     );
@@ -210,16 +201,25 @@ class _RoadmapBodyState extends ConsumerState<_RoadmapBody> with SingleTickerPro
   final Map<int, bool> _lastLocked = {};
   final Map<int, int> _unlockPulseGen = {};
 
+  bool _entranceStarted = false;
+
   @override
-  void initState() {
-    super.initState();
-    _entrance.forward();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_entranceStarted) return;
+    _entranceStarted = true;
+    // Hormati "reduce motion": roadmap langsung tampil penuh.
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _entrance.value = 1;
+    } else {
+      _entrance.forward();
+    }
   }
 
-  Animation<double> get _pathProgress => CurvedAnimation(
-        parent: _entrance,
-        curve: const Interval(0.0, 0.55, curve: Curves.easeInOut),
-      );
+  late final Animation<double> _pathProgress = CurvedAnimation(
+    parent: _entrance,
+    curve: const Interval(0.0, 0.55, curve: Curves.easeInOut),
+  );
 
   Animation<double> _nodeReveal(int index, int nodeCount) {
     final safeCount = nodeCount < 1 ? 1 : nodeCount;
@@ -520,14 +520,10 @@ class _Header extends StatelessWidget {
           ),
           child: Row(
             children: [
-              PressableScale(
-                onTap: () => context.pop(),
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white),
-                  child: const Icon(Icons.arrow_back_rounded, size: 20),
-                ),
+              _CircleIconButton(
+                icon: Icons.arrow_back_rounded,
+                label: 'Kembali',
+                onTap: () => context.canPop() ? context.pop() : context.go('/history'),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -547,7 +543,7 @@ class _Header extends StatelessWidget {
                       decoration: BoxDecoration(color: accent, borderRadius: BorderRadius.circular(20)),
                       child: const Text(
                         'Era',
-                        style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                        style: TextStyle(color: AppColors.ink, fontSize: 12, fontWeight: FontWeight.bold),
                       ),
                     ),
                   ],
@@ -568,12 +564,17 @@ class _Header extends StatelessWidget {
                   currentStep: TutorialTourController.currentStepNumber,
                   totalSteps: TutorialTourController.totalStepCount,
                   onSkip: TutorialTourController.skip,
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    margin: const EdgeInsets.only(left: 8),
-                    decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white),
-                    child: const Icon(Icons.info_outline_rounded, size: 20),
+                  child: Semantics(
+                    button: true,
+                    label: 'Apa itu wabah?',
+                    excludeSemantics: true,
+                    child: Container(
+                      width: 48,
+                      height: 48,
+                      margin: const EdgeInsets.only(left: 8),
+                      decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white),
+                      child: const Icon(Icons.info_outline_rounded, size: 22),
+                    ),
                   ),
                 ),
               ),
@@ -618,14 +619,14 @@ class _ProgressCard extends StatelessWidget {
                 decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(20)),
                 child: RichText(
                   text: TextSpan(
-                    style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                    style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
                     children: [
                       TextSpan(
                         text: '${roadmap.completedYears}',
-                        style: TextStyle(color: accent, fontWeight: FontWeight.bold),
+                        style: const TextStyle(color: AppColors.ink, fontWeight: FontWeight.bold),
                       ),
                       const TextSpan(text: ' dari '),
-                      TextSpan(text: '${roadmap.totalYears} tahun dibaca'),
+                      TextSpan(text: '${roadmap.totalYears} tahun tuntas'),
                     ],
                   ),
                 ),
@@ -636,7 +637,7 @@ class _ProgressCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               era!.description!,
-              style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+              style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
             ),
           ],
           const SizedBox(height: 12),
@@ -651,7 +652,8 @@ class _ProgressCard extends StatelessWidget {
                   value: value,
                   minHeight: 8,
                   backgroundColor: AppColors.border,
-                  valueColor: AlwaysStoppedAnimation(accent),
+                  // Digelapkan: Sky hampir sama terang dengan track (~1.3:1).
+                  valueColor: AlwaysStoppedAnimation(Color.lerp(accent, AppColors.ink, 0.45)!),
                 );
               },
             ),
@@ -677,6 +679,106 @@ class _EmptyRoadmap extends StatelessWidget {
             'Belum ada konten di masa ini.',
             textAlign: TextAlign.center,
             style: TextStyle(color: AppColors.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Tombol bulat 48dp (minimum Material 3) dengan label untuk screen reader.
+class _CircleIconButton extends StatelessWidget {
+  const _CircleIconButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: label,
+      onTap: onTap,
+      excludeSemantics: true,
+      child: PressableScale(
+        onTap: onTap,
+        child: Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.white,
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Icon(icon, size: 22, color: AppColors.ink),
+        ),
+      ),
+    );
+  }
+}
+
+/// Loading / error roadmap. Dulu: spinner polos atau teks exception mentah
+/// TANPA tombol kembali (header hanya ada di state data).
+class _RoadmapStatus extends StatelessWidget {
+  const _RoadmapStatus({this.onRetry});
+
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: _CircleIconButton(
+              icon: Icons.arrow_back_rounded,
+              label: 'Kembali',
+              onTap: () => context.canPop() ? context.pop() : context.go('/history'),
+            ),
+          ),
+          Expanded(
+            child: Center(
+              child: onRetry == null
+                  ? const CircularProgressIndicator(color: AppColors.ink)
+                  : Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.cloud_off_rounded, size: 40, color: AppColors.textSecondary),
+                          const SizedBox(height: 12),
+                          const Text(
+                            'Roadmap belum bisa dimuat',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            'Periksa koneksi internetmu, lalu coba lagi.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                          ),
+                          const SizedBox(height: 16),
+                          FilledButton(
+                            onPressed: onRetry,
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.ink,
+                              minimumSize: const Size(140, 48),
+                              shape: const StadiumBorder(),
+                            ),
+                            child: const Text('Coba lagi', style: TextStyle(fontWeight: FontWeight.w700)),
+                          ),
+                        ],
+                      ),
+                    ),
+            ),
           ),
         ],
       ),

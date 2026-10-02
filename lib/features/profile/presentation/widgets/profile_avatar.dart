@@ -9,6 +9,10 @@ import '../../../../shared/models/user.dart';
 import '../../../sekala_border/presentation/providers/sekala_border_providers.dart';
 import '../providers/avatar_providers.dart';
 
+/// Merah untuk teks/ikon destruktif — AppColors.destructive di atas putih
+/// hanya ~4.2:1; ini ~6.5:1.
+const Color _kDangerText = Color(0xFFB3261D);
+
 enum _AvatarAction { gallery, camera, delete }
 
 /// Avatar profil (Fase 3) — foto asli kalau `user.avatarUrl` ada, fallback
@@ -22,6 +26,10 @@ enum _AvatarAction { gallery, camera, delete }
 /// (`displayImageUrl` null), fallback ke gradient placeholder LAMA supaya
 /// user yang sudah `shouldShowFrame` tetap lihat sesuatu (bukan kosong
 /// polos) sambil menunggu tim desain mengisi aset final lewat Admin Panel.
+///
+/// UBAH: tombol pensil kecil di pojok foto DIHAPUS (menutupi cincin
+/// border) — diganti tombol teks "Edit Foto Profil" di BAWAH foto. Foto
+/// juga tidak lagi punya efek shadow supaya cincin border pas/rapat.
 ///
 /// DEPENDENSI: butuh package `image_picker` — kalau belum ada di
 /// pubspec.yaml, tambahkan dulu (`flutter pub add image_picker`).
@@ -38,6 +46,11 @@ class ProfileAvatar extends ConsumerWidget {
   final String initials;
   final double size;
   final bool editable;
+
+  /// Selisih diameter cincin terhadap foto (px). Naikkan kalau cincin
+  /// terlihat terlalu mepet/menutupi foto, turunkan kalau ada celah putih
+  /// antara foto dan cincin.
+  static const double _ringExtra = 20;
 
   Future<void> _showEditSheet(BuildContext context, WidgetRef ref) async {
     final action = await showModalBottomSheet<_AvatarAction>(
@@ -62,10 +75,8 @@ class ProfileAvatar extends ConsumerWidget {
             ),
             if (user.avatarUrl != null)
               ListTile(
-                leading: const Icon(Icons.delete_outline_rounded,
-                    color: AppColors.destructive),
-                title: const Text('Hapus Foto',
-                    style: TextStyle(color: AppColors.destructive)),
+                leading: const Icon(Icons.delete_outline_rounded, color: _kDangerText),
+                title: const Text('Hapus Foto', style: TextStyle(color: _kDangerText)),
                 onTap: () => Navigator.of(ctx).pop(_AvatarAction.delete),
               ),
             const SizedBox(height: 8),
@@ -79,7 +90,25 @@ class ProfileAvatar extends ConsumerWidget {
     final controller = ref.read(avatarControllerProvider.notifier);
 
     if (action == _AvatarAction.delete) {
-      await controller.delete();
+      // Konfirmasi dulu: sebelumnya satu ketukan di sheet langsung menghapus.
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Hapus foto profil?'),
+          content: const Text('Kamu bisa mengunggah foto baru kapan saja.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Batal'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Hapus', style: TextStyle(color: _kDangerText, fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+      );
+      if (confirmed == true) await controller.delete();
       return;
     }
 
@@ -89,7 +118,24 @@ class ProfileAvatar extends ConsumerWidget {
     // Kompresi ringan di sisi client — BUKAN pengganti resize 512x512 di
     // server (AvatarService::MAX_DIMENSION), cuma memperkecil payload
     // supaya tidak mepet limit 2 MB (UpdateAvatarRequest).
-    final picked = await ImagePicker().pickImage(source: source, imageQuality: 85);
+    XFile? picked;
+    try {
+      picked = await ImagePicker().pickImage(source: source, imageQuality: 85);
+    } catch (_) {
+      // Izin kamera/galeri ditolak (PlatformException) — dulu tidak
+      // ditangkap sehingga tidak ada umpan balik sama sekali.
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Tidak bisa membuka kamera atau galeri. Periksa izin aplikasi '
+              'di Pengaturan perangkat.',
+            ),
+          ),
+        );
+      }
+      return;
+    }
     if (picked == null) return;
 
     await controller.upload(File(picked.path));
@@ -103,8 +149,8 @@ class ProfileAvatar extends ConsumerWidget {
   Widget _borderRing({required double size, required String? imageUrl}) {
     if (imageUrl != null) {
       return SizedBox(
-        width: size + 20,
-        height: size + 20,
+        width: size + _ringExtra,
+        height: size + _ringExtra,
         child: Image.network(
           imageUrl,
           fit: BoxFit.contain,
@@ -121,8 +167,8 @@ class ProfileAvatar extends ConsumerWidget {
 
   Widget _gradientRingFallback({required double size}) {
     return Container(
-      width: size + 20,
-      height: size + 20,
+      width: size + _ringExtra,
+      height: size + _ringExtra,
       padding: const EdgeInsets.all(4),
       decoration: const BoxDecoration(
         shape: BoxShape.circle,
@@ -142,6 +188,9 @@ class ProfileAvatar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isBusy = ref.watch(avatarControllerProvider).isLoading;
+    final avatarLabel = user.shouldShowFrame
+        ? 'Foto profil ${user.name}, dengan Border SEKALA'
+        : 'Foto profil ${user.name}';
 
     // Null kalau masih loading/error, ATAU aset belum di-publish/link
     // belum diisi (SekalaBorder.displayImageUrl) — kasus itu di-fallback
@@ -149,6 +198,8 @@ class ProfileAvatar extends ConsumerWidget {
     final borderImageUrl =
         ref.watch(sekalaBorderProvider).valueOrNull?.displayImageUrl;
 
+    // Tanpa boxShadow — shadow sebelumnya melebar di sekeliling foto dan
+    // bikin cincin border kelihatan tidak rapat/pas.
     final circle = Container(
       width: size,
       height: size,
@@ -167,13 +218,6 @@ class ProfileAvatar extends ConsumerWidget {
                 fit: BoxFit.cover,
               )
             : null,
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.ink.withValues(alpha: 0.25),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
       ),
       alignment: Alignment.center,
       child: user.avatarUrl == null
@@ -187,55 +231,55 @@ class ProfileAvatar extends ConsumerWidget {
           : null,
     );
 
-    return SizedBox(
-      // Ruang ekstra di luar `size` buat cincin border + tombol edit —
-      // sengaja tidak clip persis ke ukuran foto.
-      width: size + 24,
-      height: size + 24,
-      child: Stack(
-        alignment: Alignment.center,
-        clipBehavior: Clip.none,
-        children: [
-          // shouldShowFrame (bukan cuma frameEquipped mentah) — jaga-jaga
-          // kondisi tidak konsisten, cincin tidak pernah tampil tanpa
-          // frameUnlocked true (lihat User.shouldShowFrame).
-          if (user.shouldShowFrame)
-            _borderRing(size: size, imageUrl: borderImageUrl),
-          circle,
-          if (editable)
-            Positioned(
-              bottom: 0,
-              right: 0,
-              child: GestureDetector(
-                onTap: isBusy ? null : () => _showEditSheet(context, ref),
-                child: Container(
-                  width: 28,
-                  height: 28,
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: AppColors.border),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.ink.withValues(alpha: 0.1),
-                        blurRadius: 6,
-                      ),
-                    ],
-                  ),
-                  alignment: Alignment.center,
-                  child: isBusy
-                      ? const SizedBox(
-                          width: 12,
-                          height: 12,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.edit_rounded,
-                          size: 14, color: AppColors.ink),
-                ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Semantics(image: true, label: avatarLabel, excludeSemantics: true, child: SizedBox(
+          // Seukuran cincin border (size + _ringExtra) — tidak perlu ruang ekstra
+          // lagi karena tombol pensil sudah dipindah ke bawah foto.
+          width: size + _ringExtra,
+          height: size + _ringExtra,
+          child: Stack(
+            alignment: Alignment.center,
+            clipBehavior: Clip.none,
+            children: [
+              circle,
+              // Cincin DI ATAS foto (urutan Stack terakhir = paling atas)
+              // supaya bagian dalam cincin (teks/ornamen) tidak tertimpa
+              // foto. Aset PNG diasumsikan transparan di tengah.
+              // shouldShowFrame (bukan cuma frameEquipped mentah) — jaga-jaga
+              // kondisi tidak konsisten, cincin tidak pernah tampil tanpa
+              // frameUnlocked true (lihat User.shouldShowFrame).
+              if (user.shouldShowFrame)
+                _borderRing(size: size, imageUrl: borderImageUrl),
+            ],
+          ),
+        )),
+        if (editable) ...[
+          const SizedBox(height: 4),
+          TextButton.icon(
+            onPressed: isBusy ? null : () => _showEditSheet(context, ref),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.ink,
+              // Dulu `VisualDensity.compact` + padding 4 (~32dp tinggi).
+              minimumSize: const Size(48, 48),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              textStyle: const TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 14,
               ),
             ),
+            icon: isBusy
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.edit_rounded, size: 16),
+            label: Text(isBusy ? 'Memproses...' : 'Edit Foto Profil'),
+          ),
         ],
-      ),
+      ],
     );
   }
 }

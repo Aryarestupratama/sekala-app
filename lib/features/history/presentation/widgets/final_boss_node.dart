@@ -116,7 +116,12 @@ class _LockedFinalBoss extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PressableScale(
+    return Semantics(
+      button: true,
+      onTap: onTap,
+      label: 'Kuis sumatif era. Terkunci, selesaikan semua tahun dulu.',
+      excludeSemantics: true,
+      child: PressableScale(
       onTap: onTap,
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -132,7 +137,9 @@ class _LockedFinalBoss extends StatelessWidget {
             child: const Icon(Icons.lock_rounded, size: 28, color: AppColors.textDisabled),
           ),
           const SizedBox(height: 8),
-          Container(
+          Transform.translate(
+            offset: Offset(_shiftFor(nodeX: nodeX, screenWidth: screenWidth, boxHalfWidth: 80), 0),
+            child: Container(
             constraints: const BoxConstraints(maxWidth: 160),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
@@ -143,18 +150,18 @@ class _LockedFinalBoss extends StatelessWidget {
             child: const Text(
               'Kuis Sumatif — Selesaikan semua tahun',
               textAlign: TextAlign.center,
-              maxLines: 2,
+              maxLines: 3,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: AppColors.textDisabled,
+                color: AppColors.textSecondary,
               ),
             ),
-          ),
+          )),
         ],
       ),
-    );
+    ));
   }
 }
 
@@ -179,7 +186,17 @@ class _UnattemptedFinalBossState extends State<_UnattemptedFinalBoss>
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1700),
-  )..repeat();
+  );
+  bool _pulseStarted = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_pulseStarted) return;
+    _pulseStarted = true;
+    // Hormati "reduce motion": cincin glow tidak berdenyut.
+    if (!MediaQuery.disableAnimationsOf(context)) _controller.repeat();
+  }
 
   @override
   void dispose() {
@@ -191,7 +208,12 @@ class _UnattemptedFinalBossState extends State<_UnattemptedFinalBoss>
   Widget build(BuildContext context) {
     const red = _UnattemptedFinalBoss._red;
 
-    return PressableScale(
+    return Semantics(
+      button: true,
+      onTap: widget.onTap,
+      label: 'Kuis sumatif era. Belum dikerjakan, ketuk untuk mulai.',
+      excludeSemantics: true,
+      child: PressableScale(
       onTap: widget.onTap,
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -236,7 +258,9 @@ class _UnattemptedFinalBossState extends State<_UnattemptedFinalBoss>
             ),
           ),
           const SizedBox(height: 4),
-          Container(
+          Transform.translate(
+            offset: Offset(_shiftFor(nodeX: widget.nodeX, screenWidth: widget.screenWidth, boxHalfWidth: 85), 0),
+            child: Container(
             constraints: const BoxConstraints(maxWidth: 170),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
@@ -250,20 +274,20 @@ class _UnattemptedFinalBossState extends State<_UnattemptedFinalBoss>
                 Text(
                   'Kuis Sumatif Era',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
                 ),
                 SizedBox(height: 2),
                 Text(
                   'Uji semua yang sudah kamu pelajari →',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.white70, fontSize: 10),
+                  style: TextStyle(color: Colors.white, fontSize: 12),
                 ),
               ],
             ),
-          ),
+          )),
         ],
       ),
-    );
+    ));
   }
 }
 
@@ -284,7 +308,12 @@ class _AttemptedFinalBoss extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PressableScale(
+    return Semantics(
+      button: true,
+      onTap: onTap,
+      label: 'Kuis sumatif era. Sudah dikerjakan, ketuk untuk melihat hasil.',
+      excludeSemantics: true,
+      child: PressableScale(
       onTap: onTap,
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -303,7 +332,7 @@ class _AttemptedFinalBoss extends StatelessWidget {
                   ],
                 ),
                 alignment: Alignment.center,
-                child: const Icon(Icons.emoji_events_rounded, size: 34, color: Colors.white),
+                child: const Icon(Icons.emoji_events_rounded, size: 34, color: AppColors.ink),
               ),
               Positioned(
                 top: -4,
@@ -322,7 +351,9 @@ class _AttemptedFinalBoss extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          Container(
+          Transform.translate(
+            offset: Offset(_shiftFor(nodeX: nodeX, screenWidth: screenWidth, boxHalfWidth: 75), 0),
+            child: Container(
             constraints: const BoxConstraints(maxWidth: 150),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
@@ -335,11 +366,28 @@ class _AttemptedFinalBoss extends StatelessWidget {
               textAlign: TextAlign.center,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.ink),
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.ink),
             ),
-          ),
+          )),
         ],
       ),
-    );
+    ));
   }
+}
+
+/// Geser horizontal (px) supaya kotak label selebar `2 * boxHalfWidth`
+/// yang idealnya center di `nodeX` tetap muat di dalam `screenWidth`
+/// (sama dengan `_shiftForBox` di year_node.dart).
+double _shiftFor({
+  required double? nodeX,
+  required double? screenWidth,
+  required double boxHalfWidth,
+}) {
+  if (nodeX == null || screenWidth == null) return 0;
+  const edgePadding = 16.0;
+  final idealLeft = nodeX - boxHalfWidth;
+  final minLeft = edgePadding;
+  final maxLeft = (screenWidth - boxHalfWidth * 2 - edgePadding).clamp(minLeft, double.infinity);
+  final clampedLeft = idealLeft.clamp(minLeft, maxLeft);
+  return clampedLeft - idealLeft;
 }

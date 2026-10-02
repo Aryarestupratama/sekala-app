@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import 'case_study_common.dart';
 
 /// 1 kartu opsi (A–E) di Ruang Keputusan langkah 1.
 ///
@@ -45,10 +46,14 @@ class CaseStudyOptionCard extends StatelessWidget {
       selected: selected,
       hint: selected
           ? 'Prioritas $priority. Ketuk untuk melepas'
-          : 'Ketuk untuk memilih',
+          : dimmed
+              ? 'Semua prioritas sudah terisi. Lepas salah satu dulu'
+              : 'Ketuk untuk memilih',
       child: AnimatedOpacity(
         duration: const Duration(milliseconds: 180),
-        opacity: dimmed ? 0.5 : 1,
+        // 0.72 (bukan 0.5): user masih perlu membaca opsi ini untuk
+        // membandingkan sebelum menukar prioritas.
+        opacity: dimmed ? 0.72 : 1,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           decoration: BoxDecoration(
@@ -94,22 +99,21 @@ class CaseStudyOptionCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            title.toUpperCase(),
-                            style: AppTextStyles.caption.copyWith(
+                            title,
+                            style: AppTextStyles.body.copyWith(
                               color: AppColors.ink,
-                              fontSize: 11.5,
+                              fontSize: 14.5,
                               fontWeight: FontWeight.w700,
-                              letterSpacing: 1.1,
-                              height: 1.35,
+                              height: 1.3,
                             ),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             description,
                             style: AppTextStyles.body.copyWith(
-                              fontSize: 13,
+                              fontSize: 14,
                               height: 1.45,
-                              color: AppColors.ink.withValues(alpha: 0.8),
+                              color: AppColors.ink.withValues(alpha: 0.85),
                             ),
                           ),
                         ],
@@ -138,12 +142,10 @@ class _PriorityBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final onAccent = ThemeData.estimateBrightnessForColor(accent) == Brightness.dark
-        ? Colors.white
-        : AppColors.ink;
+    final onAccent = caseStudyOnColor(accent);
     return Container(
-      width: 24,
-      height: 24,
+      width: 26,
+      height: 26,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: accent,
@@ -153,7 +155,7 @@ class _PriorityBadge extends StatelessWidget {
         '$number',
         style: AppTextStyles.caption.copyWith(
           color: onAccent,
-          fontSize: 12,
+          fontSize: 13,
           fontWeight: FontWeight.w700,
         ),
       ),

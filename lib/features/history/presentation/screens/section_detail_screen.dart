@@ -11,6 +11,7 @@ import '../../../../shared/models/year.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../providers/history_providers.dart';
 import '../widgets/content_block_view.dart';
+import '../widgets/slide_to_confirm.dart';
 
 /// GET /api/public/sections/{section} — INFO-02.
 ///
@@ -33,9 +34,8 @@ import '../widgets/content_block_view.dart';
 ///
 /// REVISI (Header Gambar Section, baru): judul section TIDAK LAGI
 /// dirender di body layar ini — posisi paling atas sekarang header gambar
-/// (`section.headerImageUrl`, opsional per section, bisa null). AppBar di
-/// bawah tetap menampilkan `section.title` sebagai label navigasi
-/// (bukan bagian dari "posisi paling atas" konten yang dimaksud revisi).
+/// (`section.headerImageUrl`, opsional per section, bisa null). AppBar
+/// juga tidak lagi menampilkan `section.title` (hanya tombol back).
 ///
 /// REVISI (konsumsi `year_completed` dari response complete-section,
 /// backlog progress.md): `_handleCtaTap` sekarang mengecek field
@@ -149,6 +149,7 @@ class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
     setState(() => _navigating = true);
 
     var redirectToSummary = false;
+    var saveFailed = false;
 
     if (!alreadyCompleted) {
       final authStatus = ref.read(authNotifierProvider).status;
@@ -175,15 +176,27 @@ class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
           // caller aslinya mau ke "Baca Materi Berikutnya".
           redirectToSummary = result?.yearCompleted ?? false;
         } catch (_) {
-          // Sengaja diabaikan (silent): kegagalan completion tidak
-          // seharusnya menghalangi user lanjut baca. Kalau mau observability,
-          // ganti catch ini dengan logging (mis. Sentry) tanpa rethrow.
+          // Kegagalan completion tetap TIDAK menghentikan navigasi (user
+          // tidak macet), tapi sekarang user diberi tahu -- dulu diam-diam,
+          // sehingga bagian berikutnya bisa terkunci tanpa penjelasan.
+          // Kalau mau observability, tambahkan logging (mis. Sentry) di sini.
+          saveFailed = true;
         }
       }
     }
 
     if (!mounted) return;
     setState(() => _navigating = false);
+
+    if (saveFailed) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Progres bagian ini belum tersimpan. Periksa koneksi internetmu.',
+          ),
+        ),
+      );
+    }
 
     if (redirectToSummary) {
       context.go('/year/$yearId/summary?era=$eraSlug');
@@ -193,26 +206,129 @@ class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
     navigate();
   }
 
+  /// Kembali ke roadmap era. Antar-section memakai `context.go`, jadi
+  /// tumpukan navigasi tidak bisa diandalkan untuk `pop()`.
+  void _goBack(String? eraSlug) {
+    if (eraSlug != null) {
+      context.go('/history/$eraSlug');
+    } else if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go('/history');
+    }
+  }
+
+  /// "Materi 3 dari 9" + bar tipis. Judul section tidak dirender lagi
+  /// (keputusan desain), jadi user butuh penanda posisi & sisa materi.
+  Widget _buildPosition(Section section) {
+    final year = ref
+        .watch(yearInEraProvider((eraSlug: section.year.era.slug, yearId: section.year.id)))
+        .valueOrNull;
+    if (year == null) return const SizedBox.shrink();
+
+    final ordered = _orderedSections(year);
+    final index = ordered.indexWhere((s) => s.id == _id);
+    if (index == -1) return const SizedBox.shrink();
+
+    final accent = EraAccents.ofSlug(section.year.era.slug);
+    final barColor = Color.lerp(accent, AppColors.ink, 0.45)!;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, bottom: 12),
+      child: Semantics(
+        label: 'Materi ${index + 1} dari ${ordered.length}',
+        excludeSemantics: true,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Materi ${index + 1} dari ${ordered.length}',
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 6),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: (index + 1) / ordered.length,
+                minHeight: 6,
+                backgroundColor: AppColors.border,
+                valueColor: AlwaysStoppedAnimation(barColor),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Progres hanya tersimpan untuk user login + email terverifikasi
+  /// (R-AUTH-03). Tanpa catatan ini, tamu / user belum verifikasi membaca
+  /// satu tahun penuh tanpa tahu tidak ada yang tercatat.
+  Widget _buildProgressNotice() {
+    final authStatus = ref.watch(authNotifierProvider).status;
+    final user = ref.watch(currentUserProvider).valueOrNull;
+
+    String? message;
+    if (authStatus == AuthStatus.guest) {
+      message = 'Kamu membaca sebagai tamu, jadi progres tidak tersimpan. '
+          'Masuk atau daftar untuk menyimpannya.';
+    } else if (authStatus == AuthStatus.authenticated &&
+        user != null &&
+        !user.isEmailVerified) {
+      message = 'Email kamu belum diverifikasi, jadi progres bacaan belum '
+          'tersimpan. Buka email verifikasi dari kami (cek juga folder spam), '
+          'atau kirim ulang dari tab Profil.';
+    }
+    if (message == null) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF6E5),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE6B450)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.info_outline_rounded, size: 20, color: AppColors.ink),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(fontSize: 14, height: 1.35, color: AppColors.ink),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildContent(BuildContext context, Section section) {
     final blocks = [...section.contentBlocks]
       ..sort((a, b) => a.order.compareTo(b.order));
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 150),
       children: [
         Row(
           children: [
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: EraAccents.ofSlug(section.year.era.slug).withValues(alpha: 0.15),
+                color: EraAccents.ofSlug(section.year.era.slug),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
-                section.year.era.name.toUpperCase(),
-                style: TextStyle(
-                  color: EraAccents.ofSlug(section.year.era.slug),
-                  fontSize: 11,
+                section.year.era.name,
+                style: const TextStyle(
+                  color: AppColors.ink,
+                  fontSize: 12,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -220,8 +336,8 @@ class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
             const SizedBox(width: 8),
             Text(
               '${section.year.year}',
-              style: TextStyle(
-                color: EraAccents.ofSlug(section.year.era.slug),
+              style: const TextStyle(
+                color: AppColors.ink,
                 fontWeight: FontWeight.bold,
                 fontSize: 20,
               ),
@@ -229,6 +345,8 @@ class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
           ],
         ),
         const SizedBox(height: 8),
+        _buildPosition(section),
+        _buildProgressNotice(),
         // (Revisi) Judul section TIDAK LAGI dirender di sini — posisi
         // paling atas sekarang header gambar (opsional per section, bisa
         // null). Kalau null, langsung lanjut ke blok konten pertama tanpa
@@ -293,6 +411,8 @@ class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
         if (isLastSection) {
           return _CtaButton(
             label: 'Lihat Rangkuman',
+            slideLabel: 'Geser untuk rangkuman',
+            accent: EraAccents.ofSlug(section.year.era.slug),
             icon: Icons.menu_book_outlined,
             loading: _navigating,
             onTap: () => _handleCtaTap(
@@ -312,6 +432,8 @@ class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
         if (next.isCaseStudy) {
           return _CtaButton(
             label: 'Mulai Studi Kasus',
+            slideLabel: 'Geser untuk studi kasus',
+            accent: EraAccents.ofSlug(section.year.era.slug),
             icon: Icons.psychology_alt_outlined,
             loading: _navigating,
             onTap: () => _handleCtaTap(
@@ -327,6 +449,8 @@ class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
 
         return _CtaButton(
           label: 'Baca Materi Berikutnya',
+          slideLabel: 'Geser untuk lanjut baca',
+          accent: EraAccents.ofSlug(section.year.era.slug),
           icon: Icons.arrow_forward,
           loading: _navigating,
           onTap: () => _handleCtaTap(
@@ -361,7 +485,13 @@ class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
     final sectionAsync = ref.watch(sectionDetailProvider(_id));
 
     return Scaffold(
-      appBar: AppBar(title: Text(sectionAsync.valueOrNull?.title ?? 'Memuat...')),
+      appBar: AppBar(
+        leading: IconButton(
+          tooltip: 'Kembali',
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: () => _goBack(sectionAsync.valueOrNull?.year.era.slug),
+        ),
+      ),
       body: sectionAsync.when(
         data: (section) {
           if (section.isCaseStudy) {
@@ -379,11 +509,24 @@ class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
                 left: 0,
                 right: 0,
                 bottom: 0,
-                child: SafeArea(
-                  top: false,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: _buildBottomCta(context, section),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 0),
+                        Theme.of(context).scaffoldBackgroundColor,
+                      ],
+                      stops: const [0, 0.4],
+                    ),
+                  ),
+                  child: SafeArea(
+                    top: false,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 28, 16, 16),
+                      child: _buildBottomCta(context, section),
+                    ),
                   ),
                 ),
               ),
@@ -393,34 +536,60 @@ class _SectionDetailScreenState extends ConsumerState<SectionDetailScreen> {
         loading: () => const Center(child: CircularProgressIndicator()),
         // 404 (section draft/belum publish, R-CMS-01) juga bakal muncul
         // di sini sebagai pesan error generik lewat ApiException.message.
-        error: (error, _) => Center(child: Text('Gagal memuat section: $error')),
+        error: (error, _) => _SectionLoadError(
+          onRetry: () => ref.invalidate(sectionDetailProvider(_id)),
+          onBack: () => _goBack(null),
+        ),
       ),
     );
   }
 }
 
+/// CTA bawah section. Aksi "lanjut" berupa geser-untuk-lanjut
+/// ([SlideToConfirm]) supaya tidak terpencet saat user scroll materi.
+/// - [slideLabel] terisi -> mode geser.
+/// - [onTap] null -> mode geser nonaktif (data belum siap; ukuran sama
+///   sehingga layout tidak melompat).
+/// - Selain itu (mis. "Coba Lagi") tetap tombol biasa: aksi aman & berulang
+///   tidak perlu digeser.
 class _CtaButton extends StatelessWidget {
   const _CtaButton({
     required this.label,
     required this.icon,
     required this.onTap,
     this.loading = false,
+    this.slideLabel,
+    this.accent,
   });
 
   final String label;
   final IconData icon;
   final VoidCallback? onTap;
   final bool loading;
+  final String? slideLabel;
+  final Color? accent;
 
   @override
   Widget build(BuildContext context) {
-    final disabled = loading || onTap == null;
+    if (slideLabel != null || onTap == null) {
+      return SlideToConfirm(
+        label: slideLabel ?? 'Geser untuk lanjut',
+        onConfirm: onTap,
+        loading: loading,
+        accent: accent,
+      );
+    }
+
+    final disabled = loading;
 
     return SizedBox(
       width: double.infinity,
       child: FilledButton(
         style: FilledButton.styleFrom(
           backgroundColor: AppColors.ink,
+          disabledBackgroundColor: AppColors.ink,
+          disabledForegroundColor: Colors.white70,
+          minimumSize: const Size.fromHeight(52),
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
         ),
@@ -428,7 +597,7 @@ class _CtaButton extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+            Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(width: 8),
             if (loading)
               const SizedBox(
@@ -438,6 +607,61 @@ class _CtaButton extends StatelessWidget {
               )
             else
               Icon(icon, size: 18),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Gagal memuat section. Penyebab umum: bagian ini masih terkunci karena
+/// progres bagian sebelumnya belum tersimpan, atau koneksi terputus.
+class _SectionLoadError extends StatelessWidget {
+  const _SectionLoadError({required this.onRetry, required this.onBack});
+
+  final VoidCallback onRetry;
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.cloud_off_rounded, size: 40, color: AppColors.textSecondary),
+            const SizedBox(height: 12),
+            const Text(
+              'Materi ini belum bisa dibuka',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Koneksimu mungkin terputus, atau bagian sebelumnya belum '
+              'tersimpan sebagai selesai. Coba lagi, atau kembali ke roadmap.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, height: 1.4, color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 16),
+            FilledButton(
+              onPressed: onRetry,
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.ink,
+                minimumSize: const Size(160, 48),
+                shape: const StadiumBorder(),
+              ),
+              child: const Text('Coba lagi', style: TextStyle(fontWeight: FontWeight.w700)),
+            ),
+            TextButton(
+              onPressed: onBack,
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.ink,
+                minimumSize: const Size(160, 48),
+              ),
+              child: const Text('Kembali', style: TextStyle(fontWeight: FontWeight.w700)),
+            ),
           ],
         ),
       ),

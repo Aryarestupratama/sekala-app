@@ -25,7 +25,15 @@ class VaccineDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final id = int.parse(vaccineId);
+    // tryParse: parameter rute rusak (deep link) dulu melempar FormatException.
+    final id = int.tryParse(vaccineId);
+    if (id == null) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(backgroundColor: AppColors.background, elevation: 0),
+        body: const _VaccineUnavailable(),
+      );
+    }
     final vaccineAsync = ref.watch(vaccineDetailProvider(id));
 
     return Scaffold(
@@ -39,67 +47,40 @@ class VaccineDetailScreen extends ConsumerWidget {
               backgroundColor: AppColors.background,
               foregroundColor: Colors.white,
               automaticallyImplyLeading: false,
+              leadingWidth: 68,
               leading: Padding(
-                padding: const EdgeInsets.only(left: 12, top: 6),
-                child: PressableScale(
-                  onTap: () => Navigator.of(context).maybePop(),
-                  child: Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.35),
-                      shape: BoxShape.circle,
+                padding: const EdgeInsets.only(left: 12, top: 4),
+                child: Semantics(
+                  button: true,
+                  label: 'Kembali',
+                  child: PressableScale(
+                    onTap: () => Navigator.of(context).maybePop(),
+                    child: Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        // 0.55 (bukan 0.35): tanpa foto, latar pucat membuat ikon
+                        // putih hanya ~2.3:1.
+                        color: Colors.black.withValues(alpha: 0.55),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.arrow_back_rounded, size: 22),
                     ),
-                    child: const Icon(Icons.arrow_back_rounded, size: 20),
                   ),
                 ),
               ),
-              // Placeholder UI — belum ada fitur bookmark/share di backend,
-              // sengaja dibiarkan sebagai tombol non-fungsional dulu sesuai
-              // referensi visual; hapus kalau tidak ingin menjanjikan fitur.
-              actions: [
-                Padding(
-                  padding: const EdgeInsets.only(top: 6),
-                  child: PressableScale(
-                    onTap: null,
-                    child: Container(
-                      width: 38,
-                      height: 38,
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.35),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.bookmark_border_rounded, size: 19),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Padding(
-                  padding: const EdgeInsets.only(top: 6),
-                  child: PressableScale(
-                    onTap: null,
-                    child: Container(
-                      width: 38,
-                      height: 38,
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.35),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.ios_share_rounded, size: 18),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-              ],
+              // Tombol bookmark & bagikan DIHAPUS: keduanya `onTap: null`
+              // (mati) dan menjanjikan fitur yang belum ada di backend —
+              // komentar lama sendiri menyuruh menghapusnya.
               flexibleSpace: FlexibleSpaceBar(
                 background: Stack(
                   fit: StackFit.expand,
                   children: [
                     if (vaccine.photoUrl != null)
-                      CachedNetworkImage(
+                      Semantics(image: true, label: 'Foto ${vaccine.name}', child: CachedNetworkImage(
                         imageUrl: vaccine.photoUrl!,
                         fit: BoxFit.cover,
-                      )
+                      ))
                     else
                       Container(
                         decoration: BoxDecoration(
@@ -194,12 +175,12 @@ class VaccineDetailScreen extends ConsumerWidget {
                       const SizedBox(height: 24),
                       Text(
                         'Peran dalam Sejarah Kesehatan',
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
                       ),
                       const SizedBox(height: 6),
                       Text(
                         vaccine.description,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.5),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 16, height: 1.6),
                       ),
                     ],
                   ),
@@ -211,28 +192,15 @@ class VaccineDetailScreen extends ConsumerWidget {
         loading: () => Scaffold(
           backgroundColor: AppColors.background,
           appBar: AppBar(backgroundColor: AppColors.background, elevation: 0),
-          body: Center(child: CircularProgressIndicator(color: AppColors.gamify)),
+          body: const Center(child: CircularProgressIndicator(color: AppColors.ink)),
         ),
-        // 404 (belum unlock / vaksin nggak ada, R-VAC-01/05) jatuh ke sini.
+        // 404 (belum unlock / vaksin nggak ada, R-VAC-01/05) ATAU koneksi
+        // bermasalah jatuh ke sini — dulu keduanya satu pesan tanpa aksi.
         error: (error, _) => Scaffold(
           backgroundColor: AppColors.background,
           appBar: AppBar(backgroundColor: AppColors.background, elevation: 0),
-          body: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.lock_outline_rounded, size: 44, color: AppColors.textSecondary.withValues(alpha: 0.5)),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Vaksin ini belum terbuka atau tidak ditemukan.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: AppColors.textSecondary),
-                  ),
-                ],
-              ),
-            ),
+          body: _VaccineUnavailable(
+            onRetry: () => ref.invalidate(vaccineDetailProvider(id)),
           ),
         ),
       ),
@@ -255,6 +223,13 @@ class _FadeInState extends State<_FadeIn> with SingleTickerProviderStateMixin {
     vsync: this,
     duration: const Duration(milliseconds: 400),
   )..forward();
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Hormati "reduce motion": konten langsung tampil penuh.
+    if (MediaQuery.disableAnimationsOf(context)) _controller.value = 1;
+  }
 
   @override
   void dispose() {
@@ -281,7 +256,7 @@ class _Chip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(999),
@@ -289,11 +264,14 @@ class _Chip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: color),
+          Icon(icon, size: 16, color: color),
           const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 12.5),
+          // Teks Ink: gamify/success di atas tint-nya hanya ~3.0:1 / ~2.9:1.
+          Flexible(
+            child: Text(
+              label,
+              style: const TextStyle(color: AppColors.ink, fontWeight: FontWeight.w600, fontSize: 14),
+            ),
           ),
         ],
       ),
@@ -320,17 +298,65 @@ class _InfoRow extends StatelessWidget {
               style: Theme.of(context)
                   .textTheme
                   .bodyMedium
-                  ?.copyWith(color: AppColors.textSecondary),
+                  ?.copyWith(color: AppColors.textSecondary, fontSize: 15),
             ),
           ),
           Expanded(
             child: Text(
               value,
               textAlign: TextAlign.right,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600, fontSize: 15),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Vaksin belum bisa dibuka: belum unlock / tidak ditemukan (404), atau
+/// koneksi bermasalah. [onRetry] null = tanpa tombol ulang (rute rusak).
+class _VaccineUnavailable extends StatelessWidget {
+  const _VaccineUnavailable({this.onRetry});
+
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.lock_outline_rounded, size: 44, color: AppColors.textSecondary),
+            const SizedBox(height: 12),
+            const Text(
+              'Vaksin ini belum bisa dibuka',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Mungkin vaksin ini belum terbuka (tuntaskan wabah terkaitnya dulu), '
+              'tidak ditemukan, atau koneksimu bermasalah.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 15, height: 1.4, color: AppColors.textSecondary),
+            ),
+            if (onRetry != null) ...[
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: onRetry,
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.ink,
+                  minimumSize: const Size(140, 48),
+                  shape: const StadiumBorder(),
+                ),
+                child: const Text('Coba lagi', style: TextStyle(fontWeight: FontWeight.w700)),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }

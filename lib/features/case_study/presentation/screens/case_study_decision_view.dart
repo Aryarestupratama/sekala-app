@@ -72,9 +72,10 @@ class CaseStudyDecisionView extends StatefulWidget {
 }
 
 class _CaseStudyDecisionViewState extends State<CaseStudyDecisionView> {
-  /// Tinggi header yang di-pin = tray (~142) + padding vertikal (12) +
-  /// cadangan. Sinkron dengan `CaseStudyPriorityTray`.
-  static const double _trayExtent = 158;
+  /// Tinggi header yang di-pin = tray (~154) + padding vertikal (12) +
+  /// cadangan. Sinkron dengan `CaseStudyPriorityTray` (header tray 44dp
+  /// supaya tombol "Susun ulang" memenuhi target sentuh minimum).
+  static const double _trayExtent = 170;
 
   _DecisionStep _step = _DecisionStep.rank;
   final List<int?> _slots = List<int?>.filled(CaseStudyRules.slotCount, null);
@@ -145,6 +146,22 @@ class _CaseStudyDecisionViewState extends State<CaseStudyDecisionView> {
   }
 
   void _reset() => setState(() => _slots.fillRange(0, _slots.length, null));
+
+  /// Kartu yang diredupkan (semua slot penuh) dulu mati tanpa respons;
+  /// sekarang user diberi tahu apa yang harus dilakukan.
+  void _hintSlotsFull() {
+    HapticFeedback.lightImpact();
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Ketiga prioritas sudah terisi. Ketuk salah satu kartu terpilih '
+            'atau slot di atas untuk melepasnya dulu.',
+          ),
+        ),
+      );
+  }
 
   void _goTo(_DecisionStep step) {
     FocusScope.of(context).unfocus();
@@ -295,7 +312,7 @@ class _CaseStudyDecisionViewState extends State<CaseStudyDecisionView> {
                       Text(
                         CaseStudyTexts.rankInstruction(widget.wabahName),
                         style: AppTextStyles.bodySecondary
-                            .copyWith(fontSize: 14),
+                            .copyWith(fontSize: 15),
                       ),
                     ],
                   ),
@@ -320,7 +337,7 @@ class _CaseStudyDecisionViewState extends State<CaseStudyDecisionView> {
                   child: Text(
                     CaseStudyTexts.pickHeading(options.length),
                     style: AppTextStyles.body.copyWith(
-                      fontSize: 13,
+                      fontSize: 14,
                       fontWeight: FontWeight.w600,
                       height: 1.2,
                     ),
@@ -345,7 +362,7 @@ class _CaseStudyDecisionViewState extends State<CaseStudyDecisionView> {
                       priority: selected ? slotIndex + 1 : null,
                       dimmed: dimmed,
                       accent: widget.accent,
-                      onTap: dimmed ? null : () => _toggle(o.id),
+                      onTap: dimmed ? _hintSlotsFull : () => _toggle(o.id),
                     );
                   },
                 ),
@@ -437,7 +454,7 @@ class _CaseStudyDecisionViewState extends State<CaseStudyDecisionView> {
                     Text(
                       widget.reasonDescription,
                       style:
-                          AppTextStyles.bodySecondary.copyWith(fontSize: 14),
+                          AppTextStyles.bodySecondary.copyWith(fontSize: 15),
                     ),
                   ],
                   const SizedBox(height: 12),
@@ -448,12 +465,12 @@ class _CaseStudyDecisionViewState extends State<CaseStudyDecisionView> {
                     maxLines: null,
                     keyboardType: TextInputType.multiline,
                     textCapitalization: TextCapitalization.sentences,
-                    style: AppTextStyles.body.copyWith(fontSize: 14),
+                    style: AppTextStyles.body.copyWith(fontSize: 16),
                     decoration: InputDecoration(
                       hintText: CaseStudyTexts.reasonPlaceholder,
                       hintStyle: AppTextStyles.body.copyWith(
-                        fontSize: 14,
-                        color: AppColors.textDisabled,
+                        fontSize: 16,
+                        color: AppColors.textSecondary,
                       ),
                     ),
                   ),
@@ -473,7 +490,7 @@ class _CaseStudyDecisionViewState extends State<CaseStudyDecisionView> {
                         '$_reasonLength/${CaseStudyRules.reasonMinLength}',
                         style: AppTextStyles.caption.copyWith(
                           fontWeight: FontWeight.w600,
-                          color: ready ? AppColors.ink : AppColors.textDisabled,
+                          color: ready ? AppColors.ink : AppColors.textSecondary,
                         ),
                       ),
                     ],
@@ -517,7 +534,7 @@ class _StepTopBar extends StatelessWidget {
           const Spacer(),
           Text(
             CaseStudyTexts.stepLabel(step),
-            style: AppTextStyles.caption.copyWith(fontSize: 12.5),
+            style: AppTextStyles.caption.copyWith(fontSize: 14),
           ),
         ],
       ),
@@ -609,15 +626,15 @@ class _SummaryCard extends StatelessWidget {
               ),
               TextButton.icon(
                 onPressed: onEdit,
-                icon: const Icon(Icons.edit_outlined, size: 16),
+                icon: const Icon(Icons.edit_outlined, size: 18),
                 label: const Text(CaseStudyTexts.editCta),
                 style: TextButton.styleFrom(
                   foregroundColor: AppColors.ink,
                   padding: const EdgeInsets.symmetric(horizontal: 8),
-                  minimumSize: const Size(0, 32),
+                  minimumSize: const Size(0, 44),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   textStyle: AppTextStyles.caption.copyWith(
-                    fontSize: 12.5,
+                    fontSize: 13.5,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -656,9 +673,7 @@ class _SummaryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final onAccent = ThemeData.estimateBrightnessForColor(accent) == Brightness.dark
-        ? Colors.white
-        : AppColors.ink;
+    final onAccent = caseStudyOnColor(accent);
     return Container(
       constraints: const BoxConstraints(minHeight: 44),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),

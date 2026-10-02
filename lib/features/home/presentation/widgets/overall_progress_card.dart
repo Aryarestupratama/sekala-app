@@ -1,18 +1,19 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 
-/// Design.md §3.2 (mockup Home terbaru): card "Progress Belajarmu" —
-/// ring progress custom, menampilkan total tahun yang sudah dibaca dari
-/// SELURUH era (gabungan `progressByEra`), beda dengan `EraCard` yang
-/// per-era.
+/// Design.md §3.2 — card "Progress Belajarmu": total tahun yang TUNTAS dari
+/// SELURUH era (gabungan `progressByEra`).
 ///
-/// REDESIGN: ring sekarang mengisi dengan animasi (0 -> nilai asli) tiap
-/// kali widget ini pertama tampil atau [completed]/[total] berubah
-/// (mis. setelah pull-to-refresh), pakai `TweenAnimationBuilder` — tidak
-/// perlu AnimationController manual karena tidak ada state lain yang
-/// perlu disimpan. Ring track & warna tetap sama, ukuran sedikit
-/// diperkecil (200) supaya proporsinya lebih pas di kartu yang kini juga
-/// punya bayangan lembut.
+/// REVISI (design review):
+/// - Ring 200dp di tengah kartu (~300dp tinggi total, separuh layar 640dp
+///   untuk satu angka) diganti layout horizontal: ring 92dp + teks. Tombol
+///   "Jelajahi" di bawahnya tidak lagi terdorong keluar layar.
+/// - "tahun dibaca" -> "tahun tuntas": "completed" mensyaratkan kuis lulus
+///   (R-PROG-07). Copy lama membuat user yang sudah baca 1 tahun penuh
+///   tapi belum lulus kuis melihat "0" dan bingung.
+/// - State 0 tuntas: bukan cuma "0/22", tapi kalimat yang menjelaskan apa
+///   yang membuka progres berikutnya (kartu vaksin & badge).
+/// - Animasi mengisi hormati "reduce motion". Semantics: satu label.
 class OverallProgressCard extends StatelessWidget {
   const OverallProgressCard({
     super.key,
@@ -27,122 +28,106 @@ class OverallProgressCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const ringSize = 200.0;
+    const ringSize = 92.0;
+    const stroke = 10.0;
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppColors.border),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.ink.withValues(alpha: 0.04),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          SizedBox(
-            width: ringSize,
-            height: ringSize,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                SizedBox(
-                  width: ringSize,
-                  height: ringSize,
-                  child: const CircularProgressIndicator(
-                    value: 1,
-                    strokeWidth: 16,
-                    strokeCap: StrokeCap.round,
-                    valueColor: AlwaysStoppedAnimation(AppColors.border),
-                  ),
-                ),
-                SizedBox(
-                  width: ringSize,
-                  height: ringSize,
-                  child: TweenAnimationBuilder<double>(
-                    tween: Tween(begin: 0, end: _ratio),
-                    duration: const Duration(milliseconds: 900),
-                    curve: Curves.easeOutCubic,
-                    builder: (context, value, _) {
-                      return CircularProgressIndicator(
-                        value: value,
-                        strokeWidth: 16,
-                        strokeCap: StrokeCap.round,
-                        backgroundColor: Colors.transparent,
-                        valueColor:
-                            const AlwaysStoppedAnimation(AppColors.ink),
-                      );
-                    },
-                  ),
-                ),
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Progress Keseluruhan',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
+    final textTheme = Theme.of(context).textTheme;
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final duration =
+        reduceMotion ? Duration.zero : const Duration(milliseconds: 900);
+    final percent = (_ratio * 100).round();
+
+    final hint = completed == 0
+        ? 'Tuntaskan satu tahun untuk mulai mengumpulkan kartu vaksin dan badge.'
+        : 'Tuntas = semua materi dibaca dan kuis lulus.';
+
+    return Semantics(
+      container: true,
+      label: 'Progress belajar: $completed dari $total tahun tuntas. $hint',
+      excludeSemantics: true,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: AppColors.border),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.ink.withValues(alpha: 0.04),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            SizedBox(
+              width: ringSize,
+              height: ringSize,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  const SizedBox.expand(
+                    child: CircularProgressIndicator(
+                      value: 1,
+                      strokeWidth: stroke,
+                      strokeCap: StrokeCap.round,
+                      valueColor: AlwaysStoppedAnimation(AppColors.border),
                     ),
-                    const SizedBox(height: 4),
-                    TweenAnimationBuilder<int>(
-                      tween: IntTween(begin: 0, end: completed),
-                      duration: const Duration(milliseconds: 900),
+                  ),
+                  SizedBox.expand(
+                    child: TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0, end: _ratio),
+                      duration: duration,
                       curve: Curves.easeOutCubic,
                       builder: (context, value, _) {
-                        return RichText(
-                          text: TextSpan(
-                            style: Theme.of(context)
-                                .textTheme
-                                .headlineMedium
-                                ?.copyWith(
-                                  color: AppColors.ink,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                            children: [
-                              TextSpan(text: '$value'),
-                              TextSpan(
-                                text: '/$total',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleMedium
-                                    ?.copyWith(
-                                      color: AppColors.textSecondary,
-                                      fontWeight: FontWeight.normal,
-                                    ),
-                              ),
-                            ],
-                          ),
+                        return CircularProgressIndicator(
+                          value: value,
+                          strokeWidth: stroke,
+                          strokeCap: StrokeCap.round,
+                          backgroundColor: Colors.transparent,
+                          valueColor:
+                              const AlwaysStoppedAnimation(AppColors.ink),
                         );
                       },
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'tahun telah dibaca',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
+                  ),
+                  Text(
+                    '$percent%',
+                    style: textTheme.titleMedium?.copyWith(
+                      color: AppColors.ink,
+                      fontWeight: FontWeight.w800,
                     ),
-                  ],
-                ),
-              ],
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            'Rincian per periode ada di halaman\nInformasi Sejarah',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-          ),
-        ],
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '$completed dari $total tahun tuntas',
+                    style: textTheme.titleMedium?.copyWith(
+                      color: AppColors.ink,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    hint,
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textSecondary,
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
